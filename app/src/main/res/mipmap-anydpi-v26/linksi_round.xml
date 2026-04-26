@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@drawable/linksi_background"/>
+    <background android:drawable="@color/linksi_background"/>
     <foreground android:drawable="@mipmap/linksi_foreground"/>
     <monochrome android:drawable="@mipmap/linksi_foreground"/>
 </adaptive-icon>

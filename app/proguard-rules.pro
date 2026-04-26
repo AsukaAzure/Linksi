@@ -19,3 +19,5 @@
 
 # Coil
 -keep class coil.** { *; }
+
+-dontwarn org.jspecify.annotations.NullMarked

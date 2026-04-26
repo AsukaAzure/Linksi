@@ -81,7 +81,7 @@ fun ShareReceiverSheet(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFolderId by remember { mutableStateOf<Long?>(null) }
-    var isSaving by remember { mutableStateOf(false) }
+//    var isSaving by remember { mutableStateOf(false) }
 
     // Sheet drag state
     val sheetState = rememberModalBottomSheetState(
@@ -89,9 +89,9 @@ fun ShareReceiverSheet(
     )
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(state.isFetchingMetadata) {
-        if (isSaving && !state.isFetchingMetadata) onSaved()
-    }
+//    LaunchedEffect(state.isFetchingMetadata) {
+//        if (isSaving && !state.isFetchingMetadata) onSaved()
+//    }
 
     // Animate in on launch
     LaunchedEffect(Unit) {
@@ -202,8 +202,13 @@ fun ShareReceiverSheet(
 
                 Button(
                     onClick = {
-                        isSaving = true
-                        viewModel.addLink(url, selectedFolderId)
+                        scope.launch {
+                            viewModel.addLink(url, selectedFolderId)
+                            sheetState.hide()
+                            onSaved()
+                        }
+//                        isSaving = true
+//                        viewModel.addLink(url, selectedFolderId)
                     },
                     modifier = Modifier.weight(1f),
                     enabled = !state.isFetchingMetadata
