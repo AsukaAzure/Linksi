@@ -20,6 +20,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import coil.compose.AsyncImage
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
@@ -48,169 +53,241 @@ fun LinkCard(
     else
         MaterialTheme.colorScheme.surface
 
-    ElevatedCard(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(containerColor = cardColor),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (!link.isRead) 2.dp else 0.dp)
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
-            ) {
-                // Favicon
-                AsyncImage(
-                    model = link.faviconUrl,
-                    contentDescription = "Favicon",
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentScale = ContentScale.Crop
-                )
-
-                Spacer(Modifier.width(10.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    // Domain + unread indicator
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (!link.isRead) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                        }
-                        Text(
-                            text = link.domain.ifBlank { "link" },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1
-                        )
+    val dismissState = rememberSwipeToDismissBoxState(
+        positionalThreshold = { totalDistance -> totalDistance * 0.7f },
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.EndToStart -> { onDelete(); true }
+                SwipeToDismissBoxValue.StartToEnd-> {
+                    val sendIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_TEXT, "${link.title}\n${link.url}")
+                        type = "text/plain"
                     }
-
-                    // Title
-                    Text(
-                        text = link.title.ifBlank { link.url },
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    // Description
-                    if (link.description.isNotBlank()) {
-                        Text(
-                            text = link.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    context.startActivity(Intent.createChooser(sendIntent, "Share link via"))
+                    false
                 }
+                else -> false
+            }
+        }
+    )
 
-                // Menu button
-                Box {
-                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.MoreVert, "More", Modifier.size(18.dp))
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = modifier.fillMaxWidth(),
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val isDelete = direction == SwipeToDismissBoxValue.EndToStart
+            val isShare = direction == SwipeToDismissBoxValue.StartToEnd
+
+            val bgColor by animateColorAsState(
+                targetValue = when {
+                    isDelete -> MaterialTheme.colorScheme.errorContainer
+                    isShare -> MaterialTheme.colorScheme.primaryContainer
+                    else -> MaterialTheme.colorScheme.surface
+                },
+                label = "swipe_bg"
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CardDefaults.elevatedShape)
+                    .background(bgColor)
+                    .padding(horizontal = 24.dp),
+                contentAlignment = if (isDelete) Alignment.CenterEnd else Alignment.CenterStart
+            ) {
+                if (isDelete) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Outlined.Delete, null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            "Delete", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
                     }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Edit") },
-                            leadingIcon = { Icon(Icons.Outlined.Edit, null) },
-                            onClick = { showMenu = false; onEdit() }
+                } else if (isShare) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Outlined.Share, null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                        DropdownMenuItem(
-                            text = { Text("Move to folder") },
-                            leadingIcon = { Icon(Icons.Outlined.FolderOpen, null) },
-                            onClick = { showMenu = false; showFolderPicker = true }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                            leadingIcon = { Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                            onClick = { showMenu = false; onDelete() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Share") },
-                            leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                            onClick = {
-                                showMenu = false
-                                val sendIntent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TEXT, "${link.title}\n ${link.url}")
-                                    type = "text/plain"
-                                }
-                                context.startActivity(Intent.createChooser(sendIntent, "Share Link via"))
-                            }
+                        Text(
+                            "Share", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
             }
-
-            // Bottom row: date + tags + favorite
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+        }
+    ) {
+            ElevatedCard(
+                onClick = onClick,
+                modifier = modifier.fillMaxWidth(),
+                colors = CardDefaults.elevatedCardColors(containerColor = cardColor),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (!link.isRead) 2.dp else 0.dp)
             ) {
-                // Folder badge
-                val folder = folders.find { it.id == link.folderId }
-                if (folder != null) {
-                    AssistChip(
-                        onClick = {},
-                        label = { Text("${folder.emoji} ${folder.name}", style = MaterialTheme.typography.labelSmall) },
-                        modifier = Modifier.height(24.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        // Favicon
+                        AsyncImage(
+                            model = link.faviconUrl,
+                            contentDescription = "Favicon",
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentScale = ContentScale.Crop
+                        )
+
+                        Spacer(Modifier.width(10.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            // Domain + unread indicator
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (!link.isRead) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                }
+                                Text(
+                                    text = link.domain.ifBlank { "link" },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1
+                                )
+                            }
+
+                            // Title
+                            Text(
+                                text = link.title.ifBlank { link.url },
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            // Description
+                            if (link.description.isNotBlank()) {
+                                Text(
+                                    text = link.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        // Menu button
+                        Box {
+                            IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Filled.MoreVert, "More", Modifier.size(18.dp))
+                            }
+                            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Edit") },
+                                    leadingIcon = { Icon(Icons.Outlined.Edit, null) },
+                                    onClick = { showMenu = false; onEdit() }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Move to folder") },
+                                    leadingIcon = { Icon(Icons.Outlined.FolderOpen, null) },
+                                    onClick = { showMenu = false; showFolderPicker = true }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = { Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                                    onClick = { showMenu = false; onDelete() }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Share") },
+                                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                                    onClick = {
+                                        showMenu = false
+                                        val sendIntent = Intent().apply {
+                                            action = Intent.ACTION_SEND
+                                            putExtra(Intent.EXTRA_TEXT, "${link.title}\n ${link.url}")
+                                            type = "text/plain"
+                                        }
+                                        context.startActivity(Intent.createChooser(sendIntent, "Share Link via"))
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Bottom row: date + tags + favorite
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Folder badge
+                        val folder = folders.find { it.id == link.folderId }
+                        if (folder != null) {
+                            AssistChip(
+                                onClick = {},
+                                label = { Text("${folder.emoji} ${folder.name}", style = MaterialTheme.typography.labelSmall) },
+                                modifier = Modifier.height(24.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
+
+                        // Tags
+                        link.tags.take(2).forEach { tag ->
+                            SuggestionChip(
+                                onClick = {},
+                                label = { Text("#$tag", style = MaterialTheme.typography.labelSmall) },
+                                modifier = Modifier.height(24.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                        }
+
+                        Spacer(Modifier.weight(1f))
+
+                        // Date
+                        Text(
+                            text = formatDate(link.createdAt),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(Modifier.width(4.dp))
+
+                        // Favorite
+                        IconButton(onClick = onFavoriteToggle, modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                "Favorite",
+                                Modifier.size(18.dp),
+                                tint = if (link.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
+            }
 
-                // Tags
-                link.tags.take(2).forEach { tag ->
-                    SuggestionChip(
-                        onClick = {},
-                        label = { Text("#$tag", style = MaterialTheme.typography.labelSmall) },
-                        modifier = Modifier.height(24.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                }
-
-                Spacer(Modifier.weight(1f))
-
-                // Date
-                Text(
-                    text = formatDate(link.createdAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            if (showFolderPicker) {
+                FolderPickerDialog(
+                    folders = folders,
+                    currentFolderId = link.folderId,
+                    onSelect = { folderId -> onMoveToFolder(folderId); showFolderPicker = false },
+                    onDismiss = { showFolderPicker = false }
                 )
-
-                Spacer(Modifier.width(4.dp))
-
-                // Favorite
-                IconButton(onClick = onFavoriteToggle, modifier = Modifier.size(28.dp)) {
-                    Icon(
-                        if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        "Favorite",
-                        Modifier.size(18.dp),
-                        tint = if (link.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
         }
     }
 
-    if (showFolderPicker) {
-        FolderPickerDialog(
-            folders = folders,
-            currentFolderId = link.folderId,
-            onSelect = { folderId -> onMoveToFolder(folderId); showFolderPicker = false },
-            onDismiss = { showFolderPicker = false }
-        )
-    }
-}
+
 
 @Composable
 fun LinkGridCard(
