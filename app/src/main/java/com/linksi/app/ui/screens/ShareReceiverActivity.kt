@@ -24,6 +24,8 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.snapshotFlow
 
 @AndroidEntryPoint
 class ShareReceiverActivity : ComponentActivity() {
@@ -204,6 +206,10 @@ fun ShareReceiverSheet(
                     onClick = {
                         scope.launch {
                             viewModel.addLink(url, selectedFolderId)
+                            snapshotFlow { state.isFetchingMetadata }
+                                .first { it }
+                            snapshotFlow { state.isFetchingMetadata }
+                                .first { !it }
                             sheetState.hide()
                             onSaved()
                         }

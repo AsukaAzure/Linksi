@@ -1,5 +1,6 @@
 package com.linksi.app.ui.components
 
+import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -38,6 +40,8 @@ fun LinkCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showFolderPicker by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
 
     val cardColor = if (!link.isRead)
         MaterialTheme.colorScheme.surfaceVariant
@@ -129,6 +133,19 @@ fun LinkCard(
                             text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                             leadingIcon = { Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error) },
                             onClick = { showMenu = false; onDelete() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Share") },
+                            leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                            onClick = {
+                                showMenu = false
+                                val sendIntent = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    putExtra(Intent.EXTRA_TEXT, "${link.title}\n ${link.url}")
+                                    type = "text/plain"
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, "Share Link via"))
+                            }
                         )
                     }
                 }
