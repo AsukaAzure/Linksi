@@ -1,0 +1,286 @@
+package com.linksi.app.ui.components
+
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.linksi.app.domain.model.Folder
+import com.linksi.app.domain.model.Link
+import java.text.SimpleDateFormat
+import java.util.*
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LinkCard(
+    link: Link,
+    folders: List<Folder>,
+    onClick: () -> Unit,
+    onFavoriteToggle: () -> Unit,
+    onDelete: () -> Unit,
+    onMoveToFolder: (Long?) -> Unit,
+    onEdit: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showFolderPicker by remember { mutableStateOf(false) }
+
+    val cardColor = if (!link.isRead)
+        MaterialTheme.colorScheme.surfaceVariant
+    else
+        MaterialTheme.colorScheme.surface
+
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(containerColor = cardColor),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (!link.isRead) 2.dp else 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Favicon
+                AsyncImage(
+                    model = link.faviconUrl,
+                    contentDescription = "Favicon",
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentScale = ContentScale.Crop
+                )
+
+                Spacer(Modifier.width(10.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    // Domain + unread indicator
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (!link.isRead) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = link.domain.ifBlank { "link" },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1
+                        )
+                    }
+
+                    // Title
+                    Text(
+                        text = link.title.ifBlank { link.url },
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    // Description
+                    if (link.description.isNotBlank()) {
+                        Text(
+                            text = link.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                // Menu button
+                Box {
+                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Filled.MoreVert, "More", Modifier.size(18.dp))
+                    }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Edit") },
+                            leadingIcon = { Icon(Icons.Outlined.Edit, null) },
+                            onClick = { showMenu = false; onEdit() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Move to folder") },
+                            leadingIcon = { Icon(Icons.Outlined.FolderOpen, null) },
+                            onClick = { showMenu = false; showFolderPicker = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                            leadingIcon = { Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                            onClick = { showMenu = false; onDelete() }
+                        )
+                    }
+                }
+            }
+
+            // Bottom row: date + tags + favorite
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Folder badge
+                val folder = folders.find { it.id == link.folderId }
+                if (folder != null) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("${folder.emoji} ${folder.name}", style = MaterialTheme.typography.labelSmall) },
+                        modifier = Modifier.height(24.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
+
+                // Tags
+                link.tags.take(2).forEach { tag ->
+                    SuggestionChip(
+                        onClick = {},
+                        label = { Text("#$tag", style = MaterialTheme.typography.labelSmall) },
+                        modifier = Modifier.height(24.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                // Date
+                Text(
+                    text = formatDate(link.createdAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.width(4.dp))
+
+                // Favorite
+                IconButton(onClick = onFavoriteToggle, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        "Favorite",
+                        Modifier.size(18.dp),
+                        tint = if (link.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+
+    if (showFolderPicker) {
+        FolderPickerDialog(
+            folders = folders,
+            currentFolderId = link.folderId,
+            onSelect = { folderId -> onMoveToFolder(folderId); showFolderPicker = false },
+            onDismiss = { showFolderPicker = false }
+        )
+    }
+}
+
+@Composable
+fun LinkGridCard(
+    link: Link,
+    onClick: () -> Unit,
+    onFavoriteToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column {
+            // Preview image if available
+            if (link.previewImageUrl.isNotBlank()) {
+                AsyncImage(
+                    model = link.previewImageUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                // Gradient placeholder with favicon
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(70.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = link.faviconUrl,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp).clip(CircleShape)
+                    )
+                }
+            }
+
+            Column(Modifier.padding(10.dp)) {
+                Text(
+                    text = link.domain.ifBlank { "link" },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1
+                )
+                Text(
+                    text = link.title.ifBlank { link.url },
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatDate(link.createdAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    IconButton(onClick = onFavoriteToggle, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            null,
+                            Modifier.size(16.dp),
+                            tint = if (link.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatDate(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+    return when {
+        diff < 60_000 -> "Just now"
+        diff < 3_600_000 -> "${diff / 60_000}m ago"
+        diff < 86_400_000 -> "${diff / 3_600_000}h ago"
+        diff < 604_800_000 -> "${diff / 86_400_000}d ago"
+        else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
+    }
+}

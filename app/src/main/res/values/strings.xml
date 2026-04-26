@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Linksi</string>
+    <string name="save_link">Save Link</string>
+    <string name="all_links">All Links</string>
+    <string name="favorites">Favorites</string>
+    <string name="search_hint">Search links, domains, tags…</string>
+    <string name="no_links">No links yet</string>
+    <string name="add_first_link">Save your first link!</string>
+    <string name="share_to_linksi">Save to Linksi</string>
+</resources>

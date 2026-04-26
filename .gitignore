@@ -1,0 +1,23 @@
+# Build artifacts
+bin/
+gen/
+out/
+build/
+.gradle/
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Local config (contains SDK path)
+local.properties
+
+# Signing files
+*.jks
+*.keystore
+
+# OS files
+.DS_Store
+captures/
