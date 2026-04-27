@@ -129,9 +129,6 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // ── Bulk bar ─────────────────────────────────────────────
-                    // ── Bulk bar — always in layout ───────────────────────
-                    if (state.isSelectionMode) {
                         Row(
                             modifier = Modifier
                                 .weight(bulkWeight.coerceAtLeast(0.001f))  // never fully zero
@@ -149,42 +146,47 @@ fun HomeScreen(
                                 .clickable { if (searchExpanded) searchExpanded = false },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(onClick = {
-                                viewModel.clearSelection()
-                                searchExpanded = false
-                            }) {
-                                Icon(Icons.Filled.Close, "Cancel", Modifier.size(18.dp))
-                            }
-
-                            if (searchExpanded) {
-                                Text(
-                                    "${state.selectedIds.size}",
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                            } else {
-                                Text(
-                                    "${state.selectedIds.size} selected",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    modifier = Modifier.weight(1f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Clip
-                                )
-                                TextButton(onClick = viewModel::selectAll) { Text("All") }
-                                IconButton(onClick = { /* folder picker */ }) {
-                                    Icon(Icons.Outlined.FolderOpen, "Move", Modifier.size(18.dp))
+                            if (state.isSelectionMode) {
+                                IconButton(onClick = {
+                                    viewModel.clearSelection()
+                                    searchExpanded = false
+                                }) {
+                                    Icon(Icons.Filled.Close, "Cancel", Modifier.size(18.dp))
                                 }
-                                IconButton(onClick = viewModel::deleteSelected) {
-                                    Icon(
-                                        Icons.Outlined.Delete, "Delete",
-                                        Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.error
+
+                                if (searchExpanded) {
+                                    Text(
+                                        "${state.selectedIds.size}",
+                                        style = MaterialTheme.typography.titleSmall
                                     )
+                                } else {
+                                    Text(
+                                        "${state.selectedIds.size} selected",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Clip
+                                    )
+                                    TextButton(onClick = viewModel::selectAll) { Text("All") }
+                                    IconButton(onClick = { /* folder picker */ }) {
+                                        Icon(
+                                            Icons.Outlined.FolderOpen,
+                                            "Move",
+                                            Modifier.size(18.dp)
+                                        )
+                                    }
+                                    IconButton(onClick = viewModel::deleteSelected) {
+                                        Icon(
+                                            Icons.Outlined.Delete, "Delete",
+                                            Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
 
-// ── Search — always in layout ─────────────────────────
+
                     if (!state.isSelectionMode || searchExpanded || searchWeight > 0.05f) {
                         OutlinedTextField(
                             value = state.searchQuery,
