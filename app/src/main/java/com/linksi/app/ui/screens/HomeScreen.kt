@@ -1,5 +1,6 @@
 package com.linksi.app.ui.screens
 
+import android.view.RoundedCorner
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -104,9 +105,9 @@ fun HomeScreen(
                     targetValue = when {
                         !state.isSelectionMode -> 0f
                         searchExpanded -> 0.25f  // shrinks to just show count
-                        else -> 1f               // full bulk bar
+                        else -> 0.300f               // full bulk bar
                     },
-                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
                     label = "bulkWeight"
                 )
 
@@ -114,9 +115,9 @@ fun HomeScreen(
                     targetValue = when {
                         !state.isSelectionMode -> 1f  // full width
                         searchExpanded -> 0.75f       // expanded search in selection mode
-                        else -> 0f                    // hidden, only icon shown
+                        else -> 0.001f                    // hidden, only icon shown
                     },
-                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
                     label = "searchWeight"
                 )
 
@@ -135,16 +136,16 @@ fun HomeScreen(
                             modifier = Modifier
                                 .weight(bulkWeight.coerceAtLeast(0.001f))  // never fully zero
                                 .height(56.dp)
+                                .clip(RoundedCornerShape(50.dp))
                                 .border(
                                     1.dp,
                                     MaterialTheme.colorScheme.primary,
-                                    RoundedCornerShape(25.dp)
+                                    RoundedCornerShape(50.dp)
                                 )
                                 .background(
                                     MaterialTheme.colorScheme.background,
-                                    RoundedCornerShape(25.dp)
+                                    RoundedCornerShape(50.dp)
                                 )
-                                .padding(horizontal = 4.dp)
                                 .clickable { if (searchExpanded) searchExpanded = false },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
