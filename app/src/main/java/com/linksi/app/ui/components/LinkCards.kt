@@ -25,16 +25,22 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import coil.compose.AsyncImage
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun LinkCard(
     link: Link,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false,
+    onLongPress: () -> Unit = {},
     folders: List<Folder>,
     onClick: () -> Unit,
     onFavoriteToggle: () -> Unit,
@@ -48,20 +54,23 @@ fun LinkCard(
 
     val context = LocalContext.current
 
-    val cardColor = if (!link.isRead)
-        MaterialTheme.colorScheme.surfaceVariant
-    else
-        MaterialTheme.colorScheme.surface
+    val cardColor = when {
+        isSelected -> MaterialTheme.colorScheme.secondaryContainer
+        !link.isRead -> MaterialTheme.colorScheme.surfaceVariant
+        else -> MaterialTheme.colorScheme.surface
+    }
 
+    val density = LocalDensity.current
     val dismissState = rememberSwipeToDismissBoxState(
-        positionalThreshold = { totalDistance -> totalDistance * 0.7f },
+        positionalThreshold = { totalDistance -> totalDistance * 0.95f },
         confirmValueChange = { value ->
+
             when (value) {
                 SwipeToDismissBoxValue.EndToStart -> { onDelete(); true }
                 SwipeToDismissBoxValue.StartToEnd-> {
                     val sendIntent = Intent().apply {
                         action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, "${link.title}\n${link.url}")
+                        putExtra(Intent.EXTRA_TEXT, "${link.title}\n ${link.url}")
                         type = "text/plain"
                     }
                     context.startActivity(Intent.createChooser(sendIntent, "Share link via"))
@@ -123,154 +132,217 @@ fun LinkCard(
         }
     ) {
             ElevatedCard(
-                onClick = onClick,
-                modifier = modifier.fillMaxWidth(),
+//                onClick = onClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                      onClick = onClick,
+                        onLongClick = onLongPress
+                    ),
                 colors = CardDefaults.elevatedCardColors(containerColor = cardColor),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (!link.isRead) 2.dp else 0.dp)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        // Favicon
-                        AsyncImage(
-                            model = link.faviconUrl,
-                            contentDescription = "Favicon",
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentScale = ContentScale.Crop
-                        )
-
-                        Spacer(Modifier.width(10.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            // Domain + unread indicator
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (!link.isRead) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.primary)
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                }
-                                Text(
-                                    text = link.domain.ifBlank { "link" },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1
-                                )
-                            }
-
-                            // Title
-                            Text(
-                                text = link.title.ifBlank { link.url },
-                                style = MaterialTheme.typography.titleSmall,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurface
+                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                    Row {
+                        AnimatedVisibility(visible = isSelectionMode) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { onLongPress() },
+                                modifier = Modifier
+                                    .padding(start = 8.dp)
+                                    .align(Alignment.CenterVertically)
                             )
-
-                            // Description
-                            if (link.description.isNotBlank()) {
-                                Text(
-                                    text = link.description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
                         }
 
-                        // Menu button
-                        Box {
-                            IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Filled.MoreVert, "More", Modifier.size(18.dp))
-                            }
-                            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                                DropdownMenuItem(
-                                    text = { Text("Edit") },
-                                    leadingIcon = { Icon(Icons.Outlined.Edit, null) },
-                                    onClick = { showMenu = false; onEdit() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Move to folder") },
-                                    leadingIcon = { Icon(Icons.Outlined.FolderOpen, null) },
-                                    onClick = { showMenu = false; showFolderPicker = true }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                                    leadingIcon = { Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                                    onClick = { showMenu = false; onDelete() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Share") },
-                                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                                    onClick = {
-                                        showMenu = false
-                                        val sendIntent = Intent().apply {
-                                            action = Intent.ACTION_SEND
-                                            putExtra(Intent.EXTRA_TEXT, "${link.title}\n ${link.url}")
-                                            type = "text/plain"
-                                        }
-                                        context.startActivity(Intent.createChooser(sendIntent, "Share Link via"))
+                    Box(
+                        modifier = Modifier
+                            .width(6.dp)
+                            .fillMaxHeight()
+                            .background(domainColor(link.domain))
+                    )
+
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            // Favicon
+                            AsyncImage(
+                                model = link.faviconUrl,
+                                contentDescription = "Favicon",
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentScale = ContentScale.Crop
+                            )
+
+                            Spacer(Modifier.width(10.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                // Domain + unread indicator
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (!link.isRead) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.primary)
+                                        )
+                                        Spacer(Modifier.width(4.dp))
                                     }
+                                    Text(
+                                        text = link.domain.ifBlank { "link" },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1
+                                    )
+                                }
+
+                                // Title
+                                Text(
+                                    text = link.title.ifBlank { link.url },
+                                    style = MaterialTheme.typography.titleSmall,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
+
+                                // Description
+                                if (link.description.isNotBlank()) {
+                                    Text(
+                                        text = link.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            // Menu button
+                            Box {
+                                IconButton(
+                                    onClick = { showMenu = true },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(Icons.Filled.MoreVert, "More", Modifier.size(18.dp))
+                                }
+                                DropdownMenu(
+                                    expanded = showMenu,
+                                    onDismissRequest = { showMenu = false }) {
+                                    DropdownMenuItem(
+                                        text = { Text("Edit") },
+                                        leadingIcon = { Icon(Icons.Outlined.Edit, null) },
+                                        onClick = { showMenu = false; onEdit() }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Move to folder") },
+                                        leadingIcon = { Icon(Icons.Outlined.FolderOpen, null) },
+                                        onClick = { showMenu = false; showFolderPicker = true }
+                                    )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                "Delete",
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Outlined.Delete,
+                                                null,
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        },
+                                        onClick = { showMenu = false; onDelete() }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Share") },
+                                        leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                                        onClick = {
+                                            showMenu = false
+                                            val sendIntent = Intent().apply {
+                                                action = Intent.ACTION_SEND
+                                                putExtra(
+                                                    Intent.EXTRA_TEXT,
+                                                    "${link.title}\n ${link.url}"
+                                                )
+                                                type = "text/plain"
+                                            }
+                                            context.startActivity(
+                                                Intent.createChooser(
+                                                    sendIntent,
+                                                    "Share Link via"
+                                                )
+                                            )
+                                        }
+                                    )
+                                }
+                            }
                             }
                         }
-                    }
 
-                    // Bottom row: date + tags + favorite
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Folder badge
-                        val folder = folders.find { it.id == link.folderId }
-                        if (folder != null) {
-                            AssistChip(
-                                onClick = {},
-                                label = { Text("${folder.emoji} ${folder.name}", style = MaterialTheme.typography.labelSmall) },
-                                modifier = Modifier.height(24.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                        }
+                        // Bottom row: date + tags + favorite
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Folder badge
+                            val folder = folders.find { it.id == link.folderId }
+                            if (folder != null) {
+                                AssistChip(
+                                    onClick = {},
+                                    label = {
+                                        Text(
+                                            "${folder.emoji} ${folder.name}",
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    },
+                                    modifier = Modifier.height(24.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                            }
 
-                        // Tags
-                        link.tags.take(2).forEach { tag ->
-                            SuggestionChip(
-                                onClick = {},
-                                label = { Text("#$tag", style = MaterialTheme.typography.labelSmall) },
-                                modifier = Modifier.height(24.dp)
+                            // Tags
+                            link.tags.take(2).forEach { tag ->
+                                SuggestionChip(
+                                    onClick = {},
+                                    label = {
+                                        Text(
+                                            "#$tag",
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    },
+                                    modifier = Modifier.height(24.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                            }
+
+                            Spacer(Modifier.weight(1f))
+
+                            // Date
+                            Text(
+                                text = formatDate(link.createdAt),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+
                             Spacer(Modifier.width(4.dp))
-                        }
 
-                        Spacer(Modifier.weight(1f))
-
-                        // Date
-                        Text(
-                            text = formatDate(link.createdAt),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(Modifier.width(4.dp))
-
-                        // Favorite
-                        IconButton(onClick = onFavoriteToggle, modifier = Modifier.size(28.dp)) {
-                            Icon(
-                                if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                "Favorite",
-                                Modifier.size(18.dp),
-                                tint = if (link.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            // Favorite
+                            IconButton(
+                                onClick = onFavoriteToggle,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                    "Favorite",
+                                    Modifier.size(18.dp),
+                                    tint = if (link.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -376,5 +448,54 @@ private fun formatDate(timestamp: Long): String {
         diff < 86_400_000 -> "${diff / 3_600_000}h ago"
         diff < 604_800_000 -> "${diff / 86_400_000}d ago"
         else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
+    }
+}
+
+fun domainColor(domain: String): Color {
+    return when {
+        // Social
+        domain.contains("twitter") || domain.contains("x.com") -> Color(0xFF1DA1F2)
+        domain.contains("instagram")                            -> Color(0xFFE1306C)
+        domain.contains("facebook")                            -> Color(0xFF1877F2)
+        domain.contains("reddit")                              -> Color(0xFFFF4500)
+        domain.contains("linkedin")                            -> Color(0xFF0A66C2)
+        domain.contains("tiktok")                              -> Color(0xFF010101)
+
+        // Video
+        domain.contains("youtube")                             -> Color(0xFFFF0000)
+        domain.contains("twitch")                              -> Color(0xFF9146FF)
+        domain.contains("vimeo")                               -> Color(0xFF1AB7EA)
+
+        // Dev
+        domain.contains("github")                              -> Color(0xFF6E40C9)
+        domain.contains("stackoverflow")                       -> Color(0xFFF48024)
+        domain.contains("medium")                              -> Color(0xFF00AB6C)
+        domain.contains("dev.to")                              -> Color(0xFF0A0A0A)
+        domain.contains("producthunt")                         -> Color(0xFFDA552F)
+
+        // News
+        domain.contains("bbc")                                 -> Color(0xFFBB1919)
+        domain.contains("cnn")                                 -> Color(0xFFCC0000)
+        domain.contains("nytimes")                             -> Color(0xFF121212)
+        domain.contains("theverge")                            -> Color(0xFFE21218)
+
+        // Shopping
+        domain.contains("amazon")                              -> Color(0xFFFF9900)
+        domain.contains("ebay")                                -> Color(0xFF0064D2)
+
+        // Music
+        domain.contains("spotify")                             -> Color(0xFF1DB954)
+        domain.contains("soundcloud")                          -> Color(0xFFFF5500)
+
+        // Productivity
+        domain.contains("notion")                              -> Color(0xFF000000)
+        domain.contains("figma")                               -> Color(0xFFF24E1E)
+        domain.contains("linear")                              -> Color(0xFF5E6AD2)
+
+        // Fallback — hash the domain name for a consistent unique color
+        else -> {
+            val hue = (domain.hashCode().and(0xFFFFFF).toFloat() / 0xFFFFFF) * 360f
+            Color.hsv(hue, 0.6f, 0.8f)
+        }
     }
 }

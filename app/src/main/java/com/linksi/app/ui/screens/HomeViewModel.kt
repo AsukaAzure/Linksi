@@ -26,7 +26,9 @@ data class HomeUiState(
     val showAddFolderDialog: Boolean = false,
     val editingLink: Link? = null,
     val snackbarMessage: String? = null,
-    val totalCount: Int = 0
+    val totalCount: Int = 0,
+    val selectedIds: Set<Long> = emptySet(),
+    val isSelectionMode: Boolean = false
 )
 
 @HiltViewModel
@@ -180,5 +182,37 @@ class HomeViewModel @Inject constructor(
         SortOption.TITLE_AZ    -> links.sortedBy { it.title.lowercase() }
         SortOption.TITLE_ZA    -> links.sortedByDescending { it.title.lowercase() }
         SortOption.DOMAIN      -> links.sortedBy { it.domain }
+    }
+    fun toggleSelction(id: Long) {
+        val current = _uiState.value.selectedIds
+        val updated = if (current.contains(id)) current - id else current + id
+        _uiState.update { it.copy(
+            selectedIds = updated,
+            isSelectionMode = updated.isNotEmpty()
+        )}
+    }
+
+    fun selectAll() {
+        val allIds = _uiState.value.links.map { it.id }.toSet()
+        _uiState.update { it.copy(selectedIds = allIds, isSelectionMode = true) }
+    }
+
+    fun clearSelection() {
+        _uiState.update { it.copy(selectedIds = emptySet(), isSelectionMode = false) }
+    }
+    fun deleteSelected() {
+        viewModelScope.launch {
+            _uiState.value.selectedIds.forEach { repository.deleteLink(Link(id = it, url = "")) }
+            _uiState.update { it.copy(selectedIds = emptySet(), isSelectionMode = false,
+                snackbarMessage = "Links deleted") }
+        }
+    }
+
+    fun moveSelectedToFolder(folderId: Long?) {
+        viewModelScope.launch {
+            _uiState.value.selectedIds.forEach { repository.moveToFolder(it, folderId) }
+            _uiState.update { it.copy(selectedIds = emptySet(), isSelectionMode = false,
+                snackbarMessage = "Links moved") }
+        }
     }
 }

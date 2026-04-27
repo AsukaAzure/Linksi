@@ -15,11 +15,12 @@ fun LinksTopBar(
     viewMode: ViewMode,
     onViewModeToggle: () -> Unit,
     onSortClick: () -> Unit,
-    onAddFolder: () -> Unit
+    onAddFolder: () -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     val title = folders.find { it.id == selectedFolderId }?.let {
         "${it.emoji} ${it.name}"
-    } ?: "Linksi 🔗"
+    } ?: "Linksi"
 
     TopAppBar(
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
@@ -35,6 +36,9 @@ fun LinksTopBar(
             }
             IconButton(onClick = onAddFolder) {
                 Icon(Icons.Outlined.CreateNewFolder, "New folder")
+            }
+            IconButton(onClick = onSettingsClick) {
+                Icon(Icons.Outlined.Settings, "Settings")
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

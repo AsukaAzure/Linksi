@@ -3,6 +3,7 @@ package com.linksi.app.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,6 +36,12 @@ import com.linksi.app.domain.model.*
 import com.linksi.app.ui.components.*
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.round
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +52,10 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var viewMode by remember { mutableStateOf(ViewMode.LIST) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
+
+
 
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let {
@@ -54,98 +64,241 @@ fun HomeScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            LinksTopBar(
-                selectedFolderId = state.selectedFolderId,
-                folders = state.folders,
-                viewMode = viewMode,
-                onViewModeToggle = { viewMode = if (viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST },
-                onSortClick = { showSortMenu = true },
-                onAddFolder = viewModel::showAddFolderDialog
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = viewModel::showAddLinkDialog,
-                icon = { Icon(Icons.Filled.Add, "Add Link") },
-                text = { Text("Save Link") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Search bar
-            SearchBar(
-                query = state.searchQuery,
-                onQueryChange = viewModel::onSearchQueryChange,
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                LinksTopBar(
+                    selectedFolderId = state.selectedFolderId,
+                    folders = state.folders,
+                    viewMode = viewMode,
+                    onViewModeToggle = {
+                        viewMode = if (viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST
+                    },
+                    onSortClick = { showSortMenu = true },
+                    onAddFolder = viewModel::showAddFolderDialog,
+                    onSettingsClick = { showSettings = true }
+                )
+            },
+            floatingActionButton = {
+                ExtendedFloatingActionButton(
+                    onClick = viewModel::showAddLinkDialog,
+                    icon = { Icon(Icons.Filled.Add, "Add Link") },
+                    text = { Text("Save Link") },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            containerColor = MaterialTheme.colorScheme.background
+        ) { paddingValues ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // Search bar
+                // Animated search + bulk selection row
+                var searchExpanded by remember { mutableStateOf(false) }
 
-            // Folder chips + filter chips
-            FolderAndFilterRow(
-                folders = state.folders,
-                selectedFolderId = state.selectedFolderId,
-                selectedFilter = state.filterOption,
-                onFolderSelect = viewModel::selectFolder,
-                onFilterSelect = viewModel::setFilter
-            )
-
-            // Stats bar
-            if (state.links.isNotEmpty()) {
-                StatsBar(
-                    count = state.links.size,
-                    unread = state.links.count { !it.isRead },
-                    favorites = state.links.count { it.isFavorite }
+                val bulkWeight by animateFloatAsState(
+                    targetValue = when {
+                        !state.isSelectionMode -> 0f
+                        searchExpanded -> 0.25f  // shrinks to just show count
+                        else -> 1f               // full bulk bar
+                    },
+                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                    label = "bulkWeight"
                 )
-            }
 
-            // Content
-            if (state.isLoading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                val searchWeight by animateFloatAsState(
+                    targetValue = when {
+                        !state.isSelectionMode -> 1f  // full width
+                        searchExpanded -> 0.75f       // expanded search in selection mode
+                        else -> 0f                    // hidden, only icon shown
+                    },
+                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                    label = "searchWeight"
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .height(56.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // ── Bulk bar ─────────────────────────────────────────────
+                    // ── Bulk bar — always in layout ───────────────────────
+                    if (state.isSelectionMode) {
+                        Row(
+                            modifier = Modifier
+                                .weight(bulkWeight.coerceAtLeast(0.001f))  // never fully zero
+                                .height(56.dp)
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(25.dp)
+                                )
+                                .background(
+                                    MaterialTheme.colorScheme.background,
+                                    RoundedCornerShape(25.dp)
+                                )
+                                .padding(horizontal = 4.dp)
+                                .clickable { if (searchExpanded) searchExpanded = false },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = {
+                                viewModel.clearSelection()
+                                searchExpanded = false
+                            }) {
+                                Icon(Icons.Filled.Close, "Cancel", Modifier.size(18.dp))
+                            }
+
+                            if (searchExpanded) {
+                                Text(
+                                    "${state.selectedIds.size}",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                            } else {
+                                Text(
+                                    "${state.selectedIds.size} selected",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Clip
+                                )
+                                TextButton(onClick = viewModel::selectAll) { Text("All") }
+                                IconButton(onClick = { /* folder picker */ }) {
+                                    Icon(Icons.Outlined.FolderOpen, "Move", Modifier.size(18.dp))
+                                }
+                                IconButton(onClick = viewModel::deleteSelected) {
+                                    Icon(
+                                        Icons.Outlined.Delete, "Delete",
+                                        Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+// ── Search — always in layout ─────────────────────────
+                    if (!state.isSelectionMode || searchExpanded || searchWeight > 0.05f) {
+                        OutlinedTextField(
+                            value = state.searchQuery,
+                            onValueChange = viewModel::onSearchQueryChange,
+                            placeholder = { Text(if (searchExpanded) "Search…" else "Search links, domains, tags…") },
+                            leadingIcon = { Icon(Icons.Filled.Search, "Search") },
+                            trailingIcon = {
+                                if (state.searchQuery.isNotBlank()) {
+                                    IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                        Icon(Icons.Filled.Clear, "Clear")
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier.weight(searchWeight.coerceAtLeast(0.001f)),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                            )
+                        )
+                    } else {
+                        // Circle icon
+                        Surface(
+                            shape = CircleShape,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp, MaterialTheme.colorScheme.primary
+                            ),
+                            modifier = Modifier.size(52.dp)
+                        ) {
+                            IconButton(onClick = { searchExpanded = true }) {
+                                Icon(Icons.Filled.Search, "Search")
+                            }
+                        }
+                    }
                 }
-            } else if (state.links.isEmpty()) {
-                EmptyState(
-                    hasSearch = state.searchQuery.isNotBlank(),
-                    onAddLink = viewModel::showAddLinkDialog
+
+                // Folder chips + filter chips
+                FolderAndFilterRow(
+                    folders = state.folders,
+                    selectedFolderId = state.selectedFolderId,
+                    selectedFilter = state.filterOption,
+                    onFolderSelect = viewModel::selectFolder,
+                    onFilterSelect = viewModel::setFilter
                 )
-            } else {
-                when (viewMode) {
-                    ViewMode.LIST -> LinksList(
-                        links = state.links,
-                        folders = state.folders,
-                        onLinkClick = { link ->
-                            viewModel.markAsRead(link, true)
-                            uriHandler.openUri(link.url)
-                        },
-                        onFavoriteToggle = viewModel::toggleFavorite,
-                        onDelete = viewModel::deleteLink,
-                        onMoveToFolder = { link, folderId -> viewModel.moveToFolder(link, folderId) },
-                        onEdit = viewModel::setEditingLink
+
+                // Stats bar
+                if (state.links.isNotEmpty()) {
+                    StatsBar(
+                        count = state.links.size,
+                        unread = state.links.count { !it.isRead },
+                        favorites = state.links.count { it.isFavorite }
                     )
-                    ViewMode.GRID -> LinksGrid(
-                        links = state.links,
-                        onLinkClick = { link ->
-                            viewModel.markAsRead(link, true)
-                            uriHandler.openUri(link.url)
-                        },
-                        onFavoriteToggle = viewModel::toggleFavorite,
-                        onDelete = viewModel::deleteLink
+                }
+
+                // Content
+                if (state.isLoading) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else if (state.links.isEmpty()) {
+                    EmptyState(
+                        hasSearch = state.searchQuery.isNotBlank(),
+                        onAddLink = viewModel::showAddLinkDialog
                     )
+                } else {
+                    when (viewMode) {
+                        ViewMode.LIST -> LinksList(
+                            links = state.links,
+                            folders = state.folders,
+                            selectedIds = state.selectedIds,
+                            isSelectionMode = state.isSelectionMode,
+                            onLongPress = viewModel::toggleSelction,
+                            onLinkClick = { link ->
+                                if (state.isSelectionMode) {
+                                    viewModel.toggleSelction(link.id)
+                                } else {
+                                    viewModel.markAsRead(link, true)
+                                    uriHandler.openUri(link.url)
+                                }
+                            },
+                            onFavoriteToggle = viewModel::toggleFavorite,
+                            onDelete = viewModel::deleteLink,
+                            onMoveToFolder = { link, folderId ->
+                                viewModel.moveToFolder(
+                                    link,
+                                    folderId
+                                )
+                            },
+                            onEdit = viewModel::setEditingLink
+                        )
+
+                        ViewMode.GRID -> LinksGrid(
+                            links = state.links,
+                            onLinkClick = { link ->
+                                viewModel.markAsRead(link, true)
+                                uriHandler.openUri(link.url)
+                            },
+                            onFavoriteToggle = viewModel::toggleFavorite,
+                            onDelete = viewModel::deleteLink
+                        )
+                    }
                 }
             }
         }
-    }
+        AnimatedVisibility(
+            visible = showSettings,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+                exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            SettingsScreen(onBack = { showSettings = false })
+            }
+        }
+
+
 
     state.editingLink?.let { link ->
         EditLinkDialog(
@@ -222,29 +375,29 @@ fun StatChip(label: String, icon: androidx.compose.ui.graphics.vector.ImageVecto
     }
 }
 
-@Composable
-fun SearchBar(query: String, onQueryChange: (String) -> Unit, modifier: Modifier = Modifier) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        placeholder = { Text("Search links, domains, tags…") },
-        leadingIcon = { Icon(Icons.Filled.Search, "Search") },
-        trailingIcon = {
-            if (query.isNotBlank()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Filled.Clear, "Clear")
-                }
-            }
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(28.dp),
-        modifier = modifier,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-        )
-    )
-}
+//@Composable
+//fun SearchBar(query: String, onQueryChange: (String) -> Unit, modifier: Modifier = Modifier) {
+//    OutlinedTextField(
+//        value = query,
+//        onValueChange = onQueryChange,
+//        placeholder = { Text("Search links, domains, tags…") },
+//        leadingIcon = { Icon(Icons.Filled.Search, "Search") },
+//        trailingIcon = {
+//            if (query.isNotBlank()) {
+//                IconButton(onClick = { onQueryChange("") }) {
+//                    Icon(Icons.Filled.Clear, "Clear")
+//                }
+//            }
+//        },
+//        singleLine = true,
+//        shape = RoundedCornerShape(28.dp),
+//        modifier = modifier,
+//        colors = OutlinedTextFieldDefaults.colors(
+//            focusedBorderColor = MaterialTheme.colorScheme.primary,
+//            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+//        )
+//    )
+//}
 
 @Composable
 fun FolderAndFilterRow(
@@ -301,6 +454,9 @@ fun FolderAndFilterRow(
 fun LinksList(
     links: List<Link>,
     folders: List<Folder>,
+    selectedIds: Set<Long>,
+    isSelectionMode: Boolean,
+    onLongPress: (Long) -> Unit,
     onLinkClick: (Link) -> Unit,
     onFavoriteToggle: (Link) -> Unit,
     onDelete: (Link) -> Unit,
@@ -314,6 +470,9 @@ fun LinksList(
         items(links, key = { it.id }) { link ->
             LinkCard(
                 link = link,
+                isSelected = selectedIds.contains(link.id),
+                isSelectionMode = isSelectionMode,
+                onLongPress = { onLongPress(link.id) },
                 folders = folders,
                 onClick = { onLinkClick(link) },
                 onFavoriteToggle = { onFavoriteToggle(link) },
@@ -382,5 +541,58 @@ fun EmptyState(hasSearch: Boolean, onAddLink: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun BulkActionBar(
+    selectedCount: Int,
+    folders: List<Folder>,
+    onSelectAll: () -> Unit,
+    onDelete: () -> Unit,
+    onMove: (Long?) -> Unit,
+    onCancel: () -> Unit
+) {
+    var showFolderPicker by remember { mutableStateOf(false) }
+
+    Surface(
+//        color = MaterialTheme.colorScheme.secondaryContainer,
+//        tonalElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .border(1.dp, color = MaterialTheme.colorScheme.primary, RoundedCornerShape(25.dp))
+                .background(color = MaterialTheme.colorScheme.background, RoundedCornerShape(25.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onCancel) {
+                Icon(Icons.Filled.Close, "Cancel")
+            }
+            Text(
+                "$selectedCount selected",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onSelectAll) { Text("All") }
+            TextButton(onClick = {showFolderPicker = true}) {
+                Icon(Icons.Outlined.FolderOpen, "Move")
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Outlined.Delete, "Delete",
+                    tint = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+
+    if (showFolderPicker) {
+        FolderPickerDialog(
+            folders = folders,
+            currentFolderId = null,
+            onSelect = { folderId -> onMove(folderId); showFolderPicker = false },
+            onDismiss = {showFolderPicker = false}
+        )
     }
 }
