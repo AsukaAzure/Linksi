@@ -144,7 +144,6 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // ── Bulk bar ─────────────────────────────────────────────
-                    // ── Bulk bar — always in layout ───────────────────────
                     if (state.isSelectionMode) {
                         Row(
                             modifier = Modifier

@@ -62,25 +62,47 @@ fun LinkCard(
     }
 
     val density = LocalDensity.current
-    val dismissState = rememberSwipeToDismissBoxState(
-        positionalThreshold = { totalDistance -> totalDistance * 0.95f },
-        confirmValueChange = { value ->
+    // AFTER
+    var swipeConfirmed by remember { mutableStateOf(false) }
 
+    val dismissState = rememberSwipeToDismissBoxState(
+        positionalThreshold = { totalDistance -> totalDistance * 0.6f },
+        confirmValueChange = { value ->
             when (value) {
-                SwipeToDismissBoxValue.EndToStart -> { onDelete(); true }
-                SwipeToDismissBoxValue.StartToEnd-> {
-                    val sendIntent = Intent().apply {
-                        action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, "${link.title}\n ${link.url}")
-                        type = "text/plain"
+                SwipeToDismissBoxValue.EndToStart -> {
+                    if (swipeConfirmed) {
+                        swipeConfirmed = false
+                        onDelete()
+                        true
+                    } else {
+                        false
                     }
-                    context.startActivity(Intent.createChooser(sendIntent, "Share link via"))
+                }
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    if (swipeConfirmed) {
+                        swipeConfirmed = false
+                        val sendIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, "${link.title}\n${link.url}")
+                            type = "text/plain"
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Share link via"))
+                    }
                     false
                 }
                 else -> false
             }
         }
     )
+
+// Only confirm when progress crosses 0.6f threshold
+    LaunchedEffect(dismissState.progress) {
+        if (dismissState.progress >= 0.6f) {
+            swipeConfirmed = true
+        } else {
+            swipeConfirmed = false
+        }
+    }
 
     SwipeToDismissBox(
         state = dismissState,
@@ -109,22 +131,27 @@ fun LinkCard(
                 if (isDelete) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            Icons.Outlined.Delete, null,
+                            // Show lock icon until threshold reached, then delete icon
+                            if (swipeConfirmed) Icons.Outlined.Delete else Icons.Outlined.Lock,
+                            null,
                             tint = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Text(
-                            "Delete", style = MaterialTheme.typography.labelSmall,
+                            if (swipeConfirmed) "Release to delete" else "Keep swiping…",
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
                 } else if (isShare) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            Icons.Outlined.Share, null,
+                            if (swipeConfirmed) Icons.Outlined.Share else Icons.Outlined.Lock,
+                            null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            "Share", style = MaterialTheme.typography.labelSmall,
+                            if (swipeConfirmed) "Release to share" else "Keep swiping…",
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
