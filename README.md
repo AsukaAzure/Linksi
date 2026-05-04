@@ -102,13 +102,9 @@ Linksi/
 
 ## 🚀 Possible Next Features
 
-- [ ] Reminder notifications for saved links
-- [ ] Import/export links (JSON/CSV)
-- [ ] Browser extension sync
-- [ ] Link health checker (detect broken links)
-- [ ] Reading time estimator
-- [ ] Share collections with friends
-- [ ] Widget for quick save
+- [x] Bulk selection
+- [x] Import/export links (JSON/CSV)
+      
 
 ---
 
