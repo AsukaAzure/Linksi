@@ -21,7 +21,7 @@ fun exportLinksToJson(links: List<Link>, folders: List<Folder>): String {
         foldersArr.put(JSONObject().apply {
             put("id", folder.id)
             put("name", folder.name)
-            put("emoji", folder.emoji)
+            put("icon", folder.icon)
             put("color", folder.color)
         })
     }
@@ -37,7 +37,6 @@ fun exportLinksToJson(links: List<Link>, folders: List<Folder>): String {
             put("domain", link.domain)
             put("faviconUrl", link.faviconUrl)
             put("folderId", link.folderId ?: JSONObject.NULL)
-            put("tags", JSONArray(link.tags))
             put("isFavorite", link.isFavorite)
             put("isRead", link.isRead)
             put("createdAt", link.createdAt)
@@ -70,7 +69,7 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
             folders.add(Folder(
                 id = 0, // reset ID, will be re-inserted
                 name = f.getString("name"),
-                emoji = f.optString("emoji", "📁"),
+                icon = f.optString("icon", "folder"),
                 color = f.optString("color", "#6750A4")
             ))
         }
@@ -80,11 +79,6 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
     val linksArr = root.getJSONArray("links")
     for (i in 0 until linksArr.length()) {
         val l = linksArr.getJSONObject(i)
-        val tagsArr = l.optJSONArray("tags")
-        val tags = mutableListOf<String>()
-        if (tagsArr != null) {
-            for (j in 0 until tagsArr.length()) tags.add(tagsArr.getString(j))
-        }
         links.add(Link(
             id = 0,
             url = l.getString("url"),
@@ -93,7 +87,6 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
             domain = l.optString("domain"),
             faviconUrl = l.optString("faviconUrl"),
             folderId = null, // re-mapped after folder insert
-            tags = tags,
             isFavorite = l.optBoolean("isFavorite"),
             isRead = l.optBoolean("isRead"),
             createdAt = l.optLong("createdAt", System.currentTimeMillis())
@@ -135,7 +128,7 @@ fun exportLinksToCsv(links: List<Link>): String {
     links.forEach { link ->
         sb.appendLine(
             "${csvEscape(link.url)},${csvEscape(link.title)},${csvEscape(link.description)}," +
-                    "${csvEscape(link.domain)},${csvEscape(link.tags.joinToString("|"))}," +
+                    "${csvEscape(link.domain)}," +
                     "${link.isFavorite},${link.isRead},${link.createdAt}"
         )
     }

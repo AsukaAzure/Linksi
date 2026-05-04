@@ -26,6 +26,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.graphics.Color
+import com.linksi.app.ui.components.AddFolderDialog
+import com.linksi.app.ui.components.iconFromName
 
 @AndroidEntryPoint
 class ShareReceiverActivity : ComponentActivity() {
@@ -165,25 +170,55 @@ fun ShareReceiverSheet(
             HorizontalDivider()
 
             // Folder selection
-            if (state.folders.isNotEmpty()) {
-                Text("Save to folder", style = MaterialTheme.typography.labelLarge)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+            var showCreateFolder by remember { mutableStateOf(false) }
+
+            Text("Save to folder", style = MaterialTheme.typography.labelLarge)
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                item {
                     FilterChip(
                         selected = selectedFolderId == null,
                         onClick = { selectedFolderId = null },
                         label = { Text("📥 Inbox") }
                     )
-                    state.folders.take(3).forEach { folder ->
-                        FilterChip(
-                            selected = selectedFolderId == folder.id,
-                            onClick = { selectedFolderId = folder.id },
-                            label = { Text("${folder.emoji} ${folder.name}") }
-                        )
-                    }
                 }
+                items(state.folders) { folder ->
+                    FilterChip(
+                        selected = selectedFolderId == folder.id,
+                        onClick = { selectedFolderId = folder.id },
+                        label = { // AFTER
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(
+                                    iconFromName(folder.icon), null, Modifier.size(14.dp),
+                                    tint = Color(android.graphics.Color.parseColor(folder.color))
+                                )
+                                Text(folder.name)
+                            } }
+                    )
+                }
+                item {
+                    // New folder button at end of row
+                    FilterChip(
+                        selected = false,
+                        onClick = { showCreateFolder = true },
+                        label = { Text("New folder") },
+                        leadingIcon = { Icon(Icons.Filled.Add, null, Modifier.size(16.dp)) }
+                    )
+                }
+            }
+
+// Create folder dialog
+            if (showCreateFolder) {
+                AddFolderDialog(
+                    onDismiss = { showCreateFolder = false },
+                    onConfirm = { name, emoji, color ->
+                        viewModel.addFolder(name, emoji, color)
+                        showCreateFolder = false
+                    }
+                )
             }
 
             // Buttons

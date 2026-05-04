@@ -60,17 +60,17 @@ class LinkRepository @Inject constructor(
     // ─── Folders ─────────────────────────────────────────────
     fun getAllFolders(): Flow<List<Folder>> =
         folderDao.getAllFoldersWithCount().map { list ->
-            list.map { Folder(it.folder.id, it.folder.name, it.folder.emoji, it.folder.color, it.folder.createdAt, it.linkCount) }
+            list.map { Folder(it.folder.id, it.folder.name, it.folder.icon, it.folder.color, it.folder.createdAt, it.linkCount) }
         }
 
     suspend fun insertFolder(folder: Folder): Long =
-        folderDao.insertFolder(FolderEntity(folder.id, folder.name, folder.emoji, folder.color, folder.createdAt))
+        folderDao.insertFolder(FolderEntity(folder.id, folder.name, folder.icon, folder.color, folder.createdAt))
 
     suspend fun updateFolder(folder: Folder) =
-        folderDao.updateFolder(FolderEntity(folder.id, folder.name, folder.emoji, folder.color, folder.createdAt))
+        folderDao.updateFolder(FolderEntity(folder.id, folder.name, folder.icon, folder.color, folder.createdAt))
 
     suspend fun deleteFolder(folder: Folder) =
-        folderDao.deleteFolder(FolderEntity(folder.id, folder.name, folder.emoji, folder.color, folder.createdAt))
+        folderDao.deleteFolder(FolderEntity(folder.id, folder.name, folder.icon, folder.color, folder.createdAt))
 
     // ─── Mappers ─────────────────────────────────────────────
     private fun toLink(entity: LinkEntity) = Link(
@@ -80,7 +80,6 @@ class LinkRepository @Inject constructor(
         description = entity.description,
         faviconUrl = entity.faviconUrl,
         folderId = entity.folderId,
-        tags = entity.tags.split(",").filter { it.isNotBlank() },
         isFavorite = entity.isFavorite,
         isRead = entity.isRead,
         createdAt = entity.createdAt,
@@ -96,7 +95,6 @@ class LinkRepository @Inject constructor(
         description = link.description,
         faviconUrl = link.faviconUrl,
         folderId = link.folderId,
-        tags = link.tags.joinToString(","),
         isFavorite = link.isFavorite,
         isRead = link.isRead,
         createdAt = link.createdAt,

@@ -1,5 +1,6 @@
 package com.linksi.app.ui.components
 
+import android.R
 import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -295,29 +296,25 @@ fun LinkCard(
                                 AssistChip(
                                     onClick = {},
                                     label = {
-                                        Text(
-                                            "${folder.emoji} ${folder.name}",
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
+                                        // AFTER
+                                        Row(verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Icon(iconFromName(folder.icon), null, Modifier.size(14.dp),
+                                                tint = Color(android.graphics.Color.parseColor(folder.color)))
+                                            Text(
+                                                "${folder.name}",
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+//                                        Text(
+//                                            "${folder.emoji} ${folder.name}",
+//                                            style = MaterialTheme.typography.labelSmall
+//                                        )
                                     },
                                     modifier = Modifier.height(24.dp)
                                 )
                                 Spacer(Modifier.width(6.dp))
                             }
-
-                            // Tags
-                            link.tags.take(2).forEach { tag ->
-                                SuggestionChip(
-                                    onClick = {},
-                                    label = {
-                                        Text(
-                                            "#$tag",
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                    },
-                                    modifier = Modifier.height(24.dp)
-                                )
-                                Spacer(Modifier.width(4.dp))
                             }
 
                             Spacer(Modifier.weight(1f))
@@ -357,7 +354,6 @@ fun LinkCard(
                 )
             }
         }
-    }
 
 
 

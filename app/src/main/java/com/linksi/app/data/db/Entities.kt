@@ -11,7 +11,6 @@ data class LinkEntity(
     val description: String = "",
     val faviconUrl: String = "",
     val folderId: Long? = null,
-    val tags: String = "",  // comma-separated
     val isFavorite: Boolean = false,
     val isRead: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
@@ -25,7 +24,7 @@ data class FolderEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
-    val emoji: String = "📁",
+    val icon: String = "folder",
     val color: String = "#6750A4",
     val createdAt: Long = System.currentTimeMillis()
 )

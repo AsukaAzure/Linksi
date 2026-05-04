@@ -29,6 +29,38 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.room.util.TableInfo
 import com.linksi.app.domain.model.*
+import androidx.compose.material.icons.outlined.*
+
+data class FolderIconOption(
+    val name: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
+
+val FOLDER_ICONS = listOf(
+    FolderIconOption("folder",   Icons.Outlined.Folder),
+    FolderIconOption("work",     Icons.Outlined.Work),
+    FolderIconOption("bookmark", Icons.Outlined.Bookmark),
+    FolderIconOption("star",     Icons.Outlined.Star),
+    FolderIconOption("heart",    Icons.Outlined.FavoriteBorder),
+    FolderIconOption("code",     Icons.Outlined.Code),
+    FolderIconOption("school",   Icons.Outlined.School),
+    FolderIconOption("movie",    Icons.Outlined.Movie),
+    FolderIconOption("music",    Icons.Outlined.MusicNote),
+    FolderIconOption("shopping", Icons.Outlined.ShoppingCart),
+    FolderIconOption("travel",   Icons.Outlined.Flight),
+    FolderIconOption("food",     Icons.Outlined.Restaurant),
+    FolderIconOption("health",   Icons.Outlined.HealthAndSafety),
+    FolderIconOption("news",     Icons.Outlined.Newspaper),
+    FolderIconOption("game",     Icons.Outlined.SportsEsports),
+    FolderIconOption("finance",  Icons.Outlined.AttachMoney),
+    FolderIconOption("science",  Icons.Outlined.Science),
+    FolderIconOption("design",   Icons.Outlined.Brush),
+    FolderIconOption("home",     Icons.Outlined.Home),
+    FolderIconOption("photo",    Icons.Outlined.Photo),
+)
+
+fun iconFromName(name: String) =
+    FOLDER_ICONS.find { it.name == name }?.icon ?: Icons.Outlined.Folder
 
 // ─────────────────────────────────────────────────────────────
 // Add Link Dialog
@@ -38,12 +70,10 @@ fun AddLinkDialog(
     folders: List<Folder>,
     isFetchingMetadata: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (url: String, folderId: Long?, tags: List<String>) -> Unit
+    onConfirm: (url: String, folderId: Long?) -> Unit
 ) {
     var url by remember { mutableStateOf("") }
     var selectedFolderId by remember { mutableStateOf<Long?>(null) }
-    var tagInput by remember { mutableStateOf("") }
-    var tags by remember { mutableStateOf<List<String>>(emptyList()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -66,52 +96,42 @@ fun AddLinkDialog(
                 )
 
                 // Folder picker
-                if (folders.isNotEmpty()) {
-                    Text("Folder", style = MaterialTheme.typography.labelMedium)
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        item {
-                            FilterChip(
-                                selected = selectedFolderId == null,
-                                onClick = { selectedFolderId = null },
-                                label = { Text("None") }
-                            )
-                        }
-                        items(folders) { folder ->
-                            FilterChip(
-                                selected = selectedFolderId == folder.id,
-                                onClick = { selectedFolderId = folder.id },
-                                label = { Text("${folder.emoji} ${folder.name}") }
-                            )
-                        }
+                // AFTER
+                Text("Folder", style = MaterialTheme.typography.labelMedium)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    item {
+                        FilterChip(
+                            selected = selectedFolderId == null,
+                            onClick = { selectedFolderId = null },
+                            label = { Text("None") }
+                        )
                     }
-                }
-
-                // Tags
-                OutlinedTextField(
-                    value = tagInput,
-                    onValueChange = { tagInput = it },
-                    label = { Text("Tags (optional)") },
-                    placeholder = { Text("press Enter to add") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        val tag = tagInput.trim().lowercase().replace(" ", "-")
-                        if (tag.isNotBlank() && !tags.contains(tag)) {
-                            tags = tags + tag
-                        }
-                        tagInput = ""
-                    }),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                if (tags.isNotEmpty()) {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(tags) { tag ->
-                            InputChip(
-                                selected = false,
-                                onClick = { tags = tags - tag },
-                                label = { Text("#$tag") },
-                                trailingIcon = { Icon(Icons.Filled.Close, null, Modifier.size(14.dp)) }
+                    items(folders) { folder ->
+                        FilterChip(
+                            selected = selectedFolderId == folder.id,
+                            onClick = { selectedFolderId = folder.id },
+                            label = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        iconFromName(folder.icon), null,
+                                        Modifier.size(14.dp),
+                                        tint = Color(android.graphics.Color.parseColor(folder.color))
+                                    )
+                                    Text(folder.name)
+                                }
+                            }
+                        )
+                    }
+                    if (folders.isEmpty()) {
+                        item {
+                            Text(
+                                "No folders yet — create one first",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 8.dp)
                             )
                         }
                     }
@@ -127,7 +147,7 @@ fun AddLinkDialog(
         },
         confirmButton = {
             Button(
-                onClick = { if (url.isNotBlank()) onConfirm(url.trim(), selectedFolderId, tags) },
+                onClick = { if (url.isNotBlank()) onConfirm(url.trim(), selectedFolderId) },
                 enabled = url.isNotBlank() && !isFetchingMetadata
             ) {
                 Text("Save")
@@ -139,10 +159,6 @@ fun AddLinkDialog(
     )
 }
 
-// ─────────────────────────────────────────────────────────────
-// Add Folder Dialog
-// ─────────────────────────────────────────────────────────────
-val FOLDER_EMOJIS = listOf("📁","🗂","📂","📚","🎵","🎬","💼","🛍","🔬","💡","🎮","📰","✈","🍔","💪","🧠","🎨","💻","🏠","⭐")
 val FOLDER_COLORS = listOf("#6366F1","#8B5CF6","#EC4899","#EF4444","#F59E0B","#10B981","#06B6D4","#3B82F6","#84CC16","#F97316")
 
 @Composable
@@ -151,7 +167,7 @@ fun AddFolderDialog(
     onConfirm: (name: String, emoji: String, color: String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
-    var selectedEmoji by remember { mutableStateOf("📁") }
+    var selectedIcon by remember { mutableStateOf("folder") }
     var selectedColor by remember { mutableStateOf(FOLDER_COLORS[0]) }
 
     AlertDialog(
@@ -169,20 +185,28 @@ fun AddFolderDialog(
                 )
 
                 Text("Icon", style = MaterialTheme.typography.labelMedium)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(FOLDER_EMOJIS) { emoji ->
-                        Box(
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(FOLDER_ICONS) { option ->
+                        Surface(
+                            shape = CircleShape,
+                            color = if (selectedIcon == option.name)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (emoji == selectedEmoji) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surfaceVariant
-                                )
-                                .clickable { selectedEmoji = emoji },
-                            contentAlignment = Alignment.Center
+                                .size(40.dp)
+                                .clickable { selectedIcon = option.name }
                         ) {
-                            Text(emoji)
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    option.icon, null,
+                                    Modifier.size(20.dp),
+                                    tint = if (selectedIcon == option.name)
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -208,7 +232,7 @@ fun AddFolderDialog(
         },
         confirmButton = {
             Button(
-                onClick = { if (name.isNotBlank()) onConfirm(name.trim(), selectedEmoji, selectedColor) },
+                onClick = { if (name.isNotBlank()) onConfirm(name.trim(), selectedIcon, selectedColor) },
                 enabled = name.isNotBlank()
             ) {
                 Text("Create")
@@ -243,7 +267,8 @@ fun FolderPickerDialog(
                 folders.forEach { folder ->
                     ListItem(
                         headlineContent = { Text(folder.name) },
-                        leadingContent = { Text(folder.emoji) },
+                        leadingContent = { Icon(iconFromName(folder.icon), null, Modifier.size(16.dp),
+                            tint = Color(android.graphics.Color.parseColor(folder.color))) },
                         trailingContent = { if (folder.id == currentFolderId) Icon(Icons.Filled.Check, null) },
                         modifier = Modifier.clickable { onSelect(folder.id) }
                     )
@@ -308,8 +333,6 @@ fun EditLinkDialog(
     var title by remember { mutableStateOf(link.title) }
     var description by remember { mutableStateOf(link.description) }
     var selectedFolderId by remember { mutableStateOf(link.folderId) }
-    var tagInput by remember { mutableStateOf("") }
-    var tags by remember { mutableStateOf(link.tags) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -343,27 +366,13 @@ fun EditLinkDialog(
                         items(folders) {folder ->
                             FilterChip(selected = selectedFolderId == folder.id,
                                 onClick = { selectedFolderId = folder.id },
-                                label = { Text("${folder.emoji} ${folder.name}") })
-                        }
-                    }
-                }
-                OutlinedTextField(
-                    value = tagInput, onValueChange = { tagInput = it },
-                    label = { Text("Add tag") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        val tag = tagInput.trim().lowercase()
-                        if (tag.isNotBlank() && !tags.contains(tag)) tags = tags + tag
-                        tagInput = ""
-                    }),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (tags.isNotEmpty()) {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(tags) { tag ->
-                            InputChip(selected = false, onClick = { tags = tags - tag },
-                                label = { Text("#$tag") },
-                                trailingIcon = { Icon(Icons.Filled.Close, null, Modifier.size(14.dp)) })
+                                label = {
+                                    Row(verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Icon(iconFromName(folder.icon), null, Modifier.size(14.dp),
+                                            tint = Color(android.graphics.Color.parseColor(folder.color)))
+                                        Text(folder.name)
+                                    } })
                         }
                     }
                 }
@@ -372,7 +381,7 @@ fun EditLinkDialog(
         confirmButton = {
             Button(onClick = {
                 onConfirm(link.copy(url = url.trim(), title = title.trim(),
-                    description = description.trim(), folderId = selectedFolderId, tags = tags))
+                    description = description.trim(), folderId = selectedFolderId))
             }, enabled = url.isNotBlank()) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }

@@ -20,7 +20,7 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): LinksDatabase =
         Room.databaseBuilder(context, LinksDatabase::class.java, "linksi_db")
-            .fallbackToDestructiveMigration()
+            .addMigrations(LinksDatabase.MIGRATION_1_2, LinksDatabase.MIGRATION_2_3)
             .build()
 
     @Provides

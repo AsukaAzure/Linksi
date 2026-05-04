@@ -28,7 +28,8 @@ data class HomeUiState(
     val snackbarMessage: String? = null,
     val totalCount: Int = 0,
     val selectedIds: Set<Long> = emptySet(),
-    val isSelectionMode: Boolean = false
+    val isSelectionMode: Boolean = false,
+    val lastDeletedLink: Link? = null
 )
 
 @HiltViewModel
@@ -99,7 +100,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun addLink(url: String, folderId: Long? = null, tags: List<String> = emptyList()) {
+    fun addLink(url: String, folderId: Long? = null) {
         val normalized = normalizeUrl(url)
         if (!isValidUrl(normalized)) {
             _uiState.update { it.copy(snackbarMessage = "Invalid URL") }
@@ -115,8 +116,7 @@ class HomeViewModel @Inject constructor(
                 faviconUrl = meta.faviconUrl,
                 previewImageUrl = meta.previewImageUrl,
                 domain = meta.domain.ifBlank { extractDomain(normalized) },
-                folderId = folderId,
-                tags = tags
+                folderId = folderId
             )
             repository.insertLink(link)
             _uiState.update { it.copy(isFetchingMetadata = false, snackbarMessage = "Link saved ✓") }
@@ -133,7 +133,21 @@ class HomeViewModel @Inject constructor(
     fun deleteLink(link: Link) {
         viewModelScope.launch {
             repository.deleteLink(link)
-            _uiState.update { it.copy(snackbarMessage = "Link deleted") }
+            _uiState.update { it.copy(
+                lastDeletedLink = link,
+                snackbarMessage = "UNDO_DELETE") }
+        }
+    }
+
+    fun undoDeleted() {
+        viewModelScope.launch {
+            _uiState.value.lastDeletedLink?.let {
+                repository.insertLink(it)
+                _uiState.update { state -> state.copy(
+                    lastDeletedLink = null,
+                    snackbarMessage = "Link restored"
+                )}
+            }
         }
     }
 
@@ -156,9 +170,9 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun addFolder(name: String, emoji: String, color: String) {
+    fun addFolder(name: String, icon: String, color: String) {
         viewModelScope.launch {
-            repository.insertFolder(Folder(name = name, emoji = emoji, color = color))
+            repository.insertFolder(Folder(name = name, icon = icon, color = color))
         }
     }
 

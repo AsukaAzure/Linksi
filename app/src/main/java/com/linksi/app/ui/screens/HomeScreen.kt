@@ -43,6 +43,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,9 +61,21 @@ fun HomeScreen(
 
 
     LaunchedEffect(state.snackbarMessage) {
-        state.snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.dismissSnackbar()
+        state.snackbarMessage?.let { message ->
+            if (message == "UNDO_DELETE") {
+                val result = snackbarHostState.showSnackbar(
+                    message = "Link deleted",
+                    actionLabel = "Undo",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.undoDeleted()
+                }
+                viewModel.dismissSnackbar()
+            } else {
+                snackbarHostState.showSnackbar(message)
+                viewModel.dismissSnackbar()
+            }
         }
     }
 
@@ -189,7 +203,7 @@ fun HomeScreen(
                         OutlinedTextField(
                             value = state.searchQuery,
                             onValueChange = viewModel::onSearchQueryChange,
-                            placeholder = { Text(if (searchExpanded) "Search…" else "Search links, domains, tags…") },
+                            placeholder = { Text(if (searchExpanded) "Search…" else "Search links, domains…") },
                             leadingIcon = { Icon(Icons.Filled.Search, "Search") },
                             trailingIcon = {
                                 if (state.searchQuery.isNotBlank()) {
@@ -319,8 +333,8 @@ fun HomeScreen(
             folders = state.folders,
             isFetchingMetadata = state.isFetchingMetadata,
             onDismiss = viewModel::hideAddLinkDialog,
-            onConfirm = { url, folderId, tags ->
-                viewModel.addLink(url, folderId, tags)
+            onConfirm = { url, folderId ->
+                viewModel.addLink(url, folderId)
                 viewModel.hideAddLinkDialog()
             }
         )
@@ -445,7 +459,13 @@ fun FolderAndFilterRow(
             FilterChip(
                 selected = selectedFolderId == folder.id,
                 onClick = { onFolderSelect(folder.id) },
-                label = { Text("${folder.emoji} ${folder.name}") }
+                label = {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(iconFromName(folder.icon), null, Modifier.size(14.dp),
+                            tint = Color(android.graphics.Color.parseColor(folder.color)))
+                        Text(folder.name)
+                    } }
             )
         }
     }

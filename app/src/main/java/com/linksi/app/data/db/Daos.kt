@@ -26,7 +26,6 @@ interface LinkDao {
         WHERE url LIKE '%' || :query || '%' 
         OR title LIKE '%' || :query || '%' 
         OR description LIKE '%' || :query || '%'
-        OR tags LIKE '%' || :query || '%'
         OR domain LIKE '%' || :query || '%'
         ORDER BY createdAt DESC
     """)

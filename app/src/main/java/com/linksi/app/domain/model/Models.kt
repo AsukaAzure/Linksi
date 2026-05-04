@@ -11,7 +11,6 @@ data class Link(
     val description: String = "",
     val faviconUrl: String = "",
     val folderId: Long? = null,
-    val tags: List<String> = emptyList(),
     val isFavorite: Boolean = false,
     val isRead: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
@@ -24,7 +23,7 @@ data class Link(
 data class Folder(
     val id: Long = 0,
     val name: String,
-    val emoji: String = "📁",
+    val icon: String = "folder",
     val color: String = "#6750A4",
     val createdAt: Long = System.currentTimeMillis(),
     val linkCount: Int = 0

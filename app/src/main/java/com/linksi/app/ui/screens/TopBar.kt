@@ -6,6 +6,15 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import com.linksi.app.domain.model.Folder
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.linksi.app.ui.components.iconFromName
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -18,12 +27,27 @@ fun LinksTopBar(
     onAddFolder: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
-    val title = folders.find { it.id == selectedFolderId }?.let {
-        "${it.emoji} ${it.name}"
-    } ?: "Linksi"
+    val selectedFolder = folders.find { it.id == selectedFolderId }
 
     TopAppBar(
-        title = { Text(title, style = MaterialTheme.typography.titleLarge) },
+        title = {
+            if (selectedFolder != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        iconFromName(selectedFolder.icon),
+                        null,
+                        Modifier.size(20.dp),
+                        tint = Color(android.graphics.Color.parseColor(selectedFolder.color))
+                    )
+                    Text(selectedFolder.name, style = MaterialTheme.typography.titleLarge)
+                }
+            } else {
+                Text("Linksi", style = MaterialTheme.typography.titleLarge)
+            }
+        },
         actions = {
             IconButton(onClick = onViewModeToggle) {
                 Icon(
