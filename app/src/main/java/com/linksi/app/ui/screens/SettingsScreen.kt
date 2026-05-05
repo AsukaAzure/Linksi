@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linksi.app.utils.exportFileName
@@ -125,7 +127,7 @@ fun SettingsScreen(
 
             // ── How to export from browser ────────────────────
             item {
-                Text("How to export browser bookmarks",
+                Text("How to export browser bookmarks \n(desktop browser)",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(vertical = 8.dp))
@@ -135,12 +137,12 @@ fun SettingsScreen(
                 SettingsCard {
                     BrowserInstructionItem(
                         browser = "Chrome",
-                        steps = "Menu (⋮) → Bookmarks → Bookmark manager → Menu (⋮) → Export bookmarks"
+                        steps = "Menu (⋮) → Bookmarks → Bookmark manager → Menu (⋮) → Export bookmarks \n or \n Press Ctrl+Shift+O To open Bookmark Manager"
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     BrowserInstructionItem(
                         browser = "Firefox",
-                        steps = "Menu → Bookmarks → Manage bookmarks → Import & Backup → Export HTML"
+                        steps = "Menu → Bookmarks → Manage bookmarks → Import & Backup → Export HTML \n or \n Press Ctrl+Shift+O To open Bookmark Manager"
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     BrowserInstructionItem(
@@ -171,6 +173,43 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            item {
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Made with ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "❤️",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(
+                        " by ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "Anush",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/AsukaAzure/"))
+                            context.startActivity(intent)
+                        }
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
         }
     }
 
@@ -220,9 +259,22 @@ fun SettingsItem(
 
 @Composable
 fun BrowserInstructionItem(browser: String, steps: String) {
+    val parts = steps.split("\n or \n")
     ListItem(
         headlineContent = { Text(browser, style = MaterialTheme.typography.titleSmall) },
-        supportingContent = { Text(steps, style = MaterialTheme.typography.bodySmall) },
+        supportingContent = {
+            Column {
+                parts.forEachIndexed { index, part ->
+                    Text(part.trim(), style = MaterialTheme.typography.bodySmall)
+                    if (index < parts.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                    }
+                }
+            }
+        },
         leadingContent = { Icon(Icons.Outlined.Info, null) }
     )
 }

@@ -3,6 +3,8 @@ bin/
 gen/
 out/
 build/
+app/release/
+
 .gradle/
 
 # IDE files
