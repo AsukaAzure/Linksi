@@ -1,6 +1,5 @@
 package com.linksi.app.ui.screens
 
-import android.view.RoundedCorner
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -23,21 +22,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import com.linksi.app.domain.model.*
 import com.linksi.app.ui.components.*
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.round
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.animateFloatAsState
@@ -45,6 +40,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
+import androidx.activity.compose.BackHandler
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +54,9 @@ fun HomeScreen(
     var showSettings by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
 
-
+    BackHandler(enabled = state.isSelectionMode) {
+        viewModel.clearSelection()
+    }
 
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let { message ->
@@ -111,25 +109,32 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Search bar
-                // Animated search + bulk selection row
                 var searchExpanded by remember { mutableStateOf(false) }
 
+                // Reset searchExpanded when leaving selection mode
+                LaunchedEffect(state.isSelectionMode) {
+                    if (!state.isSelectionMode) {
+                        searchExpanded = false
+                    }
+                }
+
+                // bulkWeight: animates 0f → 0.30f on entry, 0.30f → 0f on exit
                 val bulkWeight by animateFloatAsState(
                     targetValue = when {
                         !state.isSelectionMode -> 0f
-                        searchExpanded -> 0.25f  // shrinks to just show count
-                        else -> 0.300f               // full bulk bar
+                        searchExpanded -> 0.25f
+                        else -> 0.300f
                     },
                     animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
                     label = "bulkWeight"
                 )
 
+                // searchWeight: animates 0.001f → 1f on exit
                 val searchWeight by animateFloatAsState(
                     targetValue = when {
-                        !state.isSelectionMode -> 1f  // full width
-                        searchExpanded -> 0.75f       // expanded search in selection mode
-                        else -> 0.001f                    // hidden, only icon shown
+                        !state.isSelectionMode -> 1f
+                        searchExpanded -> 0.75f
+                        else -> 0.06f
                     },
                     animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
                     label = "searchWeight"
@@ -143,11 +148,14 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // ── Bulk bar ─────────────────────────────────────────────
-                    if (state.isSelectionMode) {
+                    // ── Bulk bar ──────────────────────────────────────────────
+                    // KEY FIX: guard on bulkWeight > 0f, NOT on state.isSelectionMode
+                    // This keeps the bulk bar alive in composition during the exit
+                    // animation so it can animate its weight back to 0f smoothly.
+                    if (bulkWeight > 0f) {
                         Row(
                             modifier = Modifier
-                                .weight(bulkWeight.coerceAtLeast(0.001f))  // never fully zero
+                                .weight(bulkWeight.coerceAtLeast(0.001f))
                                 .height(56.dp)
                                 .clip(RoundedCornerShape(50.dp))
                                 .border(
@@ -164,75 +172,89 @@ fun HomeScreen(
                         ) {
                             IconButton(onClick = {
                                 viewModel.clearSelection()
-                                searchExpanded = false
+                                // don't reset searchExpanded here —
+                                // LaunchedEffect above handles it after isSelectionMode flips
                             }) {
                                 Icon(Icons.Filled.Close, "Cancel", Modifier.size(18.dp))
                             }
 
-                            if (searchExpanded) {
-                                Text(
-                                    "${state.selectedIds.size}",
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                            } else {
-                                Text(
-                                    "${state.selectedIds.size} selected",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    modifier = Modifier.weight(1f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Clip
-                                )
-                                TextButton(onClick = viewModel::selectAll) { Text("All") }
-                                IconButton(onClick = { /* folder picker */ }) {
-                                    Icon(Icons.Outlined.FolderOpen, "Move", Modifier.size(18.dp))
-                                }
-                                IconButton(onClick = viewModel::deleteSelected) {
-                                    Icon(
-                                        Icons.Outlined.Delete, "Delete",
-                                        Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.error
+                            // Only show inner content while actually in selection mode
+                            // (during exit animation the bar is shrinking so content
+                            //  would be clipped anyway — hiding it avoids jank)
+                            if (state.isSelectionMode) {
+                                if (searchExpanded) {
+                                    Text(
+                                        "${state.selectedIds.size}",
+                                        style = MaterialTheme.typography.titleSmall
                                     )
+                                } else {
+                                    Text(
+                                        "${state.selectedIds.size} selected",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Clip
+                                    )
+                                    TextButton(onClick = viewModel::selectAll) { Text("All") }
+                                    IconButton(onClick = { /* folder picker */ }) {
+                                        Icon(
+                                            Icons.Outlined.FolderOpen,
+                                            "Move",
+                                            Modifier.size(18.dp)
+                                        )
+                                    }
+                                    IconButton(onClick = viewModel::deleteSelected) {
+                                        Icon(
+                                            Icons.Outlined.Delete,
+                                            "Delete",
+                                            Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
-// ── Search — always in layout ─────────────────────────
-                    if (!state.isSelectionMode || searchExpanded || searchWeight > 0.05f) {
-                        OutlinedTextField(
-                            value = state.searchQuery,
-                            onValueChange = viewModel::onSearchQueryChange,
-                            placeholder = { Text(if (searchExpanded) "Search…" else "Search links, domains…") },
-                            leadingIcon = { Icon(Icons.Filled.Search, "Search") },
-                            trailingIcon = {
-                                if (state.searchQuery.isNotBlank()) {
-                                    IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                        Icon(Icons.Filled.Clear, "Clear")
+                    // ── Search bar — ALWAYS in layout ─────────────────────────
+                    // Never conditionally removed. Weight animates between
+                    // ~0 (icon only, selection mode) and 1f (full width, normal).
+                    OutlinedTextField(
+                        value = state.searchQuery,
+                        onValueChange = viewModel::onSearchQueryChange,
+                        placeholder = {
+                            Text(if (searchExpanded) "Search…" else "Search links, domains…")
+                        },
+                        leadingIcon = {
+                            IconButton(
+                                onClick = {
+                                    if (state.isSelectionMode && !searchExpanded) {
+                                        searchExpanded = true
                                     }
-                                }
-                            },
-                            singleLine = true,
-                            shape = RoundedCornerShape(28.dp),
-                            modifier = Modifier.weight(searchWeight.coerceAtLeast(0.001f)),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                            )
-                        )
-                    } else {
-                        // Circle icon
-                        Surface(
-                            shape = CircleShape,
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp, MaterialTheme.colorScheme.primary
-                            ),
-                            modifier = Modifier.size(52.dp)
-                        ) {
-                            IconButton(onClick = { searchExpanded = true }) {
-                                Icon(Icons.Filled.Search, "Search")
+                                },
+                                enabled = state.isSelectionMode && !searchExpanded
+                            ) {
+                                Icon(
+                                    Icons.Filled.Search, "Search",
+                                    modifier = Modifier.padding(start = 8.dp))
                             }
-                        }
-                    }
+                        },
+                        trailingIcon = {
+                            if (state.searchQuery.isNotBlank()) {
+                                IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                    Icon(Icons.Filled.Clear, "Clear")
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(28.dp),
+                        // Weight smoothly animates: ~0 → 1f on exit from selection mode
+                        modifier = Modifier.weight(searchWeight.coerceAtLeast(0.001f)),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        )
+                    )
                 }
 
                 // Folder chips + filter chips
@@ -282,10 +304,7 @@ fun HomeScreen(
                             onFavoriteToggle = viewModel::toggleFavorite,
                             onDelete = viewModel::deleteLink,
                             onMoveToFolder = { link, folderId ->
-                                viewModel.moveToFolder(
-                                    link,
-                                    folderId
-                                )
+                                viewModel.moveToFolder(link, folderId)
                             },
                             onEdit = viewModel::setEditingLink
                         )
@@ -303,16 +322,15 @@ fun HomeScreen(
                 }
             }
         }
+
         AnimatedVisibility(
             visible = showSettings,
             enter = slideInHorizontally(initialOffsetX = { it }),
-                exit = slideOutHorizontally(targetOffsetX = { it })
+            exit = slideOutHorizontally(targetOffsetX = { it })
         ) {
             SettingsScreen(onBack = { showSettings = false })
-            }
         }
-
-
+    }
 
     state.editingLink?.let { link ->
         EditLinkDialog(
@@ -326,7 +344,6 @@ fun HomeScreen(
         )
     }
 
-    // Dialogs
     if (state.showAddLinkDialog) {
         AddLinkDialog(
             folders = state.folders,
@@ -349,7 +366,6 @@ fun HomeScreen(
         )
     }
 
-    // Sort menu
     if (showSortMenu) {
         SortBottomSheet(
             currentSort = state.sortOption,
@@ -385,33 +401,13 @@ fun StatChip(label: String, icon: androidx.compose.ui.graphics.vector.ImageVecto
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Icon(icon, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
-
-//@Composable
-//fun SearchBar(query: String, onQueryChange: (String) -> Unit, modifier: Modifier = Modifier) {
-//    OutlinedTextField(
-//        value = query,
-//        onValueChange = onQueryChange,
-//        placeholder = { Text("Search links, domains, tags…") },
-//        leadingIcon = { Icon(Icons.Filled.Search, "Search") },
-//        trailingIcon = {
-//            if (query.isNotBlank()) {
-//                IconButton(onClick = { onQueryChange("") }) {
-//                    Icon(Icons.Filled.Clear, "Clear")
-//                }
-//            }
-//        },
-//        singleLine = true,
-//        shape = RoundedCornerShape(28.dp),
-//        modifier = modifier,
-//        colors = OutlinedTextFieldDefaults.colors(
-//            focusedBorderColor = MaterialTheme.colorScheme.primary,
-//            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-//        )
-//    )
-//}
 
 @Composable
 fun FolderAndFilterRow(
@@ -426,7 +422,6 @@ fun FolderAndFilterRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.padding(vertical = 4.dp)
     ) {
-        // All chip
         item {
             FilterChip(
                 selected = selectedFolderId == null && selectedFilter == FilterOption.ALL,
@@ -435,7 +430,6 @@ fun FolderAndFilterRow(
                 leadingIcon = { Icon(Icons.Outlined.AllInclusive, null, Modifier.size(16.dp)) }
             )
         }
-        // Favorites
         item {
             FilterChip(
                 selected = selectedFilter == FilterOption.FAVORITES,
@@ -444,7 +438,6 @@ fun FolderAndFilterRow(
                 leadingIcon = { Icon(Icons.Outlined.Favorite, null, Modifier.size(16.dp)) }
             )
         }
-        // Unread
         item {
             FilterChip(
                 selected = selectedFilter == FilterOption.UNREAD,
@@ -453,18 +446,22 @@ fun FolderAndFilterRow(
                 leadingIcon = { Icon(Icons.Outlined.FiberNew, null, Modifier.size(16.dp)) }
             )
         }
-        // Folders
         items(folders) { folder ->
             FilterChip(
                 selected = selectedFolderId == folder.id,
                 onClick = { onFolderSelect(folder.id) },
                 label = {
-                    Row(verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(iconFromName(folder.icon), null, Modifier.size(14.dp),
-                            tint = Color(android.graphics.Color.parseColor(folder.color)))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            iconFromName(folder.icon), null, Modifier.size(14.dp),
+                            tint = Color(android.graphics.Color.parseColor(folder.color))
+                        )
                         Text(folder.name)
-                    } }
+                    }
+                }
             )
         }
     }
@@ -539,10 +536,7 @@ fun EmptyState(hasSearch: Boolean, onAddLink: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = if (hasSearch) "🔍" else "🔗",
-                fontSize = 64.sp
-            )
+            Text(text = if (hasSearch) "🔍" else "🔗", fontSize = 64.sp)
             Text(
                 text = if (hasSearch) "No links found" else "No links yet",
                 style = MaterialTheme.typography.titleLarge,
@@ -575,16 +569,16 @@ fun BulkActionBar(
 ) {
     var showFolderPicker by remember { mutableStateOf(false) }
 
-    Surface(
-//        color = MaterialTheme.colorScheme.secondaryContainer,
-//        tonalElevation = 4.dp
-    ) {
+    Surface {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
                 .border(1.dp, color = MaterialTheme.colorScheme.primary, RoundedCornerShape(25.dp))
-                .background(color = MaterialTheme.colorScheme.background, RoundedCornerShape(25.dp))
+                .background(
+                    color = MaterialTheme.colorScheme.background,
+                    RoundedCornerShape(25.dp)
+                )
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -597,12 +591,14 @@ fun BulkActionBar(
                 modifier = Modifier.weight(1f)
             )
             TextButton(onClick = onSelectAll) { Text("All") }
-            TextButton(onClick = {showFolderPicker = true}) {
+            TextButton(onClick = { showFolderPicker = true }) {
                 Icon(Icons.Outlined.FolderOpen, "Move")
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Outlined.Delete, "Delete",
-                    tint = MaterialTheme.colorScheme.error)
+                Icon(
+                    Icons.Outlined.Delete, "Delete",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
@@ -612,7 +608,7 @@ fun BulkActionBar(
             folders = folders,
             currentFolderId = null,
             onSelect = { folderId -> onMove(folderId); showFolderPicker = false },
-            onDismiss = {showFolderPicker = false}
+            onDismiss = { showFolderPicker = false }
         )
     }
 }
