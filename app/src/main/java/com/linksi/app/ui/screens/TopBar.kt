@@ -24,7 +24,8 @@ fun LinksTopBar(
     viewMode: ViewMode,
     onViewModeToggle: () -> Unit,
     onSortClick: () -> Unit,
-    onAddFolder: () -> Unit,
+//    onAddFolder: () -> Unit,
+    onFoldersClick: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
     val selectedFolder = folders.find { it.id == selectedFolderId }
@@ -58,8 +59,8 @@ fun LinksTopBar(
             IconButton(onClick = onSortClick) {
                 Icon(Icons.Outlined.Sort, "Sort")
             }
-            IconButton(onClick = onAddFolder) {
-                Icon(Icons.Outlined.CreateNewFolder, "New folder")
+            IconButton(onClick = onFoldersClick) {
+                Icon(Icons.Outlined.Folder, "Folders")
             }
             IconButton(onClick = onSettingsClick) {
                 Icon(Icons.Outlined.Settings, "Settings")

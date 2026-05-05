@@ -53,6 +53,7 @@ fun HomeScreen(
     var showSortMenu by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
+    var showFolders by remember { mutableStateOf(false) }
 
     BackHandler(enabled = state.isSelectionMode) {
         viewModel.clearSelection()
@@ -88,7 +89,8 @@ fun HomeScreen(
                         viewMode = if (viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST
                     },
                     onSortClick = { showSortMenu = true },
-                    onAddFolder = viewModel::showAddFolderDialog,
+//                    onAddFolder = viewModel::showAddFolderDialog,
+                    onFoldersClick = { showFolders = true },
                     onSettingsClick = { showSettings = true }
                 )
             },
@@ -182,6 +184,8 @@ fun HomeScreen(
                             // (during exit animation the bar is shrinking so content
                             //  would be clipped anyway — hiding it avoids jank)
                             if (state.isSelectionMode) {
+                                var showFolderPicker by remember { mutableStateOf(false) }
+
                                 if (searchExpanded) {
                                     Text(
                                         "${state.selectedIds.size}",
@@ -196,7 +200,7 @@ fun HomeScreen(
                                         overflow = TextOverflow.Clip
                                     )
                                     TextButton(onClick = viewModel::selectAll) { Text("All") }
-                                    IconButton(onClick = { /* folder picker */ }) {
+                                    IconButton(onClick = { showFolderPicker = true }) {  // wired up now
                                         Icon(
                                             Icons.Outlined.FolderOpen,
                                             "Move",
@@ -211,6 +215,18 @@ fun HomeScreen(
                                             tint = MaterialTheme.colorScheme.error
                                         )
                                     }
+                                }
+
+                                if (showFolderPicker) {
+                                    FolderPickerDialog(
+                                        folders = state.folders,
+                                        currentFolderId = null,
+                                        onSelect = { folderId ->
+                                            viewModel.moveSelectedToFolder(folderId)
+                                            showFolderPicker = false
+                                        },
+                                        onDismiss = { showFolderPicker = false }
+                                    )
                                 }
                             }
                         }
@@ -311,9 +327,16 @@ fun HomeScreen(
 
                         ViewMode.GRID -> LinksGrid(
                             links = state.links,
+                            selectedIds = state.selectedIds,
+                            isSelectionMode = state.isSelectionMode,
+                            onLongPress = viewModel::toggleSelction,
                             onLinkClick = { link ->
-                                viewModel.markAsRead(link, true)
-                                uriHandler.openUri(link.url)
+                                if (state.isSelectionMode) {
+                                    viewModel.toggleSelction(link.id)
+                                } else {
+                                    viewModel.markAsRead(link, true)
+                                    uriHandler.openUri(link.url)
+                                }
                             },
                             onFavoriteToggle = viewModel::toggleFavorite,
                             onDelete = viewModel::deleteLink
@@ -329,6 +352,14 @@ fun HomeScreen(
             exit = slideOutHorizontally(targetOffsetX = { it })
         ) {
             SettingsScreen(onBack = { showSettings = false })
+        }
+
+        AnimatedVisibility(
+            visible = showFolders,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            FoldersScreen(onBack = { showFolders = false })
         }
     }
 
@@ -505,6 +536,9 @@ fun LinksList(
 @Composable
 fun LinksGrid(
     links: List<Link>,
+    selectedIds: Set<Long>,
+    isSelectionMode: Boolean,
+    onLongPress: (Long) -> Unit,
     onLinkClick: (Link) -> Unit,
     onFavoriteToggle: (Link) -> Unit,
     onDelete: (Link) -> Unit
@@ -518,6 +552,9 @@ fun LinksGrid(
         items(links, key = { it.id }) { link ->
             LinkGridCard(
                 link = link,
+                isSelected = selectedIds.contains(link.id),
+                isSelectionMode = isSelectionMode,
+                onLongPress = { onLongPress(link.id) },
                 onClick = { onLinkClick(link) },
                 onFavoriteToggle = { onFavoriteToggle(link) }
             )

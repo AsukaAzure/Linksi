@@ -383,85 +383,110 @@ fun LinkCard(
 }
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LinkGridCard(
     link: Link,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false,
+    onLongPress: () -> Unit = {},
     onClick: () -> Unit,
     onFavoriteToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp)
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
+            ),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.secondaryContainer
+            else
+                MaterialTheme.colorScheme.surface
+        )
     ) {
-        Column {
-            if (link.previewImageUrl.isNotBlank()) {
-                AsyncImage(
-                    model = link.previewImageUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(70.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
+        Box {
+            Column {
+                if (link.previewImageUrl.isNotBlank()) {
                     AsyncImage(
-                        model = link.faviconUrl,
+                        model = link.previewImageUrl,
                         contentDescription = null,
                         modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        contentScale = ContentScale.Crop
                     )
-                }
-            }
-
-            Column(Modifier.padding(10.dp)) {
-                Text(
-                    text = link.domain.ifBlank { "link" },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1
-                )
-                Text(
-                    text = link.title.ifBlank { link.url },
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = formatDate(link.createdAt),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    IconButton(
-                        onClick = onFavoriteToggle,
-                        modifier = Modifier.size(24.dp)
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(70.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        AsyncImage(
+                            model = link.faviconUrl,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = if (link.isFavorite)
-                                MaterialTheme.colorScheme.error
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
                         )
                     }
                 }
+
+                Column(Modifier.padding(10.dp)) {
+                    Text(
+                        text = link.domain.ifBlank { "link" },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = link.title.ifBlank { link.url },
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = formatDate(link.createdAt),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        IconButton(
+                            onClick = onFavoriteToggle,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (link.isFavorite)
+                                    MaterialTheme.colorScheme.error
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+            if (isSelectionMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onLongPress() },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp)
+                )
             }
         }
     }
