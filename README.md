@@ -38,7 +38,7 @@ A Material 3 Android app to save, organize, and rediscover links. Appears in the
 ---
 
 ## Project Structure
-
+app/src/main/java/com/linksi/app/
 ├── data
 │   ├── db
 │   │   ├── Daos.kt
@@ -46,22 +46,17 @@ A Material 3 Android app to save, organize, and rediscover links. Appears in the
 │   │   └── LinksDatabase.kt
 │   └── repository
 │       └── LinkRepository.kt
-│
 ├── di
 │   └── AppModule.kt
-│
 ├── domain
 │   └── model
 │       └── Models.kt
-│
 ├── LinksApplication.kt
 ├── MainActivity.kt
-│
 ├── ui
 │   ├── components
 │   │   ├── Dialogs.kt
 │   │   └── LinkCards.kt
-│   │
 │   ├── screens
 │   │   ├── FolderScreen.kt
 │   │   ├── HomeScreen.kt
@@ -71,15 +66,12 @@ A Material 3 Android app to save, organize, and rediscover links. Appears in the
 │   │   ├── SettingsViewModel.kt
 │   │   ├── ShareReceiverActivity.kt
 │   │   └── TopBar.kt
-│   │
 │   └── theme
 │       ├── Theme.kt
 │       └── Typography.kt
-│
 └── utils
     ├── ImportExportManager.kt
     └── MetadataFetcher.kt
-
 ---
 
 ## Building
