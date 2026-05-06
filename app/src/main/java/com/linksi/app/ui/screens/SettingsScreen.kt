@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -217,13 +218,38 @@ fun SettingsScreen(
     state.importResult?.let { result ->
         AlertDialog(
             onDismissRequest = viewModel::dismissImportResult,
-            icon = { Icon(Icons.Outlined.CheckCircle, null) },
+            icon = { Icon(Icons.Outlined.CheckCircle, null,
+                tint = MaterialTheme.colorScheme.primary) },
             title = { Text("Import complete") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Successfully imported ${result.count} links from ${result.source}.")
-                    if (result.folders.isNotEmpty())
+                    if (result.folders.isNotEmpty()) {
                         Text("${result.folders.size} folders also imported.")
+                    }
+                    if (state.duplicateCount > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Info, null,
+                                    Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    "${state.duplicateCount} duplicate links were skipped.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {

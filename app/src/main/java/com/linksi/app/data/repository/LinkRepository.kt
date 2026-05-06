@@ -63,14 +63,27 @@ class LinkRepository @Inject constructor(
             list.map { Folder(it.folder.id, it.folder.name, it.folder.icon, it.folder.color, it.folder.createdAt, it.linkCount) }
         }
 
-    suspend fun insertFolder(folder: Folder): Long =
-        folderDao.insertFolder(FolderEntity(folder.id, folder.name, folder.icon, folder.color, folder.createdAt))
+    suspend fun insertFolder(folder: Folder): Long {
+        return folderDao.insertFolder(
+            FolderEntity(
+                id = folder.id,  // preserve original ID so links still match
+                name = folder.name,
+                icon = folder.icon,
+                color = folder.color,
+                createdAt = folder.createdAt
+            )
+        )
+    }
 
     suspend fun updateFolder(folder: Folder) =
         folderDao.updateFolder(FolderEntity(folder.id, folder.name, folder.icon, folder.color, folder.createdAt))
 
     suspend fun deleteFolder(folder: Folder) =
         folderDao.deleteFolder(FolderEntity(folder.id, folder.name, folder.icon, folder.color, folder.createdAt))
+
+    suspend fun isUrlAlreadySaved(url: String): Boolean {
+        return linkDao.getLinkByUrl(url) != null
+    }
 
     // ─── Mappers ─────────────────────────────────────────────
     private fun toLink(entity: LinkEntity) = Link(

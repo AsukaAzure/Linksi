@@ -60,6 +60,9 @@ interface LinkDao {
 
     @Query("SELECT * FROM links WHERE id = :id")
     suspend fun getLinkById(id: Long): LinkEntity?
+
+    @Query("SELECT * FROM links WHERE url = :url LIMIT 1")
+    suspend fun getLinkByUrl(url: String): LinkEntity?
 }
 
 @Dao

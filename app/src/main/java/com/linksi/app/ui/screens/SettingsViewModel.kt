@@ -16,7 +16,8 @@ data class SettingsUiState(
     val totalFolders: Int = 0,
     val totalFavorites: Int = 0,
     val message: String? = null,
-    val importResult: ImportResult? = null
+    val importResult: ImportResult? = null,
+    val duplicateCount: Int = 0
 )
 
 @HiltViewModel
@@ -89,14 +90,35 @@ class SettingsViewModel @Inject constructor(
                     folderIdMap[folder.id] = newId
                 }
 
-                // Insert links
+                // Insert links, track duplicates
+                var importedCount = 0
+                var duplicateCount = 0
+
                 result.links.forEach { link ->
-                    repository.insertLink(link.copy(
-                        folderId = link.folderId?.let { folderIdMap[it] }
-                    ))
+                    if (repository.isUrlAlreadySaved(link.url)) {
+                        duplicateCount++
+                    } else {
+                        repository.insertLink(link.copy(
+                            folderId = link.folderId?.let { folderIdMap[it] }
+                        ))
+                        importedCount++
+                    }
                 }
 
-                _uiState.update { it.copy(importResult = result) }
+                // Build result message
+                val message = buildString {
+                    append("Imported $importedCount links")
+                    if (duplicateCount > 0) {
+                        append(" • $duplicateCount duplicates skipped")
+                    }
+                }
+
+                _uiState.update { it.copy(
+                    importResult = result.copy(count = importedCount),
+                    duplicateCount = duplicateCount,
+                    message = message
+                )}
+
             } catch (e: Exception) {
                 _uiState.update { it.copy(message = "Import failed: ${e.message}") }
             }

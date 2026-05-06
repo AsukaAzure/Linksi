@@ -25,6 +25,8 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.ripple.rememberRipple
 import coil.compose.AsyncImage
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
@@ -57,8 +59,6 @@ fun LinkCard(
         else -> MaterialTheme.colorScheme.surfaceVariant
     }
 
-    // FIX #3: swipeConfirmed now reads progress directly inside confirmValueChange
-    // to avoid race condition between LaunchedEffect and confirmValueChange firing order.
     var swipeConfirmed by remember { mutableStateOf(false) }
 
     val dismissState = rememberSwipeToDismissBoxState(
@@ -155,7 +155,10 @@ fun LinkCard(
         ElevatedCard(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(CardDefaults.elevatedShape) // VERY important
                 .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = rememberRipple(bounded = true),
                     onClick = onClick,
                     onLongClick = onLongPress
                 ),
@@ -397,7 +400,10 @@ fun LinkGridCard(
     ElevatedCard(
         modifier = modifier
             .fillMaxWidth()
+            .clip(CardDefaults.elevatedShape) // VERY important
             .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = rememberRipple(bounded = true),
                 onClick = onClick,
                 onLongClick = onLongPress
             ),

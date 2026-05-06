@@ -61,19 +61,54 @@ fun HomeScreen(
 
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let { message ->
-            if (message == "UNDO_DELETE") {
-                val result = snackbarHostState.showSnackbar(
-                    message = "Link deleted",
-                    actionLabel = "Undo",
-                    duration = SnackbarDuration.Short
-                )
-                if (result == SnackbarResult.ActionPerformed) {
-                    viewModel.undoDeleted()
+            when (message) {
+                "UNDO_DELETE" -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = if (state.lastDeletedLinks.size > 1)
+                            "${state.lastDeletedLinks.size} links deleted"
+                        else "Link deleted",
+                        actionLabel = "Undo",
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoDeleted()
+                    }
+                    viewModel.dismissSnackbar()
                 }
-                viewModel.dismissSnackbar()
-            } else {
-                snackbarHostState.showSnackbar(message)
-                viewModel.dismissSnackbar()
+                "UNDO_MOVE" -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = if (state.lastMovedLinks.size > 1)
+                            "${state.lastMovedLinks.size} links moved"
+                        else "Link moved",
+                        actionLabel = "Undo",
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoMove()
+                    }
+                    viewModel.dismissSnackbar()
+                }
+                "UNDO_FOLDER_DELETE" -> {
+                    val folderName = state.lastDeletedFolder?.name ?: "Folder"
+                    val linkCount = state.lastDeletedFolderLinks.size
+                    val result = snackbarHostState.showSnackbar(
+                        message = "\"$folderName\" and $linkCount links deleted",
+                        actionLabel = "Undo",
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoFolderDelete()
+                    }
+                    viewModel.dismissSnackbar()
+                    return@let
+                }
+                else -> {
+                    snackbarHostState.showSnackbar(message)
+                    viewModel.dismissSnackbar()
+                }
             }
         }
     }
