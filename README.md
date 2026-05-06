@@ -1,111 +1,92 @@
-# 🔗 Linksi — Link Saver App
+# Linksi — Link Saver for Android
 
-A beautiful Material 3 Android app to save, organize, and rediscover your links. Appears in the Android share sheet from any app.
+A Material 3 Android app to save, organize, and rediscover links. Appears in the Android share sheet from any app.
 
 ---
 
-## ✨ Features
+## Features
 
-| Feature | Description |
+- Save any URL with auto-fetched title, description, and favicon
+- Appears in Android's share menu from Chrome, YouTube, Twitter, and more
+- Organize links into custom folders with icon and color
+- Full-text search by title, domain, and description
+- Favorites, read/unread tracking
+- Grid and list view toggle
+- Sort by date, title, domain — filter by favorites or unread
+- Bulk select, move, and delete
+- Import and export links as JSON or CSV
+- Import browser bookmarks from Chrome, Firefox, or Safari
+- Material You dynamic color with dark mode support
+
+---
+
+## Tech Stack
+
+| Layer | Library |
 |---|---|
-| 💾 **Save Links** | Save any URL with auto-fetched title, description & favicon |
-| 📤 **Share Sheet** | Appears in Android's share menu from Chrome, YouTube, Twitter, etc. |
-| 📁 **Folders** | Organize links into custom folders with emoji + color |
-| 🔍 **Full-text Search** | Search by title, domain, description, or tags |
-| ❤️ **Favorites** | Star important links for quick access |
-| 🏷️ **Tags** | Add custom tags to links for flexible organization |
-| 📊 **Grid / List View** | Toggle between compact list and visual grid |
-| 🔽 **Sort & Filter** | Sort by date, title, domain; filter by favorites/unread |
-| 🌙 **Dark Mode** | Full Material You dynamic color + dark theme support |
-| ✅ **Read tracking** | Mark links as read/unread with visual indicator |
+| UI | Jetpack Compose, Material 3 |
+| Architecture | MVVM, StateFlow |
+| Database | Room |
+| Dependency Injection | Hilt |
+| Image Loading | Coil |
+| Metadata Scraping | Jsoup |
+| Navigation | Compose Navigation |
+| Async | Kotlin Coroutines |
+| Minimum SDK | API 26 (Android 8.0) |
+| Target SDK | API 34 |
 
 ---
 
-## 📁 Folder Structure
+## Project Structure
 
-```
-Linksi/
-├── build.gradle                          ← Root build config
-├── settings.gradle                       ← Module settings
-├── gradle.properties                     ← JVM + Android flags
-├── gradle/
-│   └── wrapper/
-│       └── gradle-wrapper.properties     ← Gradle 8.4
-│
-└── app/
-    ├── build.gradle                      ← App deps & build config
-    ├── proguard-rules.pro                ← Release obfuscation rules
-    │
-    └── src/main/
-        ├── AndroidManifest.xml           ← Permissions, activities, share intent
-        │
-        ├── res/
-        │   ├── values/
-        │   │   ├── strings.xml
-        │   │   └── themes.xml            ← Base + Transparent theme
-        │   ├── xml/
-        │   │   └── network_security_config.xml
-        │   └── mipmap-*/                 ← App icons (add your own)
-        │
-        └── java/com/linksi/app/
-            │
-            ├── LinksApplication.kt       ← @HiltAndroidApp entry point
-            ├── MainActivity.kt           ← Edge-to-edge Compose host
-            │
-            ├── domain/model/
-            │   └── Models.kt             ← Link, Folder, SortOption, FilterOption
-            │
-            ├── data/
-            │   ├── db/
-            │   │   ├── Entities.kt       ← Room @Entity classes
-            │   │   ├── Daos.kt           ← LinkDao + FolderDao with Flow queries
-            │   │   └── LinksDatabase.kt  ← @Database class
-            │   └── repository/
-            │       └── LinkRepository.kt ← Single source of truth + mappers
-            │
-            ├── di/
-            │   └── AppModule.kt          ← Hilt @Provides for DB, DAOs
-            │
-            ├── utils/
-            │   └── MetadataFetcher.kt    ← Jsoup scraper for title/desc/favicon
-            │
-            └── ui/
-                ├── theme/
-                │   ├── Theme.kt          ← Material 3 color schemes (light/dark)
-                │   └── Typography.kt     ← Type scale
-                │
-                ├── screens/
-                │   ├── HomeScreen.kt     ← Main screen (search, filters, list/grid)
-                │   ├── HomeViewModel.kt  ← StateFlow UI state + all business logic
-                │   ├── TopBar.kt         ← TopAppBar with view toggle & sort
-                │   └── ShareReceiverActivity.kt ← Bottom sheet for share intents
-                │
-                └── components/
-                    ├── LinkCards.kt      ← LinkCard (list) + LinkGridCard (grid)
-                    └── Dialogs.kt        ← AddLink, AddFolder, FolderPicker, Sort
+app/src/main/java/com/linksi/app/
+├── domain/model/         — Data models (Link, Folder, SortOption, FilterOption)
+├── data/
+│   ├── db/               — Room entities, DAOs, database class
+│   └── repository/       — LinkRepository, domain mappers
+├── di/                   — Hilt modules
+├── utils/                — Metadata fetcher (Jsoup), export helpers
+└── ui/
+├── theme/            — Material 3 color scheme, typography
+├── screens/          — HomeScreen, SettingsScreen, ViewModels, TopBar
+└── components/       — LinkCard, LinkGridCard, dialogs
+
+---
+
+## Building
+
+### Requirements
+
+- Android Studio Hedgehog (2023.1.1) or newer
+- JDK 17+
+- Android SDK API 34
+- Gradle 8.4 (downloaded automatically)
+
+### Steps
+
+1. Clone the repository
+
+```bash
+git clone https://github.com/AsukaAzure/linksi.git
+cd linksi
 ```
 
----
+2. Open in Android Studio
+   - File → Open → select the project folder
+   - Wait for Gradle sync to complete
 
-## 🛠️ How to Build
+3. Run on a device or emulator
+   - Select a device from the toolbar
+   - Click Run or press Shift+F10
 
-### Prerequisites
+### Building a release APK
 
-| Tool | Version |
-|---|---|
-| Android Studio | Hedgehog (2023.1.1) or newer |
-| JDK | 17+ |
-| Android SDK | API 34 |
-| Gradle | 8.4 (auto-downloaded) |
+```bash
+./gradlew assembleRelease
+```
 
----
-
-## 🚀 Possible Next Features
-
-- [x] Bulk selection
-- [x] Import/export links (JSON/CSV)
-      
+The output will be at `app/release/app-release.apk`. You will need a signing config set up in `build.gradle` or Android Studio before building a signed release.
 
 ---
 
-*Built with Jetpack Compose + Material 3 · Minimum Android 8.0 (API 26)*
+*Built with Jetpack Compose and Material 3*
