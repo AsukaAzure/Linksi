@@ -39,17 +39,46 @@ A Material 3 Android app to save, organize, and rediscover links. Appears in the
 
 ## Project Structure
 
-app/src/main/java/com/linksi/app/
-├── domain/model/         — Data models (Link, Folder, SortOption, FilterOption)
-├── data/
-│   ├── db/               — Room entities, DAOs, database class
-│   └── repository/       — LinkRepository, domain mappers
-├── di/                   — Hilt modules
-├── utils/                — Metadata fetcher (Jsoup), export helpers
-└── ui/
-├── theme/            — Material 3 color scheme, typography
-├── screens/          — HomeScreen, SettingsScreen, ViewModels, TopBar
-└── components/       — LinkCard, LinkGridCard, dialogs
+├── data
+│   ├── db
+│   │   ├── Daos.kt
+│   │   ├── Entities.kt
+│   │   └── LinksDatabase.kt
+│   └── repository
+│       └── LinkRepository.kt
+│
+├── di
+│   └── AppModule.kt
+│
+├── domain
+│   └── model
+│       └── Models.kt
+│
+├── LinksApplication.kt
+├── MainActivity.kt
+│
+├── ui
+│   ├── components
+│   │   ├── Dialogs.kt
+│   │   └── LinkCards.kt
+│   │
+│   ├── screens
+│   │   ├── FolderScreen.kt
+│   │   ├── HomeScreen.kt
+│   │   ├── HomeViewModel.kt
+│   │   ├── InAppBrowser.kt
+│   │   ├── SettingsScreen.kt
+│   │   ├── SettingsViewModel.kt
+│   │   ├── ShareReceiverActivity.kt
+│   │   └── TopBar.kt
+│   │
+│   └── theme
+│       ├── Theme.kt
+│       └── Typography.kt
+│
+└── utils
+    ├── ImportExportManager.kt
+    └── MetadataFetcher.kt
 
 ---
 
@@ -86,6 +115,14 @@ cd linksi
 ```
 
 The output will be at `app/release/app-release.apk`. You will need a signing config set up in `build.gradle` or Android Studio before building a signed release.
+
+---
+
+###ToDo
+[x] Folder Structure
+[x] Import/Export
+[x] Appearance in share page
+[ ] In App Browser
 
 ---
 
