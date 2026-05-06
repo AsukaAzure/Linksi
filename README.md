@@ -38,26 +38,28 @@ A Material 3 Android app to save, organize, and rediscover links. Appears in the
 ---
 
 ## Project Structure
+
+```
 app/src/main/java/com/linksi/app/
-├── data
-│   ├── db
+├── data/
+│   ├── db/
 │   │   ├── Daos.kt
 │   │   ├── Entities.kt
 │   │   └── LinksDatabase.kt
-│   └── repository
+│   └── repository/
 │       └── LinkRepository.kt
-├── di
+├── di/
 │   └── AppModule.kt
-├── domain
-│   └── model
+├── domain/
+│   └── model/
 │       └── Models.kt
 ├── LinksApplication.kt
 ├── MainActivity.kt
-├── ui
-│   ├── components
+├── ui/
+│   ├── components/
 │   │   ├── Dialogs.kt
 │   │   └── LinkCards.kt
-│   ├── screens
+│   ├── screens/
 │   │   ├── FolderScreen.kt
 │   │   ├── HomeScreen.kt
 │   │   ├── HomeViewModel.kt
@@ -66,12 +68,14 @@ app/src/main/java/com/linksi/app/
 │   │   ├── SettingsViewModel.kt
 │   │   ├── ShareReceiverActivity.kt
 │   │   └── TopBar.kt
-│   └── theme
+│   └── theme/
 │       ├── Theme.kt
 │       └── Typography.kt
-└── utils
+└── utils/
     ├── ImportExportManager.kt
     └── MetadataFetcher.kt
+```
+
 ---
 
 ## Building
@@ -100,7 +104,7 @@ cd linksi
    - Select a device from the toolbar
    - Click Run or press Shift+F10
 
-### Building a release APK
+### Building a Release APK
 
 ```bash
 ./gradlew assembleRelease
@@ -110,12 +114,13 @@ The output will be at `app/release/app-release.apk`. You will need a signing con
 
 ---
 
-###ToDo
-[x] Folder Structure
-[x] Import/Export
-[x] Appearance in share page
-[ ] In App Browser
+## Roadmap
+
+- [x] Folder Structure
+- [x] Import/Export
+- [x] Appearance in share page
+- [ ] In App Browser
 
 ---
 
-*Built with Jetpack Compose and Material 3*
+Built with Jetpack Compose and Material 3
