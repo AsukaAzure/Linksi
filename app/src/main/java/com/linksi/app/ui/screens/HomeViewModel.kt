@@ -1,5 +1,6 @@
 package com.linksi.app.ui.screens
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.linksi.app.data.repository.LinkRepository
@@ -12,6 +13,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import com.linksi.app.utils.dataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class HomeUiState(
     val links: List<Link> = emptyList(),
@@ -34,11 +38,13 @@ data class HomeUiState(
     val lastMovedToFolderId: Long? = null,
     val lastDeletedFolder: Folder? = null,
     val lastDeletedFolderLinks: List<Link> = emptyList(),
+    val useInAppBrowser: Boolean = true,
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val repository: LinkRepository
+    private val repository: LinkRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -49,6 +55,14 @@ class HomeViewModel @Inject constructor(
     init {
         observeData()
         loadFolders()
+
+        viewModelScope.launch {
+            context.dataStore.data.collect { prefs ->
+                _uiState.update { it.copy(
+                    useInAppBrowser = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true
+                )}
+            }
+        }
     }
 
     private fun observeData() {

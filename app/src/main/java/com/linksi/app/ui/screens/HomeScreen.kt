@@ -41,6 +41,12 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,9 +60,16 @@ fun HomeScreen(
     var showSettings by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
     var showFolders by remember { mutableStateOf(false) }
+    var browserUrl by remember { mutableStateOf<String?>(null) }
+    var browserTitle by remember { mutableStateOf("") }
+    var offsetY by remember { mutableStateOf(3000f) }
+    val screenHeightPx = LocalConfiguration.current.screenHeightDp.toFloat()
 
     BackHandler(enabled = state.isSelectionMode) {
         viewModel.clearSelection()
+    }
+    BackHandler(enabled = browserUrl != null) {
+        offsetY = screenHeightPx
     }
 
     LaunchedEffect(state.snackbarMessage) {
@@ -68,7 +81,6 @@ fun HomeScreen(
                             "${state.lastDeletedLinks.size} links deleted"
                         else "Link deleted",
                         actionLabel = "Undo",
-                        withDismissAction = true,
                         duration = SnackbarDuration.Long
                     )
                     if (result == SnackbarResult.ActionPerformed) {
@@ -82,7 +94,6 @@ fun HomeScreen(
                             "${state.lastMovedLinks.size} links moved"
                         else "Link moved",
                         actionLabel = "Undo",
-                        withDismissAction = true,
                         duration = SnackbarDuration.Long
                     )
                     if (result == SnackbarResult.ActionPerformed) {
@@ -96,7 +107,6 @@ fun HomeScreen(
                     val result = snackbarHostState.showSnackbar(
                         message = "\"$folderName\" and $linkCount links deleted",
                         actionLabel = "Undo",
-                        withDismissAction = true,
                         duration = SnackbarDuration.Long
                     )
                     if (result == SnackbarResult.ActionPerformed) {
@@ -349,7 +359,12 @@ fun HomeScreen(
                                     viewModel.toggleSelction(link.id)
                                 } else {
                                     viewModel.markAsRead(link, true)
-                                    uriHandler.openUri(link.url)
+                                    if (state.useInAppBrowser) {
+                                        browserUrl = link.url
+                                        browserTitle = link.title
+                                    } else {
+                                        uriHandler.openUri(link.url)
+                                    }
                                 }
                             },
                             onFavoriteToggle = viewModel::toggleFavorite,
@@ -370,7 +385,12 @@ fun HomeScreen(
                                     viewModel.toggleSelction(link.id)
                                 } else {
                                     viewModel.markAsRead(link, true)
-                                    uriHandler.openUri(link.url)
+                                    if (state.useInAppBrowser) {
+                                        browserUrl = link.url
+                                        browserTitle = link.title
+                                    } else {
+                                        uriHandler.openUri(link.url)
+                                    }
                                 }
                             },
                             onFavoriteToggle = viewModel::toggleFavorite,
@@ -395,6 +415,67 @@ fun HomeScreen(
             exit = slideOutHorizontally(targetOffsetX = { it })
         ) {
             FoldersScreen(onBack = { showFolders = false })
+        }
+
+        //browser
+
+        val animatedOffset by animateFloatAsState(
+            targetValue = offsetY,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMedium
+            ),
+            label = "browserOffset",
+            finishedListener = { final ->
+                if (final >= screenHeightPx) {
+                    browserUrl = null
+                    offsetY = screenHeightPx
+                }
+            }
+        )
+
+// When browserUrl is set, slide up
+        LaunchedEffect(browserUrl) {
+            if (browserUrl != null) {
+                offsetY = screenHeightPx  // start from bottom
+                offsetY = 0f              // slide up
+            }
+        }
+
+        if (browserUrl != null || animatedOffset < screenHeightPx) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 80.dp)
+                    .offset(y = animatedOffset.dp)
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    color = MaterialTheme.colorScheme.background,
+                    shadowElevation = 8.dp
+                ) {
+                    browserUrl?.let { url ->
+                        InAppBrowser(
+                            url = url,
+                            title = browserTitle,
+                            onDrag = { dragAmount ->
+                                offsetY = (offsetY + dragAmount).coerceAtLeast(0f)
+                            },
+                            onDragEnd = {
+                                if (offsetY > 120f) {
+                                    offsetY = screenHeightPx
+                                } else {
+                                    offsetY = 0f
+                                }
+                            },
+                            onDismiss = {
+                                offsetY = screenHeightPx
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 

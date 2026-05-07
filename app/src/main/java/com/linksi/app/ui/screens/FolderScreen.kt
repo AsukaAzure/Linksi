@@ -36,6 +36,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.platform.LocalConfiguration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,14 +48,20 @@ fun FoldersScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFolder by remember { mutableStateOf<Folder?>(null) }
+    var browserUrl by remember { mutableStateOf<String?>(null) }   // add
+    var browserTitle by remember { mutableStateOf("") }            // add
 
     BackHandler {
-        if (selectedFolder != null) selectedFolder = null
-        else onBack()
+        if (browserUrl != null) {
+            browserUrl = null  // handled by browser's own back
+        } else if (selectedFolder != null) {
+            selectedFolder = null
+        } else {
+            onBack()
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // ── Folders list ──────────────────────────────────────
         FolderListScreen(
             folders = state.folders,
             onFolderClick = { selectedFolder = it },
@@ -62,7 +71,6 @@ fun FoldersScreen(
             viewModel = viewModel
         )
 
-        // ── Folder detail slides in from right ────────────────
         AnimatedVisibility(
             visible = selectedFolder != null,
             enter = slideInHorizontally(initialOffsetX = { it }),
@@ -72,10 +80,72 @@ fun FoldersScreen(
                 FolderDetailScreen(
                     folder = folder,
                     viewModel = viewModel,
-                    onBack = { selectedFolder = null }
+                    onBack = { selectedFolder = null },
+                    onOpenBrowser = { url, title ->     // add
+                        browserUrl = url
+                        browserTitle = title
+                    }
                 )
             }
         }
+
+        // ── Browser overlay — same as HomeScreen ──────────────
+        var offsetY by remember { mutableStateOf(3000f) }
+        val screenHeightPx = LocalConfiguration.current.screenHeightDp.toFloat()
+
+        val animatedOffset by animateFloatAsState(
+            targetValue = offsetY,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMedium
+            ),
+            label = "browserOffset",
+            finishedListener = { final ->
+                if (final >= screenHeightPx) {
+                    browserUrl = null
+                    offsetY = screenHeightPx
+                }
+            }
+        )
+
+        LaunchedEffect(browserUrl) {
+            if (browserUrl != null) {
+                offsetY = screenHeightPx
+                offsetY = 0f
+            }
+        }
+
+        if (browserUrl != null || animatedOffset < screenHeightPx) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 80.dp)
+                    .offset(y = animatedOffset.dp)
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    color = MaterialTheme.colorScheme.background,
+                    shadowElevation = 8.dp
+                ) {
+                    browserUrl?.let { url ->
+                        InAppBrowser(
+                            url = url,
+                            title = browserTitle,
+                            onDrag = { dragAmount ->
+                                offsetY = (offsetY + dragAmount).coerceAtLeast(0f)
+                            },
+                            onDragEnd = {
+                                if (offsetY > 120f) offsetY = screenHeightPx
+                                else offsetY = 0f
+                            },
+                            onDismiss = { offsetY = screenHeightPx }
+                        )
+                    }
+                }
+            }
+        }
+        // ── End Browser ───────────────────────────────────────
     }
 
     if (state.showAddFolderDialog) {
@@ -271,7 +341,7 @@ fun FolderDetailScreen(
     folder: Folder,
     viewModel: HomeViewModel,
     onBack: () -> Unit,
-
+    onOpenBrowser: (url: String, title: String) -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
@@ -539,7 +609,11 @@ fun FolderDetailScreen(
                                         selectedIds + link.id
                                 } else {
                                     viewModel.markAsRead(link, true)
-                                    uriHandler.openUri(link.url)
+                                    if (viewModel.uiState.value.useInAppBrowser) {
+                                        onOpenBrowser(link.url, link.title)
+                                    } else {
+                                        uriHandler.openUri(link.url)
+                                    }
                                 }
                             },
                             onFavoriteToggle = { viewModel.toggleFavorite(link) },

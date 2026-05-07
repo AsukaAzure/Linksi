@@ -153,6 +153,47 @@ fun SettingsScreen(
                 }
             }
 
+            // Browser section
+            item {
+                Text(
+                    "Browser",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            item {
+                SettingsCard {
+                    ListItem(
+                        headlineContent = { Text("In-app browser") },
+                        supportingContent = {
+                            Text(
+                                if (state.useInAppBrowser)
+                                    "Links open inside Linksi"
+                                else
+                                    "Links open in your default browser",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                if (state.useInAppBrowser) Icons.Outlined.OpenInBrowser
+                                else Icons.Outlined.Launch,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = state.useInAppBrowser,
+                                onCheckedChange = { viewModel.toggleInAppBrowser(it) }
+                            )
+                        }
+                    )
+                }
+            }
+
             // ── Stats ─────────────────────────────────────────
             item {
                 Text("Stats", style = MaterialTheme.typography.titleSmall,

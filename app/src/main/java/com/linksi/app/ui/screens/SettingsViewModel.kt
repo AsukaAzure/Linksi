@@ -2,6 +2,7 @@ package com.linksi.app.ui.screens
 
 import android.content.Context
 import android.net.Uri
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.linksi.app.data.repository.LinkRepository
@@ -10,6 +11,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.datastore.core.DataStore
+
 
 data class SettingsUiState(
     val totalLinks: Int = 0,
@@ -17,15 +23,18 @@ data class SettingsUiState(
     val totalFavorites: Int = 0,
     val message: String? = null,
     val importResult: ImportResult? = null,
-    val duplicateCount: Int = 0
+    val duplicateCount: Int = 0,
+    val useInAppBrowser: Boolean = true
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val repository: LinkRepository
+    private val repository: LinkRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
+    private val USE_IN_APP_BROWSER = booleanPreferencesKey("use_in_app_browser")
     val uiState = _uiState.asStateFlow()
 
     init {
@@ -40,6 +49,22 @@ class SettingsViewModel @Inject constructor(
                     totalFavorites = links.count { l -> l.isFavorite }
                 )}
             }.collect()
+        }
+        viewModelScope.launch {
+            context.dataStore.data.collect { prefs ->
+                _uiState.update { it.copy(
+                    useInAppBrowser = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true
+                )}
+            }
+        }
+    }
+
+    fun toggleInAppBrowser(enabled: Boolean) {
+        viewModelScope.launch {
+            context.dataStore.edit { prefs ->
+                prefs[USE_IN_APP_BROWSER] = enabled
+            }
+            _uiState.update { it.copy(useInAppBrowser = enabled) }
         }
     }
 
