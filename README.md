@@ -1,5 +1,7 @@
 # Linksi — Link Saver for Android
 
+<img width="5016" height="2823" alt="linksi_poster" src="https://github.com/user-attachments/assets/a7650e12-942c-42b4-ab44-fc23fc95ef4a" />
+
 A Material 3 Android app to save, organize, and rediscover links. Appears in the Android share sheet from any app.
 
 ---
