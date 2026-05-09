@@ -94,7 +94,7 @@ fun LinkCard(
     )
 
     LaunchedEffect(dismissState.progress) {
-        swipeConfirmed = dismissState.progress >= 0.6f
+        swipeConfirmed = dismissState.progress >= 0.5f
     }
 
     SwipeToDismissBox(
