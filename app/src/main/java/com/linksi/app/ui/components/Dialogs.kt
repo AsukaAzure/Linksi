@@ -387,3 +387,98 @@ fun EditLinkDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
+
+@Composable
+fun EditFolderDialog(
+    folder: Folder,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, icon: String, color: String) -> Unit
+) {
+    var name by remember { mutableStateOf(folder.name) }
+    var selectedIcon by remember { mutableStateOf(folder.icon) }
+    var selectedColor by remember { mutableStateOf(folder.color) }
+    var iconSearch by remember { mutableStateOf("") }
+
+    val filteredIcons = remember(iconSearch) {
+        if (iconSearch.isBlank()) FOLDER_ICONS
+        else FOLDER_ICONS.filter { it.name.contains(iconSearch, ignoreCase = true) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Outlined.Edit, null) },
+        title = { Text("Edit Folder") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Folder name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text("Icon", style = MaterialTheme.typography.labelMedium)
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(5),
+                    modifier = Modifier.height(160.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filteredIcons) { option ->
+                        Surface(
+                            shape = CircleShape,
+                            color = if (selectedIcon == option.name)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(50.dp))
+                                .clickable { selectedIcon = option.name }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    option.icon, null,
+                                    Modifier.size(20.dp),
+                                    tint = if (selectedIcon == option.name)
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Text("Color", style = MaterialTheme.typography.labelMedium)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(FOLDER_COLORS) { color ->
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(Color(android.graphics.Color.parseColor(color)))
+                                .then(
+                                    if (color == selectedColor)
+                                        Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                    else Modifier
+                                )
+                                .clickable { selectedColor = color }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank()) onConfirm(name.trim(), selectedIcon, selectedColor)
+                },
+                enabled = name.isNotBlank()
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}

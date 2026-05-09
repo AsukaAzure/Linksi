@@ -173,6 +173,7 @@ fun FolderListScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var editingFolder by remember { mutableStateOf<Folder?>(null)}
 
     // Handle folder delete undo locally — not in HomeScreen
     LaunchedEffect(state.snackbarMessage) {
@@ -221,11 +222,15 @@ fun FolderListScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Outlined.FolderOpen, null,
+                    Icon(
+                        Icons.Outlined.FolderOpen, null,
                         Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("No folders yet",
-                        style = MaterialTheme.typography.titleMedium)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "No folders yet",
+                        style = MaterialTheme.typography.titleMedium
+                    )
                     Button(onClick = onAddFolder) {
                         Icon(Icons.Filled.Add, null, Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
@@ -244,7 +249,8 @@ fun FolderListScreen(
                     FolderListItem(
                         folder = folder,
                         onClick = { onFolderClick(folder) },
-                        onDelete = { onDeleteFolder(folder) }
+                        onDelete = { onDeleteFolder(folder) },
+                        onEdit = { editingFolder = it }
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 24.dp),
@@ -253,14 +259,23 @@ fun FolderListScreen(
                 }
             }
         }
-    }
+    editingFolder?.let { folder ->
+        EditFolderDialog(
+            folder = folder,
+            onDismiss = { editingFolder = null },
+            onConfirm = { name, icon, color ->
+                viewModel.updateFolder(folder.copy(name = name, icon = icon, color = color))
+                editingFolder = null
+            }
+        )
+    }}
 }
 
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FolderListItem(folder: Folder, onClick: () -> Unit, onDelete: () -> Unit) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
+fun FolderListItem(folder: Folder, onClick: () -> Unit, onDelete: () -> Unit, onEdit: (Folder) -> Unit) {
+    var showMenu by remember { mutableStateOf(false) }
 
     ListItem(
         headlineContent = {
@@ -300,36 +315,45 @@ fun FolderListItem(folder: Folder, onClick: () -> Unit, onDelete: () -> Unit) {
         },
         modifier = Modifier.combinedClickable(
             onClick = onClick,
-            onLongClick = { showDeleteDialog = true }
+            onLongClick = { showMenu = true }
         ),
         colors = ListItemDefaults.colors(
             containerColor = MaterialTheme.colorScheme.background
         )
     )
 
-    if (showDeleteDialog) {
+    if (showMenu) {
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            icon = { Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Delete folder?") },
+            onDismissRequest = { showMenu = false },
+            title = { Text(folder.name) },
             text = {
-                Text(
-                    "\"${folder.name}\" will be deleted. "
-                )
+                Column {
+                    ListItem(
+                        headlineContent = { Text("Edit folder") },
+                        leadingContent = { Icon(Icons.Outlined.Edit, null) },
+                        modifier = Modifier.clickable {
+                            showMenu = false
+                            onEdit(folder)
+                        }
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = {
+                            Text("Delete folder", color = MaterialTheme.colorScheme.error)
+                        },
+                        leadingContent = {
+                            Icon(Icons.Outlined.Delete, null,
+                                tint = MaterialTheme.colorScheme.error)
+                        },
+                        modifier = Modifier.clickable {
+                            showMenu = false
+                            onDelete()
+                        }
+                    )
+                }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        onDelete()
-                        showDeleteDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) { Text("Delete") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showMenu = false }) { Text("Cancel") }
             }
         )
     }

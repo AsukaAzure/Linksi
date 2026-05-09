@@ -249,6 +249,12 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun updateFolder(folder: Folder) {
+        viewModelScope.launch {
+            repository.updateFolder(folder)
+        }
+    }
+
     fun dismissSnackbar() = _uiState.update { it.copy(snackbarMessage = null) }
 
     fun showAddLinkDialog() = _uiState.update { it.copy(showAddLinkDialog = true) }
