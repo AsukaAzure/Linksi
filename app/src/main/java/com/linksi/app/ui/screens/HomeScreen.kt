@@ -65,8 +65,8 @@ fun HomeScreen(
     var offsetY by remember { mutableStateOf(3000f) }
     val screenHeightPx = LocalConfiguration.current.screenHeightDp.toFloat()
 
-    BackHandler(enabled = state.isSelectionMode) {
-        viewModel.clearSelection()
+    BackHandler(enabled = state.selectedFolderId != null) {
+        viewModel.selectFolder(null)
     }
     BackHandler(enabled = browserUrl != null) {
         offsetY = screenHeightPx
@@ -372,7 +372,10 @@ fun HomeScreen(
                             onMoveToFolder = { link, folderId ->
                                 viewModel.moveToFolder(link, folderId)
                             },
-                            onEdit = viewModel::setEditingLink
+                            onEdit = viewModel::setEditingLink,
+                            onFolderClick = { folder ->
+                                viewModel.selectFolder(folder.id)
+                            }
                         )
 
                         ViewMode.GRID -> LinksGrid(
@@ -625,7 +628,8 @@ fun LinksList(
     onFavoriteToggle: (Link) -> Unit,
     onDelete: (Link) -> Unit,
     onMoveToFolder: (Link, Long?) -> Unit,
-    onEdit: (Link) -> Unit
+    onEdit: (Link) -> Unit,
+    onFolderClick: (Folder) -> Unit
 ) {
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -642,7 +646,8 @@ fun LinksList(
                 onFavoriteToggle = { onFavoriteToggle(link) },
                 onDelete = { onDelete(link) },
                 onMoveToFolder = { folderId -> onMoveToFolder(link, folderId) },
-                onEdit = { onEdit(link) }
+                onEdit = { onEdit(link) },
+                onFolderClick = onFolderClick
             )
         }
         item { Spacer(Modifier.height(80.dp)) }

@@ -46,6 +46,7 @@ fun LinkCard(
     onDelete: () -> Unit,
     onMoveToFolder: (Long?) -> Unit,
     onEdit: () -> Unit,
+    onFolderClick: (Folder) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -318,7 +319,7 @@ fun LinkCard(
                         val folder = folders.find { it.id == link.folderId }
                         if (folder != null) {
                             AssistChip(
-                                onClick = {},
+                                onClick = { onFolderClick(folder) },
                                 label = {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
