@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import com.linksi.app.utils.cancelReminder
 import com.linksi.app.utils.dataStore
+import com.linksi.app.utils.scheduleReminder
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class HomeUiState(
@@ -118,7 +120,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun addLink(url: String, folderId: Long? = null) {
+    fun addLink(url: String, folderId: Long? = null, reminderAt: Long? = null) {
         val normalized = normalizeUrl(url)
         if (!isValidUrl(normalized)) {
             _uiState.update { it.copy(snackbarMessage = "Invalid URL") }
@@ -138,9 +140,13 @@ class HomeViewModel @Inject constructor(
                 faviconUrl = meta.faviconUrl,
                 previewImageUrl = meta.previewImageUrl,
                 domain = meta.domain.ifBlank { extractDomain(normalized) },
+                reminderAt = reminderAt,
                 folderId = folderId
             )
-            repository.insertLink(link)
+            val id = repository.insertLink(link)
+            if(reminderAt != null) {
+                scheduleReminder(context, id, link.title.ifBlank { link.domain },link.url, reminderAt)
+            }
             _uiState.update { it.copy(isFetchingMetadata = false, snackbarMessage = "Link saved ") }
         }
     }
@@ -148,6 +154,10 @@ class HomeViewModel @Inject constructor(
     fun updateLink(link: Link) {
         viewModelScope.launch {
             repository.updateLink(link)
+            cancelReminder(context, link.id)
+            if (link.reminderAt != null && link.reminderAt > System.currentTimeMillis()) {
+                scheduleReminder(context, link.id, link.title, link.url, link.reminderAt)
+            }
             _uiState.update { it.copy(snackbarMessage = "Link updated") }
         }
     }

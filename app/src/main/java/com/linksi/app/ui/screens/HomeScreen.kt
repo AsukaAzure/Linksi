@@ -499,8 +499,8 @@ fun HomeScreen(
             folders = state.folders,
             isFetchingMetadata = state.isFetchingMetadata,
             onDismiss = viewModel::hideAddLinkDialog,
-            onConfirm = { url, folderId ->
-                viewModel.addLink(url, folderId)
+            onConfirm = { url, folderId, reminderAt ->
+                viewModel.addLink(url, folderId, reminderAt)
                 viewModel.hideAddLinkDialog()
             }
         )

@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.graphics.Color
 import com.linksi.app.ui.components.AddFolderDialog
+import com.linksi.app.ui.components.ReminderPicker
 import com.linksi.app.ui.components.iconFromName
 
 @AndroidEntryPoint
@@ -88,6 +89,7 @@ fun ShareReceiverSheet(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFolderId by remember { mutableStateOf<Long?>(null) }
+    var reminderAt by remember { mutableStateOf<Long?>(null) }
 //    var isSaving by remember { mutableStateOf(false) }
 
     // Sheet drag state
@@ -220,7 +222,38 @@ fun ShareReceiverSheet(
                     }
                 )
             }
+            HorizontalDivider()
+            Text("Remember", style = MaterialTheme.typography.labelLarge)
+            ReminderPicker(
+                reminderAt = reminderAt,
+                onReminderSet = { reminderAt = it }
+            )
+            HorizontalDivider()
 
+            AnimatedVisibility(visible = state.snackbarMessage == "Link already saved") {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Outlined.Warning, null,
+                            Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            "This link is already saved in Linksi",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
             // Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -240,13 +273,20 @@ fun ShareReceiverSheet(
                 Button(
                     onClick = {
                         scope.launch {
-                            viewModel.addLink(url, selectedFolderId)
-                            snapshotFlow { state.isFetchingMetadata }
-                                .first { it }
-                            snapshotFlow { state.isFetchingMetadata }
-                                .first { !it }
+                            viewModel.dismissSnackbar()
+                            viewModel.addLink(url, selectedFolderId, reminderAt)
+                            snapshotFlow { state.snackbarMessage }
+                                .first { it != null }
+                            if (state.snackbarMessage == "Link already saved") {
+
+                            } else {
+//                            snapshotFlow { state.isFetchingMetadata }
+//                                .first { !it }
                             sheetState.hide()
                             onSaved()
+                                viewModel.dismissSnackbar()
+                        }
+
                         }
 //                        isSaving = true
 //                        viewModel.addLink(url, selectedFolderId)
@@ -260,7 +300,8 @@ fun ShareReceiverSheet(
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
-                    } else {
+                    }
+                    else {
                         Icon(Icons.Filled.Bookmark, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Save Link")

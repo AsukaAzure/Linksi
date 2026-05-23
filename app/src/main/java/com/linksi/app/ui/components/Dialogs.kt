@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.room.util.TableInfo
 import com.linksi.app.domain.model.*
 import androidx.compose.material.icons.outlined.*
+import java.text.SimpleDateFormat
+import java.util.*
 
 data class FolderIconOption(
     val name: String,
@@ -70,10 +72,11 @@ fun AddLinkDialog(
     folders: List<Folder>,
     isFetchingMetadata: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (url: String, folderId: Long?) -> Unit
+    onConfirm: (url: String, folderId: Long?, reminderAt: Long?) -> Unit
 ) {
     var url by remember { mutableStateOf("") }
     var selectedFolderId by remember { mutableStateOf<Long?>(null) }
+    var reminderAt by remember { mutableStateOf<Long?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -136,6 +139,10 @@ fun AddLinkDialog(
                         }
                     }
                 }
+                ReminderPicker(
+                    reminderAt = reminderAt,
+                    onReminderSet = { reminderAt = it }
+                )
 
                 if (isFetchingMetadata) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -147,7 +154,7 @@ fun AddLinkDialog(
         },
         confirmButton = {
             Button(
-                onClick = { if (url.isNotBlank()) onConfirm(url.trim(), selectedFolderId) },
+                onClick = { if (url.isNotBlank()) onConfirm(url.trim(), selectedFolderId, reminderAt) },
                 enabled = url.isNotBlank() && !isFetchingMetadata
             ) {
                 Text("Save")
@@ -332,6 +339,7 @@ fun EditLinkDialog(
     var url by remember { mutableStateOf(link.url) }
     var title by remember { mutableStateOf(link.title) }
     var description by remember { mutableStateOf(link.description) }
+    var reminderAt by remember { mutableStateOf(link.reminderAt) }
     var selectedFolderId by remember { mutableStateOf(link.folderId) }
 
     AlertDialog(
@@ -376,16 +384,164 @@ fun EditLinkDialog(
                         }
                     }
                 }
+                ReminderPicker(reminderAt = reminderAt, onReminderSet = { reminderAt = it })
             }
         },
         confirmButton = {
             Button(onClick = {
                 onConfirm(link.copy(url = url.trim(), title = title.trim(),
-                    description = description.trim(), folderId = selectedFolderId))
+                    description = description.trim(), folderId = selectedFolderId, reminderAt = reminderAt))
             }, enabled = url.isNotBlank()) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReminderPicker(
+    reminderAt: Long?,
+    onReminderSet: (Long?) -> Unit
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var selectedDate by remember { mutableStateOf<Long?>(null) }
+    val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault()) }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Icon(
+            Icons.Outlined.Notifications, null,
+            Modifier.size(18.dp),
+            tint = if (reminderAt != null) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        if (reminderAt != null) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        dateFormatter.format(Date(reminderAt)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { onReminderSet(null) },
+                        modifier = Modifier.size(18.dp)
+                    ) {
+                        Icon(Icons.Filled.Close, null, Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                }
+            }
+        } else {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val suggestions = listOf(
+                    "1h"       to (System.currentTimeMillis() + 3_600_000L),
+                    "Tonight"  to todayAt(21, 0),
+                    "Tomorrow" to tomorrowAt(9, 0),
+                    "Weekend"  to nextWeekendAt(9, 0),
+                )
+                items(suggestions) { (label, time) ->
+                    SuggestionChip(
+                        onClick = { onReminderSet(time) },
+                        label = { Text(label, style = MaterialTheme.typography.labelSmall) }
+                    )
+                }
+                item {
+                    SuggestionChip(
+                        onClick = { showDatePicker = true },
+                        label = { Text("Custom", style = MaterialTheme.typography.labelSmall) }
+                    )
+                }
+            }
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = System.currentTimeMillis()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedDate = datePickerState.selectedDateMillis
+                    showDatePicker = false
+                    showTimePicker = true
+                }) { Text("Next") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) { DatePicker(state = datePickerState) }
+    }
+
+    if (showTimePicker) {
+        val timePickerState = rememberTimePickerState(initialHour = 9, initialMinute = 0)
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("Pick a time") },
+            text = { TimePicker(state = timePickerState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val date = selectedDate ?: System.currentTimeMillis()
+                    val cal = Calendar.getInstance().apply {
+                        timeInMillis = date
+                        set(Calendar.HOUR_OF_DAY, timePickerState.hour)
+                        set(Calendar.MINUTE, timePickerState.minute)
+                        set(Calendar.SECOND, 0)
+                    }
+                    onReminderSet(cal.timeInMillis)
+                    showTimePicker = false
+                }) { Text("Set") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+private fun todayAt(hour: Int, minute: Int): Long {
+    return Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, hour)
+        set(Calendar.MINUTE, minute)
+        set(Calendar.SECOND, 0)
+        if (timeInMillis < System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
+    }.timeInMillis
+}
+
+private fun tomorrowAt(hour: Int, minute: Int): Long {
+    return Calendar.getInstance().apply {
+        add(Calendar.DAY_OF_YEAR, 1)
+        set(Calendar.HOUR_OF_DAY, hour)
+        set(Calendar.MINUTE, minute)
+        set(Calendar.SECOND, 0)
+    }.timeInMillis
+}
+
+private fun nextWeekendAt(hour: Int, minute: Int): Long {
+    return Calendar.getInstance().apply {
+        while (get(Calendar.DAY_OF_WEEK) != Calendar.SATURDAY) {
+            add(Calendar.DAY_OF_YEAR, 1)
+        }
+        set(Calendar.HOUR_OF_DAY, hour)
+        set(Calendar.MINUTE, minute)
+        set(Calendar.SECOND, 0)
+    }.timeInMillis
 }
 
 @Composable
@@ -482,3 +638,4 @@ fun EditFolderDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
+
