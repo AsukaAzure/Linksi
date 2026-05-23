@@ -16,6 +16,7 @@ A Material 3 Android app to save, organize, and rediscover links. Appears in the
 - Grid and list view toggle
 - Sort by date, title, domain — filter by favorites or unread
 - Bulk select, move, and delete
+- Inbuilt browser for quick view
 - Import and export links as JSON or CSV
 - Import browser bookmarks from Chrome, Firefox, or Safari
 - Material You dynamic color with dark mode support
