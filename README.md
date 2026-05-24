@@ -122,7 +122,8 @@ The output will be at `app/release/app-release.apk`. You will need a signing con
 - [x] Folder Structure
 - [x] Import/Export
 - [x] Appearance in share page
-- [ ] In App Browser
+- [x] In App Browser
+- [x] Reminder
 
 ---
 
