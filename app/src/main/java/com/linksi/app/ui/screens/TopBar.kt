@@ -13,6 +13,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import com.linksi.app.ui.components.iconFromName
 
@@ -26,7 +27,8 @@ fun LinksTopBar(
     onSortClick: () -> Unit,
 //    onAddFolder: () -> Unit,
     onFoldersClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onFoldersCoordsChanged: (androidx.compose.ui.layout.LayoutCoordinates) -> Unit = {}
 ) {
     val selectedFolder = folders.find { it.id == selectedFolderId }
 
@@ -59,7 +61,8 @@ fun LinksTopBar(
             IconButton(onClick = onSortClick) {
                 Icon(Icons.Outlined.Sort, "Sort")
             }
-            IconButton(onClick = onFoldersClick) {
+            IconButton(onClick = onFoldersClick,
+                modifier = Modifier.onGloballyPositioned { onFoldersCoordsChanged(it) }) {
                 Icon(Icons.Outlined.Folder, "Folders")
             }
             IconButton(onClick = onSettingsClick) {

@@ -47,6 +47,11 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,9 +69,58 @@ fun HomeScreen(
     var browserTitle by remember { mutableStateOf("") }
     var offsetY by remember { mutableStateOf(3000f) }
     val screenHeightPx = LocalConfiguration.current.screenHeightDp.toFloat()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+// Tour state
+    val tourComplete by isTourComplete(context).collectAsState(initial = null)
+    var tourStep by remember { mutableStateOf(TourStep.SAVE_BUTTON) }
+    var showTourDialog by remember { mutableStateOf(false) }
+
+// Coordinates for each target
+    var fabCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var foldersIconCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var firstLinkCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
+    LaunchedEffect(tourComplete) {
+        if (tourComplete == false) {
+            tourStep = TourStep.SAVE_BUTTON
+        }
+    }
+    val isInTour = tourComplete == false
+
+    fun nextStep() {
+        tourStep = when (tourStep) {
+            TourStep.SAVE_BUTTON -> {
+                // Auto-open the add link dialog with prefilled URL
+                viewModel.showAddLinkDialog()
+                TourStep.ADD_LINK_DIALOG
+            }
+            TourStep.ADD_LINK_DIALOG -> TourStep.REMINDER_IN_DIALOG
+            TourStep.REMINDER_IN_DIALOG -> TourStep.FOLDER_IN_DIALOG
+            TourStep.FOLDER_IN_DIALOG -> {
+                // Save the prefilled link
+                viewModel.addLink("https://google.com", null)
+                viewModel.hideAddLinkDialog()
+                TourStep.FOLDERS_ICON
+            }
+            TourStep.FOLDERS_ICON -> TourStep.SAVED_LINK_CARD
+            TourStep.SAVED_LINK_CARD -> {
+                scope.launch { setTourComplete(context) }
+                TourStep.DONE
+            }
+            TourStep.DONE -> TourStep.DONE
+        }
+    }
+
+    // Tour overlay — sits above everything
+
 
     BackHandler(enabled = state.selectedFolderId != null) {
         viewModel.selectFolder(null)
+    }
+    BackHandler(enabled = state.isSelectionMode) {
+        viewModel.clearSelection()
     }
     BackHandler(enabled = browserUrl != null) {
         offsetY = screenHeightPx
@@ -136,7 +190,8 @@ fun HomeScreen(
                     onSortClick = { showSortMenu = true },
 //                    onAddFolder = viewModel::showAddFolderDialog,
                     onFoldersClick = { showFolders = true },
-                    onSettingsClick = { showSettings = true }
+                    onSettingsClick = { showSettings = true },
+                    onFoldersCoordsChanged = { foldersIconCoords = it }
                 )
             },
             floatingActionButton = {
@@ -145,7 +200,8 @@ fun HomeScreen(
                     icon = { Icon(Icons.Filled.Add, "Add Link") },
                     text = { Text("Save Link") },
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.onGloballyPositioned { fabCoords = it }
                 )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -375,7 +431,8 @@ fun HomeScreen(
                             onEdit = viewModel::setEditingLink,
                             onFolderClick = { folder ->
                                 viewModel.selectFolder(folder.id)
-                            }
+                            },
+                            onFirstLinkPosition = { firstLinkCoords = it }
                         )
 
                         ViewMode.GRID -> LinksGrid(
@@ -480,6 +537,46 @@ fun HomeScreen(
                 }
             }
         }
+        if (isInTour && tourStep != TourStep.DONE && tourStep != TourStep.ADD_LINK_DIALOG
+        && tourStep != TourStep.REMINDER_IN_DIALOG && tourStep != TourStep.FOLDER_IN_DIALOG) {
+
+        val target = when (tourStep) {
+            TourStep.SAVE_BUTTON -> CoachMarkTarget(
+                coords = fabCoords,
+                title = "Save a Link",
+                description = "Tap here to save your first link!",
+                tooltipBelow = false
+            )
+            TourStep.FOLDERS_ICON -> CoachMarkTarget(
+                coords = foldersIconCoords,
+                title = "Your Folders",
+                description = "Tap here to view and manage your folders.",
+                tooltipBelow = true
+            )
+            TourStep.SAVED_LINK_CARD -> CoachMarkTarget(
+                coords = firstLinkCoords,
+                title = "Open a Link",
+                description = "Tap any link to open it in the built-in browser!",
+                tooltipBelow = true
+            )
+            else -> null
+        }
+
+        target?.let {
+            SpotlightOverlay(
+                target = it,
+                onNext = { nextStep() },
+                isLastStep = tourStep == TourStep.SAVED_LINK_CARD,
+                stepNumber = when (tourStep) {
+                    TourStep.SAVE_BUTTON -> 1
+                    TourStep.FOLDERS_ICON -> 5
+                    TourStep.SAVED_LINK_CARD -> 6
+                    else -> 0
+                },
+                totalSteps = 6
+            )
+        }
+    }
     }
 
     state.editingLink?.let { link ->
@@ -498,6 +595,9 @@ fun HomeScreen(
         AddLinkDialog(
             folders = state.folders,
             isFetchingMetadata = state.isFetchingMetadata,
+            isInTour = isInTour,
+            tourStep = tourStep,
+            onTourNext = {nextStep()},
             onDismiss = viewModel::hideAddLinkDialog,
             onConfirm = { url, folderId, reminderAt ->
                 viewModel.addLink(url, folderId, reminderAt)
@@ -629,13 +729,14 @@ fun LinksList(
     onDelete: (Link) -> Unit,
     onMoveToFolder: (Link, Long?) -> Unit,
     onEdit: (Link) -> Unit,
-    onFolderClick: (Folder) -> Unit
+    onFolderClick: (Folder) -> Unit,
+    onFirstLinkPosition: (LayoutCoordinates) -> Unit = {}
 ) {
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(links, key = { it.id }) { link ->
+        itemsIndexed(links, key = { _, link ->link.id }) { index, link ->
             LinkCard(
                 link = link,
                 isSelected = selectedIds.contains(link.id),
@@ -647,7 +748,9 @@ fun LinksList(
                 onDelete = { onDelete(link) },
                 onMoveToFolder = { folderId -> onMoveToFolder(link, folderId) },
                 onEdit = { onEdit(link) },
-                onFolderClick = onFolderClick
+                onFolderClick = onFolderClick,
+                modifier = if (index == 0) Modifier.onGloballyPositioned{onFirstLinkPosition(it)}
+                else Modifier
             )
         }
         item { Spacer(Modifier.height(80.dp)) }

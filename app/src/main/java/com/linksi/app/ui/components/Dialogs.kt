@@ -1,6 +1,11 @@
 package com.linksi.app.ui.components
 
+import android.Manifest
 import android.app.AlertDialog
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,6 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.room.util.TableInfo
 import com.linksi.app.domain.model.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import com.linksi.app.ui.screens.TourStep
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -72,7 +81,10 @@ fun AddLinkDialog(
     folders: List<Folder>,
     isFetchingMetadata: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (url: String, folderId: Long?, reminderAt: Long?) -> Unit
+    onConfirm: (url: String, folderId: Long?, reminderAt: Long?) -> Unit,
+    isInTour: Boolean = false,
+    tourStep: TourStep  = TourStep.DONE,
+    onTourNext: () -> Unit = {}
 ) {
     var url by remember { mutableStateOf("") }
     var selectedFolderId by remember { mutableStateOf<Long?>(null) }
@@ -84,6 +96,83 @@ fun AddLinkDialog(
         title = { Text("Save Link") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // After URL field — tour step 2
+                if (isInTour && tourStep == TourStep.ADD_LINK_DIALOG) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("\uD83D\uDC47", fontSize = 20.sp)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Step 2 of 6", style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary)
+                                Text("Paste any URL here to save it",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                            TextButton(onClick = onTourNext) { Text("Next") }
+                        }
+                    }
+                }
+
+// After reminder picker — tour step 3
+                if (isInTour && tourStep == TourStep.REMINDER_IN_DIALOG) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("🔔", fontSize = 20.sp)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Step 3 of 6", style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.secondary)
+                                Text("Set a reminder to read this link later",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                            TextButton(onClick = onTourNext) { Text("Next") }
+                        }
+                    }
+                }
+
+// After folder row — tour step 4
+                if (isInTour && tourStep == TourStep.FOLDER_IN_DIALOG) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("📁", fontSize = 20.sp)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Step 4 of 6", style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.tertiary)
+                                Text("Organize links into folders",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer)
+                            }
+                            TextButton(onClick = onTourNext) { Text("Next") }
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
@@ -406,7 +495,26 @@ fun ReminderPicker(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableStateOf<Long?>(null) }
+    val context = LocalContext.current
     val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault()) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+
+    }
+
+    fun setReminderWithPermissionCheck(time: Long) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if(!granted) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        onReminderSet(time)
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -456,7 +564,7 @@ fun ReminderPicker(
                 )
                 items(suggestions) { (label, time) ->
                     SuggestionChip(
-                        onClick = { onReminderSet(time) },
+                        onClick = { setReminderWithPermissionCheck(time) },
                         label = { Text(label, style = MaterialTheme.typography.labelSmall) }
                     )
                 }
@@ -504,7 +612,7 @@ fun ReminderPicker(
                         set(Calendar.MINUTE, timePickerState.minute)
                         set(Calendar.SECOND, 0)
                     }
-                    onReminderSet(cal.timeInMillis)
+                    setReminderWithPermissionCheck(cal.timeInMillis)
                     showTimePicker = false
                 }) { Text("Set") }
             },

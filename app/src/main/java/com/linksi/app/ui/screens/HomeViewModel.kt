@@ -9,6 +9,7 @@ import com.linksi.app.utils.MetadataFetcher
 import com.linksi.app.utils.extractDomain
 import com.linksi.app.utils.isValidUrl
 import com.linksi.app.utils.normalizeUrl
+import com.linksi.app.utils.createNotificationChannel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -55,6 +56,7 @@ class HomeViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
 
     init {
+        createNotificationChannel(context)
         observeData()
         loadFolders()
 

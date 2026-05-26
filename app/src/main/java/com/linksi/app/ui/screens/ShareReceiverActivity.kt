@@ -191,14 +191,17 @@ fun ShareReceiverSheet(
                         selected = selectedFolderId == folder.id,
                         onClick = { selectedFolderId = folder.id },
                         label = { // AFTER
-                            Row(verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Icon(
                                     iconFromName(folder.icon), null, Modifier.size(14.dp),
                                     tint = Color(android.graphics.Color.parseColor(folder.color))
                                 )
                                 Text(folder.name)
-                            } }
+                            }
+                        }
                     )
                 }
                 item {
@@ -282,10 +285,10 @@ fun ShareReceiverSheet(
                             } else {
 //                            snapshotFlow { state.isFetchingMetadata }
 //                                .first { !it }
-                            sheetState.hide()
-                            onSaved()
+                                sheetState.hide()
+                                onSaved()
                                 viewModel.dismissSnackbar()
-                        }
+                            }
 
                         }
 //                        isSaving = true
@@ -300,8 +303,7 @@ fun ShareReceiverSheet(
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
-                    }
-                    else {
+                    } else {
                         Icon(Icons.Filled.Bookmark, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Save Link")
