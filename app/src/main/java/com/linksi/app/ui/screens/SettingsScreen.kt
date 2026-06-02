@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.materialIcon
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -78,9 +79,11 @@ fun SettingsScreen(
         ) {
             // ── Export section ────────────────────────────────
             item {
-                Text("Export", style = MaterialTheme.typography.titleSmall,
+                Text(
+                    "Export", style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp))
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
             }
 
             item {
@@ -103,9 +106,11 @@ fun SettingsScreen(
 
             // ── Import section ────────────────────────────────
             item {
-                Text("Import", style = MaterialTheme.typography.titleSmall,
+                Text(
+                    "Import", style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp))
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
             }
 
             item {
@@ -121,17 +126,27 @@ fun SettingsScreen(
                         icon = Icons.Outlined.Language,
                         title = "Import browser bookmarks",
                         subtitle = "Import from Chrome, Firefox, Safari — export bookmarks as HTML first",
-                        onClick = { importLauncher.launch(arrayOf("text/html", "text/plain", "*/*")) }
+                        onClick = {
+                            importLauncher.launch(
+                                arrayOf(
+                                    "text/html",
+                                    "text/plain",
+                                    "*/*"
+                                )
+                            )
+                        }
                     )
                 }
             }
 
             // ── How to export from browser ────────────────────
             item {
-                Text("How to export browser bookmarks \n(desktop browser)",
+                Text(
+                    "How to export browser bookmarks \n(desktop browser)",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp))
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
             }
 
             item {
@@ -194,11 +209,106 @@ fun SettingsScreen(
                 }
             }
 
+            item {
+                Text(
+                    "App",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            item {
+                SettingsCard {
+                    ListItem(
+                        headlineContent = { Text("Version") },
+                        supportingContent = {
+                            Text(
+                                "Current: ${state.currentVersion}" +
+                                        if (state.latestVersion.isNotBlank())
+                                            " . Latest: ${state.latestVersion}"
+                                        else "",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        leadingContent = {
+                            when {
+                                state.isCheckingUpdate -> {
+                                    CircularProgressIndicator(
+                                        Modifier.size(20.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+
+                                state.updateAvailable -> {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer
+                                    ) {
+                                        Text(
+                                            "Update available",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.padding(
+                                                horizontal = 8.dp,
+                                                vertical = 4.dp
+                                            )
+                                        )
+                                    }
+                                }
+
+                                state.latestVersion.isNotBlank() && !state.updateAvailable -> {
+                                    Icon(
+                                        Icons.Outlined.CheckCircle, null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    ListItem(
+                        headlineContent = {
+                            Text(if (state.updateAvailable) "Download update" else "Check for updates")
+                        },
+                        supportingContent = {
+                            state.updateCheckError?.let {
+                                Text(
+                                    it, style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        leadingContent = {
+                            Icon(
+                                if (state.updateAvailable) Icons.Outlined.Download
+                                else Icons.Outlined.Refresh,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            if (state.updateAvailable) {
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://github.com/AsukaAzure/Linksi/releases/latest")
+                                )
+                                context.startActivity(intent)
+                            } else {
+                                viewModel.checkForUpdate()
+                            }
+                        }
+                    )
+
+                }
+            }
+
             // ── Stats ─────────────────────────────────────────
             item {
-                Text("Stats", style = MaterialTheme.typography.titleSmall,
+                Text(
+                    "Stats", style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp))
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
             }
 
             item {
@@ -244,7 +354,10 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.clickable {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/AsukaAzure/"))
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://github.com/AsukaAzure/")
+                            )
                             context.startActivity(intent)
                         }
                     )
@@ -259,8 +372,12 @@ fun SettingsScreen(
     state.importResult?.let { result ->
         AlertDialog(
             onDismissRequest = viewModel::dismissImportResult,
-            icon = { Icon(Icons.Outlined.CheckCircle, null,
-                tint = MaterialTheme.colorScheme.primary) },
+            icon = {
+                Icon(
+                    Icons.Outlined.CheckCircle, null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
             title = { Text("Import complete") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -349,9 +466,13 @@ fun BrowserInstructionItem(browser: String, steps: String) {
 @Composable
 fun StatItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary)
-        Text(label, style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            value, style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            label, style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

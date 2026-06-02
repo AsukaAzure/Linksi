@@ -249,9 +249,11 @@ fun WebViewContent(
                     override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                         onPageStarted(url, view.title)
                     }
+
                     override fun onPageFinished(view: WebView, url: String) {
                         onPageFinished(url, view.title)
                     }
+
                     override fun shouldOverrideUrlLoading(
                         view: WebView,
                         request: WebResourceRequest
@@ -274,7 +276,8 @@ fun WebViewContent(
                                         context.startActivity(intent)
                                     } else {
                                         // App not installed — try fallback URL
-                                        val fallbackUrl = intent.getStringExtra("browser_fallback_url")
+                                        val fallbackUrl =
+                                            intent.getStringExtra("browser_fallback_url")
                                         if (fallbackUrl != null) {
                                             view.loadUrl(fallbackUrl)
                                         }
@@ -285,7 +288,14 @@ fun WebViewContent(
                                 true
                             }
                             // Maps, geo, tel, mailto etc — open in external app
-                            scheme in listOf("geo", "maps", "tel", "mailto", "market", "whatsapp") -> {
+                            scheme in listOf(
+                                "geo",
+                                "maps",
+                                "tel",
+                                "mailto",
+                                "market",
+                                "whatsapp"
+                            ) -> {
                                 try {
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                                     context.startActivity(intent)
@@ -301,7 +311,8 @@ fun WebViewContent(
                                     if (intent.resolveActivity(context.packageManager) != null) {
                                         context.startActivity(intent)
                                     }
-                                } catch (e: Exception) { }
+                                } catch (e: Exception) {
+                                }
                                 true
                             }
                         }
@@ -311,6 +322,7 @@ fun WebViewContent(
                     override fun onProgressChanged(view: WebView, newProgress: Int) {
                         onProgressChanged(newProgress)
                     }
+
                     override fun onReceivedTitle(view: WebView, title: String) {
                         onPageFinished(view.url ?: url, title)
                     }

@@ -62,9 +62,11 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             context.dataStore.data.collect { prefs ->
-                _uiState.update { it.copy(
-                    useInAppBrowser = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true
-                )}
+                _uiState.update {
+                    it.copy(
+                        useInAppBrowser = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true
+                    )
+                }
             }
         }
     }
@@ -146,8 +148,14 @@ class HomeViewModel @Inject constructor(
                 folderId = folderId
             )
             val id = repository.insertLink(link)
-            if(reminderAt != null) {
-                scheduleReminder(context, id, link.title.ifBlank { link.domain },link.url, reminderAt)
+            if (reminderAt != null) {
+                scheduleReminder(
+                    context,
+                    id,
+                    link.title.ifBlank { link.domain },
+                    link.url,
+                    reminderAt
+                )
             }
             _uiState.update { it.copy(isFetchingMetadata = false, snackbarMessage = "Link saved ") }
         }
@@ -167,19 +175,24 @@ class HomeViewModel @Inject constructor(
     fun deleteLink(link: Link) {
         viewModelScope.launch {
             repository.deleteLink(link)
-            _uiState.update { it.copy(
-                lastDeletedLinks = listOf(link),
-                snackbarMessage = "UNDO_DELETE") }
+            _uiState.update {
+                it.copy(
+                    lastDeletedLinks = listOf(link),
+                    snackbarMessage = "UNDO_DELETE"
+                )
+            }
         }
     }
 
     fun undoDeleted() {
         viewModelScope.launch {
             _uiState.value.lastDeletedLinks.forEach { repository.insertLink(it) }
-            _uiState.update { it.copy(
-                lastDeletedLinks = emptyList(),
-                snackbarMessage = "Restored ${it.lastDeletedLinks.size} links "
-            )}
+            _uiState.update {
+                it.copy(
+                    lastDeletedLinks = emptyList(),
+                    snackbarMessage = "Restored ${it.lastDeletedLinks.size} links "
+                )
+            }
         }
     }
 
@@ -189,11 +202,13 @@ class HomeViewModel @Inject constructor(
             _uiState.value.lastMovedLinks.forEach { link ->
                 repository.moveToFolder(link.id, link.folderId)
             }
-            _uiState.update { it.copy(
-                lastMovedLinks = emptyList(),
-                lastMovedToFolderId = null,
-                snackbarMessage = "Moved back ✓"
-            )}
+            _uiState.update {
+                it.copy(
+                    lastMovedLinks = emptyList(),
+                    lastMovedToFolderId = null,
+                    snackbarMessage = "Moved back ✓"
+                )
+            }
         }
     }
 
@@ -234,11 +249,13 @@ class HomeViewModel @Inject constructor(
             // Delete folder
             repository.deleteFolder(folder)
 
-            _uiState.update { it.copy(
-                lastDeletedFolder = folder,
-                lastDeletedFolderLinks = folderLinks,
-                snackbarMessage = "UNDO_FOLDER_DELETE"
-            )}
+            _uiState.update {
+                it.copy(
+                    lastDeletedFolder = folder,
+                    lastDeletedFolderLinks = folderLinks,
+                    snackbarMessage = "UNDO_FOLDER_DELETE"
+                )
+            }
         }
     }
 
@@ -253,11 +270,13 @@ class HomeViewModel @Inject constructor(
             // Restore all links
             links.forEach { repository.insertLink(it) }
 
-            _uiState.update { it.copy(
-                lastDeletedFolder = null,
-                lastDeletedFolderLinks = emptyList(),
-                snackbarMessage = "Folder restored"
-            )}
+            _uiState.update {
+                it.copy(
+                    lastDeletedFolder = null,
+                    lastDeletedFolderLinks = emptyList(),
+                    snackbarMessage = "Folder restored"
+                )
+            }
         }
     }
 
@@ -278,17 +297,20 @@ class HomeViewModel @Inject constructor(
     private fun sortLinks(links: List<Link>, sort: SortOption) = when (sort) {
         SortOption.DATE_NEWEST -> links.sortedByDescending { it.createdAt }
         SortOption.DATE_OLDEST -> links.sortedBy { it.createdAt }
-        SortOption.TITLE_AZ    -> links.sortedBy { it.title.lowercase() }
-        SortOption.TITLE_ZA    -> links.sortedByDescending { it.title.lowercase() }
-        SortOption.DOMAIN      -> links.sortedBy { it.domain }
+        SortOption.TITLE_AZ -> links.sortedBy { it.title.lowercase() }
+        SortOption.TITLE_ZA -> links.sortedByDescending { it.title.lowercase() }
+        SortOption.DOMAIN -> links.sortedBy { it.domain }
     }
+
     fun toggleSelction(id: Long) {
         val current = _uiState.value.selectedIds
         val updated = if (current.contains(id)) current - id else current + id
-        _uiState.update { it.copy(
-            selectedIds = updated,
-            isSelectionMode = updated.isNotEmpty()
-        )}
+        _uiState.update {
+            it.copy(
+                selectedIds = updated,
+                isSelectionMode = updated.isNotEmpty()
+            )
+        }
     }
 
     fun selectAll() {
@@ -307,12 +329,14 @@ class HomeViewModel @Inject constructor(
 
             linksToDelete.forEach { repository.deleteLink(it) }
 
-            _uiState.update { it.copy(
-                selectedIds = emptySet(),
-                isSelectionMode = false,
-                lastDeletedLinks = linksToDelete,
-                snackbarMessage = "UNDO_DELETE"
-            )}
+            _uiState.update {
+                it.copy(
+                    selectedIds = emptySet(),
+                    isSelectionMode = false,
+                    lastDeletedLinks = linksToDelete,
+                    snackbarMessage = "UNDO_DELETE"
+                )
+            }
         }
     }
 
@@ -324,13 +348,15 @@ class HomeViewModel @Inject constructor(
             // Save original state before moving
             linksToMove.forEach { repository.moveToFolder(it.id, folderId) }
 
-            _uiState.update { it.copy(
-                selectedIds = emptySet(),
-                isSelectionMode = false,
-                lastMovedLinks = linksToMove,
-                lastMovedToFolderId = folderId,
-                snackbarMessage = "UNDO_MOVE"
-            )}
+            _uiState.update {
+                it.copy(
+                    selectedIds = emptySet(),
+                    isSelectionMode = false,
+                    lastMovedLinks = linksToMove,
+                    lastMovedToFolderId = folderId,
+                    snackbarMessage = "UNDO_MOVE"
+                )
+            }
         }
     }
 

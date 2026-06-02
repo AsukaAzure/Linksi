@@ -68,7 +68,9 @@ fun OnboardingScreen(onFinish: () -> Unit) {
     val scope = rememberCoroutineScope()
     val isLastPage = pagerState.currentPage == onboardingPages.size - 1
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(MaterialTheme.colorScheme.background)) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize()

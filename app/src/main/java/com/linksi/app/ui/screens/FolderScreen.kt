@@ -173,7 +173,7 @@ fun FolderListScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    var editingFolder by remember { mutableStateOf<Folder?>(null)}
+    var editingFolder by remember { mutableStateOf<Folder?>(null) }
 
     // Handle folder delete undo locally — not in HomeScreen
     LaunchedEffect(state.snackbarMessage) {
@@ -215,7 +215,9 @@ fun FolderListScreen(
     ) { padding ->
         if (folders.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -259,22 +261,28 @@ fun FolderListScreen(
                 }
             }
         }
-    editingFolder?.let { folder ->
-        EditFolderDialog(
-            folder = folder,
-            onDismiss = { editingFolder = null },
-            onConfirm = { name, icon, color ->
-                viewModel.updateFolder(folder.copy(name = name, icon = icon, color = color))
-                editingFolder = null
-            }
-        )
-    }}
+        editingFolder?.let { folder ->
+            EditFolderDialog(
+                folder = folder,
+                onDismiss = { editingFolder = null },
+                onConfirm = { name, icon, color ->
+                    viewModel.updateFolder(folder.copy(name = name, icon = icon, color = color))
+                    editingFolder = null
+                }
+            )
+        }
+    }
 }
 
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FolderListItem(folder: Folder, onClick: () -> Unit, onDelete: () -> Unit, onEdit: (Folder) -> Unit) {
+fun FolderListItem(
+    folder: Folder,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    onEdit: (Folder) -> Unit
+) {
     var showMenu by remember { mutableStateOf(false) }
 
     ListItem(
@@ -342,8 +350,10 @@ fun FolderListItem(folder: Folder, onClick: () -> Unit, onDelete: () -> Unit, on
                             Text("Delete folder", color = MaterialTheme.colorScheme.error)
                         },
                         leadingContent = {
-                            Icon(Icons.Outlined.Delete, null,
-                                tint = MaterialTheme.colorScheme.error)
+                            Icon(
+                                Icons.Outlined.Delete, null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
                         },
                         modifier = Modifier.clickable {
                             showMenu = false
@@ -358,6 +368,7 @@ fun FolderListItem(folder: Folder, onClick: () -> Unit, onDelete: () -> Unit, on
         )
     }
 }
+
 // ── Folder Detail ─────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -464,8 +475,15 @@ fun FolderDetailScreen(
                                 .weight(bulkWeight.coerceAtLeast(0.001f))
                                 .height(56.dp)
                                 .clip(RoundedCornerShape(50.dp))
-                                .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(50.dp))
-                                .background(MaterialTheme.colorScheme.background, RoundedCornerShape(50.dp))
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(50.dp)
+                                )
+                                .background(
+                                    MaterialTheme.colorScheme.background,
+                                    RoundedCornerShape(50.dp)
+                                )
                                 .clickable { if (searchExpanded) searchExpanded = false },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -493,11 +511,16 @@ fun FolderDetailScreen(
                                         selectedIds = folderLinks.map { it.id }.toSet()
                                     }) { Text("All") }
                                     IconButton(onClick = { showFolderPicker = true }) {
-                                        Icon(Icons.Outlined.FolderOpen, "Move", Modifier.size(18.dp))
+                                        Icon(
+                                            Icons.Outlined.FolderOpen,
+                                            "Move",
+                                            Modifier.size(18.dp)
+                                        )
                                     }
                                     IconButton(onClick = {
                                         scope.launch {
-                                            val linksToDelete = folderLinks.filter { it.id in selectedIds }
+                                            val linksToDelete =
+                                                folderLinks.filter { it.id in selectedIds }
                                             linksToDelete.forEach { viewModel.deleteLink(it) }
                                             val result = snackbarHostState.showSnackbar(
                                                 message = "${linksToDelete.size} links deleted",
@@ -525,15 +548,26 @@ fun FolderDetailScreen(
                                         currentFolderId = folder.id,
                                         onSelect = { folderId ->
                                             scope.launch {
-                                                val linksToMove = folderLinks.filter { it.id in selectedIds }
-                                                linksToMove.forEach { viewModel.moveToFolder(it, folderId) }
+                                                val linksToMove =
+                                                    folderLinks.filter { it.id in selectedIds }
+                                                linksToMove.forEach {
+                                                    viewModel.moveToFolder(
+                                                        it,
+                                                        folderId
+                                                    )
+                                                }
                                                 val result = snackbarHostState.showSnackbar(
                                                     message = "${linksToMove.size} links moved",
                                                     actionLabel = "Undo",
                                                     duration = SnackbarDuration.Long
                                                 )
                                                 if (result == SnackbarResult.ActionPerformed) {
-                                                    linksToMove.forEach { viewModel.moveToFolder(it, folder.id) }
+                                                    linksToMove.forEach {
+                                                        viewModel.moveToFolder(
+                                                            it,
+                                                            folder.id
+                                                        )
+                                                    }
                                                 }
                                                 selectedIds = emptySet()
                                             }
@@ -590,7 +624,9 @@ fun FolderDetailScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
         ) {
             Text(
                 "${folderLinks.size} links",

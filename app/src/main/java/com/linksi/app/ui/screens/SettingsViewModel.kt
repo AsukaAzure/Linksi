@@ -15,6 +15,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.datastore.core.DataStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 
 data class SettingsUiState(
@@ -24,7 +26,12 @@ data class SettingsUiState(
     val message: String? = null,
     val importResult: ImportResult? = null,
     val duplicateCount: Int = 0,
-    val useInAppBrowser: Boolean = true
+    val useInAppBrowser: Boolean = true,
+    val currentVersion: String = "",
+    val latestVersion: String = "",
+    val updateAvailable: Boolean = false,
+    val isCheckingUpdate: Boolean = false,
+    val updateCheckError: String? = null
 )
 
 @HiltViewModel
@@ -43,19 +50,87 @@ class SettingsViewModel @Inject constructor(
                 repository.getAllLinks(),
                 repository.getAllFolders()
             ) { links, folders ->
-                _uiState.update { it.copy(
-                    totalLinks = links.size,
-                    totalFolders = folders.size,
-                    totalFavorites = links.count { l -> l.isFavorite }
-                )}
+                _uiState.update {
+                    it.copy(
+                        totalLinks = links.size,
+                        totalFolders = folders.size,
+                        totalFavorites = links.count { l -> l.isFavorite }
+                    )
+                }
             }.collect()
         }
         viewModelScope.launch {
             context.dataStore.data.collect { prefs ->
-                _uiState.update { it.copy(
-                    useInAppBrowser = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true
-                )}
+                _uiState.update {
+                    it.copy(
+                        useInAppBrowser = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true
+                    )
+                }
             }
+        }
+        val versionName = context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        _uiState.update { it.copy(currentVersion = versionName ?: "1.0.0") }
+    }
+
+    fun checkForUpdate() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCheckingUpdate = true, updateCheckError = null) }
+            try {
+                // Fetch latest release from GitHub
+                val response = withContext(Dispatchers.IO) {
+                    java.net.URL("https://api.github.com/repos/AsukaAzure/Linksi/releases/latest")
+                        .openConnection()
+                        .apply {
+                            setRequestProperty("Accept", "application/vnd.github.v3+json")
+                            connectTimeout = 8000
+                            readTimeout = 8000
+                        }
+                        .getInputStream()
+                        .bufferedReader()
+                        .readText()
+                }
+
+                // Parse tag_name from JSON
+                val tagName = Regex(""""tag_name"\s*:\s*"([^"]+)"""")
+                    .find(response)?.groupValues?.get(1) ?: ""
+
+                val latestVersion = tagName.removePrefix("v")
+                val currentVersion = _uiState.value.currentVersion
+
+                val updateAvailable = isNewerVersion(latestVersion, currentVersion)
+
+                _uiState.update {
+                    it.copy(
+                        latestVersion = latestVersion,
+                        updateAvailable = updateAvailable,
+                        isCheckingUpdate = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isCheckingUpdate = false,
+                        updateCheckError = "Could not check for updates: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+
+    private fun isNewerVersion(latest: String, current: String): Boolean {
+        return try {
+            val latestParts = latest.split(".").map { it.toInt() }
+            val currentParts = current.split(".").map { it.toInt() }
+            for (i in 0 until maxOf(latestParts.size, currentParts.size)) {
+                val l = latestParts.getOrElse(i) { 0 }
+                val c = currentParts.getOrElse(i) { 0 }
+                if (l > c) return true
+                if (l < c) return false
+            }
+            false
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -123,9 +198,10 @@ class SettingsViewModel @Inject constructor(
                     if (repository.isUrlAlreadySaved(link.url)) {
                         duplicateCount++
                     } else {
-                        repository.insertLink(link.copy(
-                            folderId = link.folderId?.let { folderIdMap[it] }
-                        ))
+                        repository.insertLink(
+                            link.copy(
+                                folderId = link.folderId?.let { folderIdMap[it] }
+                            ))
                         importedCount++
                     }
                 }
@@ -138,11 +214,13 @@ class SettingsViewModel @Inject constructor(
                     }
                 }
 
-                _uiState.update { it.copy(
-                    importResult = result.copy(count = importedCount),
-                    duplicateCount = duplicateCount,
-                    message = message
-                )}
+                _uiState.update {
+                    it.copy(
+                        importResult = result.copy(count = importedCount),
+                        duplicateCount = duplicateCount,
+                        message = message
+                    )
+                }
 
             } catch (e: Exception) {
                 _uiState.update { it.copy(message = "Import failed: ${e.message}") }

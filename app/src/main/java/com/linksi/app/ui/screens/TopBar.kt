@@ -25,7 +25,6 @@ fun LinksTopBar(
     viewMode: ViewMode,
     onViewModeToggle: () -> Unit,
     onSortClick: () -> Unit,
-//    onAddFolder: () -> Unit,
     onFoldersClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onFoldersCoordsChanged: (androidx.compose.ui.layout.LayoutCoordinates) -> Unit = {}
@@ -61,7 +60,8 @@ fun LinksTopBar(
             IconButton(onClick = onSortClick) {
                 Icon(Icons.Outlined.Sort, "Sort")
             }
-            IconButton(onClick = onFoldersClick,
+            IconButton(
+                onClick = onFoldersClick,
                 modifier = Modifier.onGloballyPositioned { onFoldersCoordsChanged(it) }) {
                 Icon(Icons.Outlined.Folder, "Folders")
             }

@@ -96,6 +96,7 @@ fun HomeScreen(
                 viewModel.showAddLinkDialog()
                 TourStep.ADD_LINK_DIALOG
             }
+
             TourStep.ADD_LINK_DIALOG -> TourStep.REMINDER_IN_DIALOG
             TourStep.REMINDER_IN_DIALOG -> TourStep.FOLDER_IN_DIALOG
             TourStep.FOLDER_IN_DIALOG -> {
@@ -104,11 +105,13 @@ fun HomeScreen(
                 viewModel.hideAddLinkDialog()
                 TourStep.FOLDERS_ICON
             }
+
             TourStep.FOLDERS_ICON -> TourStep.SAVED_LINK_CARD
             TourStep.SAVED_LINK_CARD -> {
                 scope.launch { setTourComplete(context) }
                 TourStep.DONE
             }
+
             TourStep.DONE -> TourStep.DONE
         }
     }
@@ -142,6 +145,7 @@ fun HomeScreen(
                     }
                     viewModel.dismissSnackbar()
                 }
+
                 "UNDO_MOVE" -> {
                     val result = snackbarHostState.showSnackbar(
                         message = if (state.lastMovedLinks.size > 1)
@@ -155,6 +159,7 @@ fun HomeScreen(
                     }
                     viewModel.dismissSnackbar()
                 }
+
                 "UNDO_FOLDER_DELETE" -> {
                     val folderName = state.lastDeletedFolder?.name ?: "Folder"
                     val linkCount = state.lastDeletedFolderLinks.size
@@ -169,6 +174,7 @@ fun HomeScreen(
                     viewModel.dismissSnackbar()
                     return@let
                 }
+
                 else -> {
                     snackbarHostState.showSnackbar(message)
                     viewModel.dismissSnackbar()
@@ -301,7 +307,9 @@ fun HomeScreen(
                                         overflow = TextOverflow.Clip
                                     )
                                     TextButton(onClick = viewModel::selectAll) { Text("All") }
-                                    IconButton(onClick = { showFolderPicker = true }) {  // wired up now
+                                    IconButton(onClick = {
+                                        showFolderPicker = true
+                                    }) {  // wired up now
                                         Icon(
                                             Icons.Outlined.FolderOpen,
                                             "Move",
@@ -353,7 +361,8 @@ fun HomeScreen(
                             ) {
                                 Icon(
                                     Icons.Filled.Search, "Search",
-                                    modifier = Modifier.padding(start = 8.dp))
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
                             }
                         },
                         trailingIcon = {
@@ -538,45 +547,49 @@ fun HomeScreen(
             }
         }
         if (isInTour && tourStep != TourStep.DONE && tourStep != TourStep.ADD_LINK_DIALOG
-        && tourStep != TourStep.REMINDER_IN_DIALOG && tourStep != TourStep.FOLDER_IN_DIALOG) {
+            && tourStep != TourStep.REMINDER_IN_DIALOG && tourStep != TourStep.FOLDER_IN_DIALOG
+        ) {
 
-        val target = when (tourStep) {
-            TourStep.SAVE_BUTTON -> CoachMarkTarget(
-                coords = fabCoords,
-                title = "Save a Link",
-                description = "Tap here to save your first link!",
-                tooltipBelow = false
-            )
-            TourStep.FOLDERS_ICON -> CoachMarkTarget(
-                coords = foldersIconCoords,
-                title = "Your Folders",
-                description = "Tap here to view and manage your folders.",
-                tooltipBelow = true
-            )
-            TourStep.SAVED_LINK_CARD -> CoachMarkTarget(
-                coords = firstLinkCoords,
-                title = "Open a Link",
-                description = "Tap any link to open it in the built-in browser!",
-                tooltipBelow = true
-            )
-            else -> null
-        }
+            val target = when (tourStep) {
+                TourStep.SAVE_BUTTON -> CoachMarkTarget(
+                    coords = fabCoords,
+                    title = "Save a Link",
+                    description = "Tap here to save your first link!",
+                    tooltipBelow = false
+                )
 
-        target?.let {
-            SpotlightOverlay(
-                target = it,
-                onNext = { nextStep() },
-                isLastStep = tourStep == TourStep.SAVED_LINK_CARD,
-                stepNumber = when (tourStep) {
-                    TourStep.SAVE_BUTTON -> 1
-                    TourStep.FOLDERS_ICON -> 5
-                    TourStep.SAVED_LINK_CARD -> 6
-                    else -> 0
-                },
-                totalSteps = 6
-            )
+                TourStep.FOLDERS_ICON -> CoachMarkTarget(
+                    coords = foldersIconCoords,
+                    title = "Your Folders",
+                    description = "Tap here to view and manage your folders.",
+                    tooltipBelow = true
+                )
+
+                TourStep.SAVED_LINK_CARD -> CoachMarkTarget(
+                    coords = firstLinkCoords,
+                    title = "Open a Link",
+                    description = "Tap any link to open it in the built-in browser!",
+                    tooltipBelow = true
+                )
+
+                else -> null
+            }
+
+            target?.let {
+                SpotlightOverlay(
+                    target = it,
+                    onNext = { nextStep() },
+                    isLastStep = tourStep == TourStep.SAVED_LINK_CARD,
+                    stepNumber = when (tourStep) {
+                        TourStep.SAVE_BUTTON -> 1
+                        TourStep.FOLDERS_ICON -> 5
+                        TourStep.SAVED_LINK_CARD -> 6
+                        else -> 0
+                    },
+                    totalSteps = 6
+                )
+            }
         }
-    }
     }
 
     state.editingLink?.let { link ->
@@ -597,7 +610,7 @@ fun HomeScreen(
             isFetchingMetadata = state.isFetchingMetadata,
             isInTour = isInTour,
             tourStep = tourStep,
-            onTourNext = {nextStep()},
+            onTourNext = { nextStep() },
             onDismiss = viewModel::hideAddLinkDialog,
             onConfirm = { url, folderId, reminderAt ->
                 viewModel.addLink(url, folderId, reminderAt)
@@ -736,7 +749,7 @@ fun LinksList(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        itemsIndexed(links, key = { _, link ->link.id }) { index, link ->
+        itemsIndexed(links, key = { _, link -> link.id }) { index, link ->
             LinkCard(
                 link = link,
                 isSelected = selectedIds.contains(link.id),
@@ -749,7 +762,7 @@ fun LinksList(
                 onMoveToFolder = { folderId -> onMoveToFolder(link, folderId) },
                 onEdit = { onEdit(link) },
                 onFolderClick = onFolderClick,
-                modifier = if (index == 0) Modifier.onGloballyPositioned{onFirstLinkPosition(it)}
+                modifier = if (index == 0) Modifier.onGloballyPositioned { onFirstLinkPosition(it) }
                 else Modifier
             )
         }

@@ -90,7 +90,6 @@ fun ShareReceiverSheet(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFolderId by remember { mutableStateOf<Long?>(null) }
     var reminderAt by remember { mutableStateOf<Long?>(null) }
-//    var isSaving by remember { mutableStateOf(false) }
 
     // Sheet drag state
     val sheetState = rememberModalBottomSheetState(
@@ -98,9 +97,6 @@ fun ShareReceiverSheet(
     )
     val scope = rememberCoroutineScope()
 
-//    LaunchedEffect(state.isFetchingMetadata) {
-//        if (isSaving && !state.isFetchingMetadata) onSaved()
-//    }
 
     // Animate in on launch
     LaunchedEffect(Unit) {
@@ -215,7 +211,6 @@ fun ShareReceiverSheet(
                 }
             }
 
-// Create folder dialog
             if (showCreateFolder) {
                 AddFolderDialog(
                     onDismiss = { showCreateFolder = false },
@@ -283,16 +278,12 @@ fun ShareReceiverSheet(
                             if (state.snackbarMessage == "Link already saved") {
 
                             } else {
-//                            snapshotFlow { state.isFetchingMetadata }
-//                                .first { !it }
                                 sheetState.hide()
                                 onSaved()
                                 viewModel.dismissSnackbar()
                             }
 
                         }
-//                        isSaving = true
-//                        viewModel.addLink(url, selectedFolderId)
                     },
                     modifier = Modifier.weight(1f),
                     enabled = !state.isFetchingMetadata
