@@ -2,6 +2,7 @@ package com.linksi.app.ui.components
 
 import android.Manifest
 import android.app.AlertDialog
+import android.app.Dialog
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -41,6 +42,23 @@ import androidx.core.content.ContextCompat
 import com.linksi.app.ui.screens.TourStep
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.delay
 
 data class FolderIconOption(
     val name: String,
@@ -48,26 +66,26 @@ data class FolderIconOption(
 )
 
 val FOLDER_ICONS = listOf(
-    FolderIconOption("folder",   Icons.Outlined.Folder),
-    FolderIconOption("work",     Icons.Outlined.Work),
+    FolderIconOption("folder", Icons.Outlined.Folder),
+    FolderIconOption("work", Icons.Outlined.Work),
     FolderIconOption("bookmark", Icons.Outlined.Bookmark),
-    FolderIconOption("star",     Icons.Outlined.Star),
-    FolderIconOption("heart",    Icons.Outlined.FavoriteBorder),
-    FolderIconOption("code",     Icons.Outlined.Code),
-    FolderIconOption("school",   Icons.Outlined.School),
-    FolderIconOption("movie",    Icons.Outlined.Movie),
-    FolderIconOption("music",    Icons.Outlined.MusicNote),
+    FolderIconOption("star", Icons.Outlined.Star),
+    FolderIconOption("heart", Icons.Outlined.FavoriteBorder),
+    FolderIconOption("code", Icons.Outlined.Code),
+    FolderIconOption("school", Icons.Outlined.School),
+    FolderIconOption("movie", Icons.Outlined.Movie),
+    FolderIconOption("music", Icons.Outlined.MusicNote),
     FolderIconOption("shopping", Icons.Outlined.ShoppingCart),
-    FolderIconOption("travel",   Icons.Outlined.Flight),
-    FolderIconOption("food",     Icons.Outlined.Restaurant),
-    FolderIconOption("health",   Icons.Outlined.HealthAndSafety),
-    FolderIconOption("news",     Icons.Outlined.Newspaper),
-    FolderIconOption("game",     Icons.Outlined.SportsEsports),
-    FolderIconOption("finance",  Icons.Outlined.AttachMoney),
-    FolderIconOption("science",  Icons.Outlined.Science),
-    FolderIconOption("design",   Icons.Outlined.Brush),
-    FolderIconOption("home",     Icons.Outlined.Home),
-    FolderIconOption("photo",    Icons.Outlined.Photo),
+    FolderIconOption("travel", Icons.Outlined.Flight),
+    FolderIconOption("food", Icons.Outlined.Restaurant),
+    FolderIconOption("health", Icons.Outlined.HealthAndSafety),
+    FolderIconOption("news", Icons.Outlined.Newspaper),
+    FolderIconOption("game", Icons.Outlined.SportsEsports),
+    FolderIconOption("finance", Icons.Outlined.AttachMoney),
+    FolderIconOption("science", Icons.Outlined.Science),
+    FolderIconOption("design", Icons.Outlined.Brush),
+    FolderIconOption("home", Icons.Outlined.Home),
+    FolderIconOption("photo", Icons.Outlined.Photo),
 )
 
 fun iconFromName(name: String) =
@@ -82,12 +100,14 @@ fun AddLinkDialog(
     isFetchingMetadata: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (url: String, folderId: Long?, reminderAt: Long?) -> Unit,
+    onCreateFolder: (name: String, icon: String, color: String) -> Unit = { _, _, _ -> },
     isInTour: Boolean = false,
-    tourStep: TourStep  = TourStep.DONE,
+    tourStep: TourStep = TourStep.DONE,
     onTourNext: () -> Unit = {}
 ) {
     var url by remember { mutableStateOf("") }
     var selectedFolderId by remember { mutableStateOf<Long?>(null) }
+    var showCreateFolder by remember { mutableStateOf(false) }
     var reminderAt by remember { mutableStateOf<Long?>(null) }
 
     AlertDialog(
@@ -111,11 +131,15 @@ fun AddLinkDialog(
                         ) {
                             Text("\uD83D\uDC47", fontSize = 20.sp)
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Step 2 of 6", style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary)
-                                Text("Paste any URL here to save it",
+                                Text(
+                                    "Step 2 of 6", style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    "Paste any URL here to save it",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                             }
                             TextButton(onClick = onTourNext) { Text("Next") }
                         }
@@ -137,11 +161,15 @@ fun AddLinkDialog(
                         ) {
                             Text("🔔", fontSize = 20.sp)
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Step 3 of 6", style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.secondary)
-                                Text("Set a reminder to read this link later",
+                                Text(
+                                    "Step 3 of 6", style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                Text(
+                                    "Set a reminder to read this link later",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
                             }
                             TextButton(onClick = onTourNext) { Text("Next") }
                         }
@@ -163,11 +191,15 @@ fun AddLinkDialog(
                         ) {
                             Text("📁", fontSize = 20.sp)
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Step 4 of 6", style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.tertiary)
-                                Text("Organize links into folders",
+                                Text(
+                                    "Step 4 of 6", style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                                Text(
+                                    "Organize links into folders",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer)
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
                             }
                             TextButton(onClick = onTourNext) { Text("Next") }
                         }
@@ -195,7 +227,7 @@ fun AddLinkDialog(
                         FilterChip(
                             selected = selectedFolderId == null,
                             onClick = { selectedFolderId = null },
-                            label = { Text("None") }
+                            label = { Text("📥 Inbox") }
                         )
                     }
                     items(folders) { folder ->
@@ -217,24 +249,39 @@ fun AddLinkDialog(
                             }
                         )
                     }
-                    if (folders.isEmpty()) {
-                        item {
-                            Text(
-                                "No folders yet — create one first",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-                        }
+
+                    item {
+                        FilterChip(
+                            selected = false,
+                            onClick = { showCreateFolder = true },
+                            label = { Text("New folder") },
+                            leadingIcon = {
+                                Icon(Icons.Filled.Add, null, Modifier.size(14.dp))
+                            }
+                        )
                     }
                 }
+
+                if (showCreateFolder) {
+                    AddFolderDialog(
+                        onDismiss = { showCreateFolder = false },
+                        onConfirm = { name, icon, color ->
+                            onCreateFolder(name, icon, color)
+                            showCreateFolder = false
+                        }
+                    )
+                }
+
                 ReminderPicker(
                     reminderAt = reminderAt,
                     onReminderSet = { reminderAt = it }
                 )
 
                 if (isFetchingMetadata) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                         Text("Fetching preview…", style = MaterialTheme.typography.bodySmall)
                     }
@@ -243,7 +290,13 @@ fun AddLinkDialog(
         },
         confirmButton = {
             Button(
-                onClick = { if (url.isNotBlank()) onConfirm(url.trim(), selectedFolderId, reminderAt) },
+                onClick = {
+                    if (url.isNotBlank()) onConfirm(
+                        url.trim(),
+                        selectedFolderId,
+                        reminderAt
+                    )
+                },
                 enabled = url.isNotBlank() && !isFetchingMetadata
             ) {
                 Text("Save")
@@ -255,7 +308,18 @@ fun AddLinkDialog(
     )
 }
 
-val FOLDER_COLORS = listOf("#6366F1","#8B5CF6","#EC4899","#EF4444","#F59E0B","#10B981","#06B6D4","#3B82F6","#84CC16","#F97316")
+val FOLDER_COLORS = listOf(
+    "#6366F1",
+    "#8B5CF6",
+    "#EC4899",
+    "#EF4444",
+    "#F59E0B",
+    "#10B981",
+    "#06B6D4",
+    "#3B82F6",
+    "#84CC16",
+    "#F97316"
+)
 
 @Composable
 fun AddFolderDialog(
@@ -317,7 +381,11 @@ fun AddFolderDialog(
                                 .background(Color(android.graphics.Color.parseColor(color)))
                                 .then(
                                     if (color == selectedColor)
-                                        Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                        Modifier.border(
+                                            2.dp,
+                                            MaterialTheme.colorScheme.onSurface,
+                                            CircleShape
+                                        )
                                     else Modifier
                                 )
                                 .clickable { selectedColor = color }
@@ -328,7 +396,13 @@ fun AddFolderDialog(
         },
         confirmButton = {
             Button(
-                onClick = { if (name.isNotBlank()) onConfirm(name.trim(), selectedIcon, selectedColor) },
+                onClick = {
+                    if (name.isNotBlank()) onConfirm(
+                        name.trim(),
+                        selectedIcon,
+                        selectedColor
+                    )
+                },
                 enabled = name.isNotBlank()
             ) {
                 Text("Create")
@@ -348,31 +422,201 @@ fun FolderPickerDialog(
     onSelect: (Long?) -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Move to Folder") },
-        text = {
-            Column {
-                ListItem(
-                    headlineContent = { Text("No folder") },
-                    leadingContent = { Icon(Icons.Outlined.FolderOff, null) },
-                    trailingContent = { if (currentFolderId == null) Icon(Icons.Filled.Check, null) },
-                    modifier = Modifier.clickable { onSelect(null) }
+    var visible by remember { mutableStateOf(false) }
+    var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val scope = rememberCoroutineScope()
+
+    // Trigger enter animation on first frame
+    LaunchedEffect(Unit) { visible = true }
+
+    // When visible becomes false, wait for animation then execute pending action
+    LaunchedEffect(visible) {
+        if (!visible) {
+            delay(280)  // match exit animation duration
+            pendingAction?.invoke()
+        }
+    }
+
+    fun dismiss() {
+        pendingAction = { onDismiss() }
+        visible = false
+    }
+
+    fun select(folderId: Long?) {
+        pendingAction = { onSelect(folderId) }
+        visible = false
+    }
+
+    BackHandler { dismiss() }
+
+    Dialog(
+        onDismissRequest = { dismiss() },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,  // handled by BackHandler
+            dismissOnClickOutside = false  // handled manually below
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Scrim
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(280))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.4f))
+                        .clickable { dismiss() }
                 )
-                HorizontalDivider()
-                folders.forEach { folder ->
-                    ListItem(
-                        headlineContent = { Text(folder.name) },
-                        leadingContent = { Icon(iconFromName(folder.icon), null, Modifier.size(16.dp),
-                            tint = Color(android.graphics.Color.parseColor(folder.color))) },
-                        trailingContent = { if (folder.id == currentFolderId) Icon(Icons.Filled.Check, null) },
-                        modifier = Modifier.clickable { onSelect(folder.id) }
-                    )
+            }
+
+            // Left drawer
+            AnimatedVisibility(
+                visible = visible,
+                enter = slideInHorizontally(
+                    initialOffsetX = { -it },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeIn(tween(300)),
+                exit = slideOutHorizontally(
+                    targetOffsetX = { -it },
+                    animationSpec = tween(280, easing = FastOutSlowInEasing)
+                ) + fadeOut(tween(280)),
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth(0.72f)
+                        .fillMaxHeight(0.65f),
+                    shape = RoundedCornerShape(topEnd = 20.dp, bottomEnd = 20.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 8.dp
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            IconButton(onClick = { dismiss() }) {
+                                Icon(Icons.Outlined.ArrowBack, "Close")
+                            }
+                            Text(
+                                "Move to folder",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+
+                        HorizontalDivider()
+
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 8.dp)
+                        ) {
+                            FolderPickerItem(
+                                icon = {
+                                    Icon(
+                                        Icons.Outlined.FolderOff, null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                name = "No folder",
+                                isSelected = currentFolderId == null,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                onClick = { select(null) }
+                            )
+
+                            HorizontalDivider(
+                                modifier = Modifier.padding(
+                                    horizontal = 16.dp,
+                                    vertical = 4.dp
+                                )
+                            )
+
+                            folders.forEach { folder ->
+                                FolderPickerItem(
+                                    icon = {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = Color(
+                                                android.graphics.Color.parseColor(folder.color)
+                                            ).copy(alpha = 0.15f),
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    iconFromName(folder.icon), null,
+                                                    Modifier.size(18.dp),
+                                                    tint = Color(
+                                                        android.graphics.Color.parseColor(folder.color)
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    },
+                                    name = folder.name,
+                                    isSelected = folder.id == currentFolderId,
+                                    color = Color(
+                                        android.graphics.Color.parseColor(folder.color)
+                                    ),
+                                    onClick = { select(folder.id) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
+        }
+    }
+}
+
+@Composable
+fun FolderPickerItem(
+    icon: @Composable () -> Unit,
+    name: String,
+    isSelected: Boolean,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+        else
+            Color.Transparent,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            icon()
+
+            Text(
+                name,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            if (isSelected) {
+                Icon(
+                    Icons.Filled.Check, null,
+                    Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -396,7 +640,13 @@ fun SortBottomSheet(
                 ListItem(
                     headlineContent = { Text(option.label()) },
                     leadingContent = { Icon(option.icon(), null) },
-                    trailingContent = { if (option == currentSort) Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary) },
+                    trailingContent = {
+                        if (option == currentSort) Icon(
+                            Icons.Filled.Check,
+                            null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
                     modifier = Modifier.clickable { onSortSelect(option) }
                 )
             }
@@ -407,15 +657,15 @@ fun SortBottomSheet(
 private fun SortOption.label() = when (this) {
     SortOption.DATE_NEWEST -> "Newest first"
     SortOption.DATE_OLDEST -> "Oldest first"
-    SortOption.TITLE_AZ    -> "Title A → Z"
-    SortOption.TITLE_ZA    -> "Title Z → A"
-    SortOption.DOMAIN      -> "By domain"
+    SortOption.TITLE_AZ -> "Title A → Z"
+    SortOption.TITLE_ZA -> "Title Z → A"
+    SortOption.DOMAIN -> "By domain"
 }
 
 private fun SortOption.icon() = when (this) {
     SortOption.DATE_NEWEST, SortOption.DATE_OLDEST -> Icons.Outlined.Schedule
-    SortOption.TITLE_AZ, SortOption.TITLE_ZA       -> Icons.Outlined.SortByAlpha
-    SortOption.DOMAIN                               -> Icons.Outlined.Language
+    SortOption.TITLE_AZ, SortOption.TITLE_ZA -> Icons.Outlined.SortByAlpha
+    SortOption.DOMAIN -> Icons.Outlined.Language
 }
 
 @Composable
@@ -456,20 +706,27 @@ fun EditLinkDialog(
                     Text("Folder", style = MaterialTheme.typography.labelMedium)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         item {
-                            FilterChip(selected = selectedFolderId == null,
+                            FilterChip(
+                                selected = selectedFolderId == null,
                                 onClick = { selectedFolderId = null },
                                 label = { Text("None") })
                         }
-                        items(folders) {folder ->
-                            FilterChip(selected = selectedFolderId == folder.id,
+                        items(folders) { folder ->
+                            FilterChip(
+                                selected = selectedFolderId == folder.id,
                                 onClick = { selectedFolderId = folder.id },
                                 label = {
-                                    Row(verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Icon(iconFromName(folder.icon), null, Modifier.size(14.dp),
-                                            tint = Color(android.graphics.Color.parseColor(folder.color)))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            iconFromName(folder.icon), null, Modifier.size(14.dp),
+                                            tint = Color(android.graphics.Color.parseColor(folder.color))
+                                        )
                                         Text(folder.name)
-                                    } })
+                                    }
+                                })
                         }
                     }
                 }
@@ -478,8 +735,15 @@ fun EditLinkDialog(
         },
         confirmButton = {
             Button(onClick = {
-                onConfirm(link.copy(url = url.trim(), title = title.trim(),
-                    description = description.trim(), folderId = selectedFolderId, reminderAt = reminderAt))
+                onConfirm(
+                    link.copy(
+                        url = url.trim(),
+                        title = title.trim(),
+                        description = description.trim(),
+                        folderId = selectedFolderId,
+                        reminderAt = reminderAt
+                    )
+                )
             }, enabled = url.isNotBlank()) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
@@ -496,7 +760,8 @@ fun ReminderPicker(
     var showTimePicker by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableStateOf<Long?>(null) }
     val context = LocalContext.current
-    val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault()) }
+    val dateFormatter =
+        remember { SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault()) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -509,7 +774,7 @@ fun ReminderPicker(
                 context, Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
 
-            if(!granted) {
+            if (!granted) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
@@ -549,18 +814,20 @@ fun ReminderPicker(
                         onClick = { onReminderSet(null) },
                         modifier = Modifier.size(18.dp)
                     ) {
-                        Icon(Icons.Filled.Close, null, Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Icon(
+                            Icons.Filled.Close, null, Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
                 }
             }
         } else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 val suggestions = listOf(
-                    "1h"       to (System.currentTimeMillis() + 3_600_000L),
-                    "Tonight"  to todayAt(21, 0),
+                    "1h" to (System.currentTimeMillis() + 3_600_000L),
+                    "Tonight" to todayAt(21, 0),
                     "Tomorrow" to tomorrowAt(9, 0),
-                    "Weekend"  to nextWeekendAt(9, 0),
+                    "Weekend" to nextWeekendAt(9, 0),
                 )
                 items(suggestions) { (label, time) ->
                     SuggestionChip(
@@ -726,7 +993,11 @@ fun EditFolderDialog(
                                 .background(Color(android.graphics.Color.parseColor(color)))
                                 .then(
                                     if (color == selectedColor)
-                                        Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                        Modifier.border(
+                                            2.dp,
+                                            MaterialTheme.colorScheme.onSurface,
+                                            CircleShape
+                                        )
                                     else Modifier
                                 )
                                 .clickable { selectedColor = color }

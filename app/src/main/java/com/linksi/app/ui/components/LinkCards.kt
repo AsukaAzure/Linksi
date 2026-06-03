@@ -15,9 +15,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.material3.SwipeToDismissBox
@@ -25,11 +27,13 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.ripple.rememberRipple
 import coil.compose.AsyncImage
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -46,6 +50,7 @@ fun LinkCard(
     onDelete: () -> Unit,
     onMoveToFolder: (Long?) -> Unit,
     onEdit: () -> Unit,
+    onMarkRead: () -> Unit = {},
     onFolderClick: (Folder) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -77,6 +82,7 @@ fun LinkCard(
                         false
                     }
                 }
+
                 SwipeToDismissBoxValue.StartToEnd -> {
                     if (confirmed) {
                         swipeConfirmed = false
@@ -89,6 +95,7 @@ fun LinkCard(
                     }
                     false
                 }
+
                 else -> false
             }
         }
@@ -256,40 +263,16 @@ fun LinkCard(
                             ) {
                                 Icon(Icons.Filled.MoreVert, "More", Modifier.size(18.dp))
                             }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Edit") },
-                                    leadingIcon = { Icon(Icons.Outlined.Edit, null) },
-                                    onClick = { showMenu = false; onEdit() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Move to folder") },
-                                    leadingIcon = { Icon(Icons.Outlined.FolderOpen, null) },
-                                    onClick = { showMenu = false; showFolderPicker = true }
-                                )
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            "Delete",
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Outlined.Delete,
-                                            null,
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
-                                    },
-                                    onClick = { showMenu = false; onDelete() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Share") },
-                                    leadingIcon = { Icon(Icons.Outlined.Share, null) },
-                                    onClick = {
+
+                            if (showMenu) {
+                                LinkOptionsSheet(
+                                    link = link,
+                                    folder = folders.find { it.id == link.folderId },
+                                    onDismiss = { showMenu = false },
+                                    onEdit = { showMenu = false; onEdit() },
+                                    onDelete = { showMenu = false; onDelete() },
+                                    onMoveToFolder = { showMenu = false; showFolderPicker = true },
+                                    onShare = {
                                         showMenu = false
                                         val sendIntent = Intent().apply {
                                             action = Intent.ACTION_SEND
@@ -300,9 +283,14 @@ fun LinkCard(
                                             type = "text/plain"
                                         }
                                         context.startActivity(
-                                            Intent.createChooser(sendIntent, "Share Link via")
+                                            Intent.createChooser(
+                                                sendIntent,
+                                                "Share link via"
+                                            )
                                         )
-                                    }
+                                    },
+                                    onToggleFavorite = { showMenu = false; onFavoriteToggle() },
+                                    onMarkRead = { showMenu = false; /* call markAsRead */ }
                                 )
                             }
                         }
@@ -499,6 +487,221 @@ fun LinkGridCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LinkOptionsSheet(
+    link: Link,
+    folder: Folder?,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onMoveToFolder: () -> Unit,
+    onShare: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onMarkRead: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
+    fun hideThen(action: () -> Unit) {
+        scope.launch {
+            sheetState.hide()
+            action()
+        }
+    }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = null,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+
+            // ── Header with preview image + title ────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+            ) {
+                // Preview image background
+                if (link.previewImageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = link.previewImageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Fallback gradient with favicon
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        Color(domainColor(link.domain).value.toLong()),
+                                        Color(domainColor(link.domain).copy(alpha = 0.6f).value.toLong())
+                                    )
+                                )
+                            )
+                    ) {
+                        AsyncImage(
+                            model = link.faviconUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .align(Alignment.Center)
+                        )
+                    }
+                }
+
+                // Gradient scrim over image
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.7f)
+                                )
+                            )
+                        )
+                )
+
+                // Title + domain + drag handle
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = link.title.ifBlank { link.url },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        AsyncImage(
+                            model = link.faviconUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                        )
+                        Text(
+                            text = link.domain.ifBlank { "link" },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                        if (folder != null) {
+                            Text("·", color = Color.White.copy(alpha = 0.6f))
+                            Icon(
+                                iconFromName(folder.icon), null,
+                                Modifier.size(12.dp),
+                                tint = Color.White.copy(alpha = 0.8f)
+                            )
+                            Text(
+                                folder.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
+
+                // Drag handle at top center
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .width(40.dp)
+                            .height(4.dp),
+                        shape = RoundedCornerShape(2.dp),
+                        color = Color.White.copy(alpha = 0.5f)
+                    ) {}
+                }
+            }
+
+            // ── Options list ──────────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(vertical = 8.dp)
+            ) {
+                SheetOption(
+                    icon = Icons.Outlined.Edit,
+                    label = "Edit link",
+                    onClick = { hideThen(onEdit) }
+                )
+                SheetOption(
+                    icon = if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    label = if (link.isFavorite) "Remove from favorites" else "Add to favorites",
+                    iconTint = if (link.isFavorite) MaterialTheme.colorScheme.error else null,
+                    onClick = { hideThen(onToggleFavorite) }
+                )
+                SheetOption(
+                    icon = Icons.Outlined.FolderOpen,
+                    label = "Move to folder",
+                    onClick = { hideThen(onMoveToFolder) }
+                )
+                SheetOption(
+                    icon = Icons.Outlined.Share,
+                    label = "Share link",
+                    onClick = { hideThen(onShare) }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                SheetOption(
+                    icon = Icons.Outlined.Delete,
+                    label = "Delete link",
+                    iconTint = MaterialTheme.colorScheme.error,
+                    labelColor = MaterialTheme.colorScheme.error,
+                    onClick = { hideThen(onDelete) }
+                )
+            }
+        }
+    }
+}
+
+
+@Composable
+fun SheetOption(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    iconTint: Color? = null,
+    labelColor: Color? = null,
+    onClick: () -> Unit
+) {
+    ListItem(
+        headlineContent = {
+            Text(
+                label,
+                color = labelColor ?: MaterialTheme.colorScheme.onSurface
+            )
+        },
+        leadingContent = {
+            Icon(
+                icon, null,
+                tint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        modifier = Modifier.clickable(onClick = onClick)
+    )
+}
+
 private fun formatDate(timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
@@ -515,42 +718,42 @@ fun domainColor(domain: String): Color {
     return when {
         // Social
         domain.contains("twitter") || domain.contains("x.com") -> Color(0xFF1DA1F2)
-        domain.contains("instagram")                            -> Color(0xFFE1306C)
-        domain.contains("facebook")                            -> Color(0xFF1877F2)
-        domain.contains("reddit")                              -> Color(0xFFFF4500)
-        domain.contains("linkedin")                            -> Color(0xFF0A66C2)
-        domain.contains("tiktok")                              -> Color(0xFF010101)
+        domain.contains("instagram") -> Color(0xFFE1306C)
+        domain.contains("facebook") -> Color(0xFF1877F2)
+        domain.contains("reddit") -> Color(0xFFFF4500)
+        domain.contains("linkedin") -> Color(0xFF0A66C2)
+        domain.contains("tiktok") -> Color(0xFF010101)
 
         // Video
-        domain.contains("youtube")                             -> Color(0xFFFF0000)
-        domain.contains("twitch")                              -> Color(0xFF9146FF)
-        domain.contains("vimeo")                               -> Color(0xFF1AB7EA)
+        domain.contains("youtube") -> Color(0xFFFF0000)
+        domain.contains("twitch") -> Color(0xFF9146FF)
+        domain.contains("vimeo") -> Color(0xFF1AB7EA)
 
         // Dev
-        domain.contains("github")                              -> Color(0xFF6E40C9)
-        domain.contains("stackoverflow")                       -> Color(0xFFF48024)
-        domain.contains("medium")                              -> Color(0xFF00AB6C)
-        domain.contains("dev.to")                              -> Color(0xFF0A0A0A)
-        domain.contains("producthunt")                         -> Color(0xFFDA552F)
+        domain.contains("github") -> Color(0xFF6E40C9)
+        domain.contains("stackoverflow") -> Color(0xFFF48024)
+        domain.contains("medium") -> Color(0xFF00AB6C)
+        domain.contains("dev.to") -> Color(0xFF0A0A0A)
+        domain.contains("producthunt") -> Color(0xFFDA552F)
 
         // News
-        domain.contains("bbc")                                 -> Color(0xFFBB1919)
-        domain.contains("cnn")                                 -> Color(0xFFCC0000)
-        domain.contains("nytimes")                             -> Color(0xFF121212)
-        domain.contains("theverge")                            -> Color(0xFFE21218)
+        domain.contains("bbc") -> Color(0xFFBB1919)
+        domain.contains("cnn") -> Color(0xFFCC0000)
+        domain.contains("nytimes") -> Color(0xFF121212)
+        domain.contains("theverge") -> Color(0xFFE21218)
 
         // Shopping
-        domain.contains("amazon")                              -> Color(0xFFFF9900)
-        domain.contains("ebay")                                -> Color(0xFF0064D2)
+        domain.contains("amazon") -> Color(0xFFFF9900)
+        domain.contains("ebay") -> Color(0xFF0064D2)
 
         // Music
-        domain.contains("spotify")                             -> Color(0xFF1DB954)
-        domain.contains("soundcloud")                          -> Color(0xFFFF5500)
+        domain.contains("spotify") -> Color(0xFF1DB954)
+        domain.contains("soundcloud") -> Color(0xFFFF5500)
 
         // Productivity
-        domain.contains("notion")                              -> Color(0xFF000000)
-        domain.contains("figma")                               -> Color(0xFFF24E1E)
-        domain.contains("linear")                              -> Color(0xFF5E6AD2)
+        domain.contains("notion") -> Color(0xFF000000)
+        domain.contains("figma") -> Color(0xFFF24E1E)
+        domain.contains("linear") -> Color(0xFF5E6AD2)
 
         // Fallback — hash domain for consistent unique color
         else -> {

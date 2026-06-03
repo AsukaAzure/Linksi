@@ -1,5 +1,6 @@
 package com.linksi.app.ui.screens
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -39,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -247,13 +249,101 @@ fun FolderListScreen(
                     .padding(padding),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(folders) { folder ->
-                    FolderListItem(
-                        folder = folder,
-                        onClick = { onFolderClick(folder) },
-                        onDelete = { onDeleteFolder(folder) },
-                        onEdit = { editingFolder = it }
+                // AFTER
+                items(folders, key = { it.id }) { folder ->
+                    var swipeConfirmed by remember { mutableStateOf(false) }
+
+                    val dismissState = rememberSwipeToDismissBoxState(
+                        positionalThreshold = { totalDistance -> totalDistance * 0.4f },
+                        confirmValueChange = { value ->
+                            when (value) {
+                                SwipeToDismissBoxValue.StartToEnd -> {
+                                    if (swipeConfirmed) {
+                                        editingFolder = folder
+                                        swipeConfirmed = false
+                                    }
+                                    false  // spring back after edit
+                                }
+
+                                SwipeToDismissBoxValue.EndToStart -> {
+                                    if (swipeConfirmed) {
+                                        swipeConfirmed = false
+                                        onDeleteFolder(folder)
+                                        true
+                                    } else false
+                                }
+
+                                else -> false
+                            }
+                        }
                     )
+
+                    LaunchedEffect(dismissState.progress) {
+                        swipeConfirmed = dismissState.progress >= 0.4f
+                    }
+
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        backgroundContent = {
+                            val direction = dismissState.dismissDirection
+                            val isDelete = direction == SwipeToDismissBoxValue.EndToStart
+                            val isEdit = direction == SwipeToDismissBoxValue.StartToEnd
+
+                            val bgColor by animateColorAsState(
+                                targetValue = when {
+                                    isDelete && swipeConfirmed -> MaterialTheme.colorScheme.errorContainer
+                                    isDelete -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                    isEdit && swipeConfirmed -> MaterialTheme.colorScheme.primaryContainer
+                                    isEdit -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                    else -> MaterialTheme.colorScheme.surface
+                                },
+                                label = "folder_swipe_bg"
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(bgColor)
+                                    .padding(horizontal = 24.dp),
+                                contentAlignment = if (isDelete) Alignment.CenterEnd else Alignment.CenterStart
+                            ) {
+                                if (isEdit) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Outlined.Edit, null,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Text(
+                                            if (swipeConfirmed) "Release to edit" else "Keep swiping…",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                } else if (isDelete) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            if (swipeConfirmed) Icons.Outlined.Delete else Icons.Outlined.Lock,
+                                            null,
+                                            tint = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                        Text(
+                                            if (swipeConfirmed) "Release to delete" else "Keep swiping…",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    ) {
+                        FolderListItem(
+                            folder = folder,
+                            onClick = { onFolderClick(folder) },
+                            onDelete = { onDeleteFolder(folder) },
+                            onEdit = { editingFolder = it }
+                        )
+                    }
+
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 24.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -283,7 +373,8 @@ fun FolderListItem(
     onDelete: () -> Unit,
     onEdit: (Folder) -> Unit
 ) {
-    var showMenu by remember { mutableStateOf(false) }
+//    var showToolTip by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     ListItem(
         headlineContent = {
@@ -323,50 +414,56 @@ fun FolderListItem(
         },
         modifier = Modifier.combinedClickable(
             onClick = onClick,
-            onLongClick = { showMenu = true }
+            onLongClick = {
+                Toast.makeText(
+                    context,
+                    "Swipe the folder to edit or delete",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         ),
         colors = ListItemDefaults.colors(
             containerColor = MaterialTheme.colorScheme.background
         )
     )
 
-    if (showMenu) {
-        AlertDialog(
-            onDismissRequest = { showMenu = false },
-            title = { Text(folder.name) },
-            text = {
-                Column {
-                    ListItem(
-                        headlineContent = { Text("Edit folder") },
-                        leadingContent = { Icon(Icons.Outlined.Edit, null) },
-                        modifier = Modifier.clickable {
-                            showMenu = false
-                            onEdit(folder)
-                        }
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = {
-                            Text("Delete folder", color = MaterialTheme.colorScheme.error)
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.Outlined.Delete, null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            showMenu = false
-                            onDelete()
-                        }
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showMenu = false }) { Text("Cancel") }
-            }
-        )
-    }
+//    if (showMenu) {
+//        AlertDialog(
+//            onDismissRequest = { showMenu = false },
+//            title = { Text(folder.name) },
+//            text = {
+//                Column {
+//                    ListItem(
+//                        headlineContent = { Text("Edit folder") },
+//                        leadingContent = { Icon(Icons.Outlined.Edit, null) },
+//                        modifier = Modifier.clickable {
+//                            showMenu = false
+//                            onEdit(folder)
+//                        }
+//                    )
+//                    HorizontalDivider()
+//                    ListItem(
+//                        headlineContent = {
+//                            Text("Delete folder", color = MaterialTheme.colorScheme.error)
+//                        },
+//                        leadingContent = {
+//                            Icon(
+//                                Icons.Outlined.Delete, null,
+//                                tint = MaterialTheme.colorScheme.error
+//                            )
+//                        },
+//                        modifier = Modifier.clickable {
+//                            showMenu = false
+//                            onDelete()
+//                        }
+//                    )
+//                }
+//            },
+//            confirmButton = {
+//                TextButton(onClick = { showMenu = false }) { Text("Cancel") }
+//            }
+//        )
+//    }
 }
 
 // ── Folder Detail ─────────────────────────────────────────────

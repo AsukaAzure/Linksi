@@ -25,5 +25,7 @@ enum class TourStep {
     FOLDER_IN_DIALOG,   // highlight folder picker in dialog
     FOLDERS_ICON,       // highlight folders icon in top bar
     SAVED_LINK_CARD,    // highlight the first saved link card
+    SWIPE_LEFT,
+    SWIPE_RIGHT,
     DONE
 }

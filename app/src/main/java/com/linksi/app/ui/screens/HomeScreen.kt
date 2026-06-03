@@ -1,5 +1,6 @@
 package com.linksi.app.ui.screens
 
+import android.system.Os.link
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -107,7 +108,9 @@ fun HomeScreen(
             }
 
             TourStep.FOLDERS_ICON -> TourStep.SAVED_LINK_CARD
-            TourStep.SAVED_LINK_CARD -> {
+            TourStep.SAVED_LINK_CARD -> TourStep.SWIPE_LEFT
+            TourStep.SWIPE_LEFT -> TourStep.SWIPE_RIGHT
+            TourStep.SWIPE_RIGHT -> {
                 scope.launch { setTourComplete(context) }
                 TourStep.DONE
             }
@@ -572,6 +575,20 @@ fun HomeScreen(
                     tooltipBelow = true
                 )
 
+                TourStep.SWIPE_LEFT -> CoachMarkTarget(
+                    coords = firstLinkCoords,
+                    title = "Swipe Left to Delete",
+                    description = "Swipe left to Delete a Link.",
+                    tooltipBelow = true
+                )
+
+                TourStep.SWIPE_RIGHT -> CoachMarkTarget(
+                    coords = firstLinkCoords,
+                    title = "Swipe Right to Move",
+                    description = "Swipe right to Share a Link.",
+                    tooltipBelow = true
+                )
+
                 else -> null
             }
 
@@ -579,14 +596,16 @@ fun HomeScreen(
                 SpotlightOverlay(
                     target = it,
                     onNext = { nextStep() },
-                    isLastStep = tourStep == TourStep.SAVED_LINK_CARD,
+                    isLastStep = tourStep == TourStep.SWIPE_RIGHT,
                     stepNumber = when (tourStep) {
                         TourStep.SAVE_BUTTON -> 1
                         TourStep.FOLDERS_ICON -> 5
                         TourStep.SAVED_LINK_CARD -> 6
+                        TourStep.SWIPE_LEFT -> 7
+                        TourStep.SWIPE_RIGHT -> 8
                         else -> 0
                     },
-                    totalSteps = 6
+                    totalSteps = 8
                 )
             }
         }
@@ -612,6 +631,9 @@ fun HomeScreen(
             tourStep = tourStep,
             onTourNext = { nextStep() },
             onDismiss = viewModel::hideAddLinkDialog,
+            onCreateFolder = { name, icon, color ->
+                viewModel.addFolder(name, icon, color)
+            },
             onConfirm = { url, folderId, reminderAt ->
                 viewModel.addLink(url, folderId, reminderAt)
                 viewModel.hideAddLinkDialog()
