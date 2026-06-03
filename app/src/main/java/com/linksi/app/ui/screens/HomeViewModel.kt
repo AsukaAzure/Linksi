@@ -233,6 +233,13 @@ class HomeViewModel @Inject constructor(
 
     fun addFolder(name: String, icon: String, color: String) {
         viewModelScope.launch {
+            val exists = _uiState.value.folders.any {
+                it.name.trim().equals(name.trim(), ignoreCase = true)
+            }
+            if (exists) {
+                _uiState.update { it.copy(snackbarMessage = "Folder already exists") }
+                return@launch
+            }
             repository.insertFolder(Folder(name = name, icon = icon, color = color))
         }
     }
@@ -282,6 +289,13 @@ class HomeViewModel @Inject constructor(
 
     fun updateFolder(folder: Folder) {
         viewModelScope.launch {
+            val exists = _uiState.value.folders.any {
+                it.id != folder.id && it.name.trim().equals(folder.name.trim(), ignoreCase = true)
+            }
+            if (exists) {
+                _uiState.update { it.copy(snackbarMessage = "Folder already exists") }
+                return@launch
+            }
             repository.updateFolder(folder)
         }
     }
