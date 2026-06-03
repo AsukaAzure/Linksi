@@ -124,6 +124,7 @@ The output will be at `app/release/app-release.apk`. You will need a signing con
 - [x] Appearance in share page
 - [x] In App Browser
 - [x] Reminder
+- [ ] AI Intigration to organize the links
 
 ---
 
