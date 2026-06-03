@@ -33,6 +33,7 @@ data class HomeUiState(
     val showAddFolderDialog: Boolean = false,
     val editingLink: Link? = null,
     val snackbarMessage: String? = null,
+    val folderSnackbarMessage: String? = null,
     val totalCount: Int = 0,
     val selectedIds: Set<Long> = emptySet(),
     val isSelectionMode: Boolean = false,
@@ -237,7 +238,7 @@ class HomeViewModel @Inject constructor(
                 it.name.trim().equals(name.trim(), ignoreCase = true)
             }
             if (exists) {
-                _uiState.update { it.copy(snackbarMessage = "Folder already exists") }
+                _uiState.update { it.copy(folderSnackbarMessage = "Folder already exists") }
                 return@launch
             }
             repository.insertFolder(Folder(name = name, icon = icon, color = color))
@@ -260,7 +261,7 @@ class HomeViewModel @Inject constructor(
                 it.copy(
                     lastDeletedFolder = folder,
                     lastDeletedFolderLinks = folderLinks,
-                    snackbarMessage = "UNDO_FOLDER_DELETE"
+                    folderSnackbarMessage = "UNDO_FOLDER_DELETE"
                 )
             }
         }
@@ -281,7 +282,7 @@ class HomeViewModel @Inject constructor(
                 it.copy(
                     lastDeletedFolder = null,
                     lastDeletedFolderLinks = emptyList(),
-                    snackbarMessage = "Folder restored"
+                    folderSnackbarMessage = "Folder restored"
                 )
             }
         }
@@ -293,7 +294,7 @@ class HomeViewModel @Inject constructor(
                 it.id != folder.id && it.name.trim().equals(folder.name.trim(), ignoreCase = true)
             }
             if (exists) {
-                _uiState.update { it.copy(snackbarMessage = "Folder already exists") }
+                _uiState.update { it.copy(folderSnackbarMessage = "Folder already exists") }
                 return@launch
             }
             repository.updateFolder(folder)
@@ -301,6 +302,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun dismissSnackbar() = _uiState.update { it.copy(snackbarMessage = null) }
+    fun dismissFolderSnackbar() = _uiState.update { it.copy(folderSnackbarMessage = null) }
 
     fun showAddLinkDialog() = _uiState.update { it.copy(showAddLinkDialog = true) }
     fun hideAddLinkDialog() = _uiState.update { it.copy(showAddLinkDialog = false) }

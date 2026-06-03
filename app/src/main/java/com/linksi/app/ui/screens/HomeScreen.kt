@@ -163,19 +163,10 @@ fun HomeScreen(
                     viewModel.dismissSnackbar()
                 }
 
-                "UNDO_FOLDER_DELETE" -> {
-                    val folderName = state.lastDeletedFolder?.name ?: "Folder"
-                    val linkCount = state.lastDeletedFolderLinks.size
-                    val result = snackbarHostState.showSnackbar(
-                        message = "\"$folderName\" and $linkCount links deleted",
-                        actionLabel = "Undo",
-                        duration = SnackbarDuration.Long
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.undoFolderDelete()
+                "UNDO_FOLDER_DELETE", "Folder already exists", "Folder restored" -> {
+                    if (!showFolders) {
+                        viewModel.dismissSnackbar()
                     }
-                    viewModel.dismissSnackbar()
-                    return@let
                 }
 
                 else -> {
@@ -704,11 +695,16 @@ fun FolderAndFilterRow(
 ) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier.padding(vertical = 4.dp)
     ) {
+        val startingShape =
+            RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
+        val middleShape =
+            RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
         item {
             FilterChip(
+                shape = startingShape,
                 selected = selectedFolderId == null && selectedFilter == FilterOption.ALL,
                 onClick = { onFolderSelect(null); onFilterSelect(FilterOption.ALL) },
                 label = { Text("All") },
@@ -717,6 +713,7 @@ fun FolderAndFilterRow(
         }
         item {
             FilterChip(
+                shape = middleShape,
                 selected = selectedFilter == FilterOption.FAVORITES,
                 onClick = { onFilterSelect(FilterOption.FAVORITES) },
                 label = { Text("Favorites") },
@@ -725,6 +722,7 @@ fun FolderAndFilterRow(
         }
         item {
             FilterChip(
+                shape = middleShape,
                 selected = selectedFilter == FilterOption.UNREAD,
                 onClick = { onFilterSelect(FilterOption.UNREAD) },
                 label = { Text("Unread") },
@@ -733,6 +731,7 @@ fun FolderAndFilterRow(
         }
         items(folders) { folder ->
             FilterChip(
+                shape = middleShape,
                 selected = selectedFolderId == folder.id,
                 onClick = { onFolderSelect(folder.id) },
                 label = {

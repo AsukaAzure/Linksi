@@ -177,20 +177,29 @@ fun FolderListScreen(
     val scope = rememberCoroutineScope()
     var editingFolder by remember { mutableStateOf<Folder?>(null) }
 
-    // Handle folder delete undo locally — not in HomeScreen
-    LaunchedEffect(state.snackbarMessage) {
-        if (state.snackbarMessage == "UNDO_FOLDER_DELETE") {
-            val folderName = state.lastDeletedFolder?.name ?: "Folder"
-            val linkCount = state.lastDeletedFolderLinks.size
-            val result = snackbarHostState.showSnackbar(
-                message = "\"$folderName\" and $linkCount links deleted",
-                actionLabel = "Undo",
-                duration = SnackbarDuration.Long
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                viewModel.undoFolderDelete()
+    // Handle folder snackbars locally — not in HomeScreen
+    LaunchedEffect(state.folderSnackbarMessage) {
+        state.folderSnackbarMessage?.let { message ->
+            when (message) {
+                "UNDO_FOLDER_DELETE" -> {
+                    val folderName = state.lastDeletedFolder?.name ?: "Folder"
+                    val linkCount = state.lastDeletedFolderLinks.size
+                    val result = snackbarHostState.showSnackbar(
+                        message = "\"$folderName\" and $linkCount links deleted",
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoFolderDelete()
+                    }
+                    viewModel.dismissFolderSnackbar()
+                }
+
+                "Folder already exists", "Folder restored" -> {
+                    snackbarHostState.showSnackbar(message)
+                    viewModel.dismissFolderSnackbar()
+                }
             }
-            viewModel.dismissSnackbar()
         }
     }
     Scaffold(

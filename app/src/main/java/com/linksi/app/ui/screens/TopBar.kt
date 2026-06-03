@@ -8,7 +8,12 @@ import androidx.compose.runtime.Composable
 import com.linksi.app.domain.model.Folder
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +34,12 @@ fun LinksTopBar(
     onSettingsClick: () -> Unit,
     onFoldersCoordsChanged: (androidx.compose.ui.layout.LayoutCoordinates) -> Unit = {}
 ) {
+    val startingShape =
+        RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
+    val middleShape =
+        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+    val endingShape =
+        RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
     val selectedFolder = folders.find { it.id == selectedFolderId }
 
     TopAppBar(
@@ -51,21 +62,64 @@ fun LinksTopBar(
             }
         },
         actions = {
-            IconButton(onClick = onViewModeToggle) {
+            Button(
+                onClick = onViewModeToggle,
+                shape = startingShape,
+                modifier = Modifier
+                    .widthIn(min = 1.dp)
+                    .padding(end = 2.dp),
+                contentPadding = PaddingValues(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            ) {
                 Icon(
                     if (viewMode == ViewMode.LIST) Icons.Outlined.GridView else Icons.Outlined.ViewList,
                     "Toggle view"
                 )
             }
-            IconButton(onClick = onSortClick) {
+            Button(
+                onClick = onSortClick,
+                shape = middleShape,
+                modifier = Modifier
+                    .widthIn(min = 1.dp)
+                    .padding(end = 2.dp),
+                contentPadding = PaddingValues(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            ) {
                 Icon(Icons.Outlined.Sort, "Sort")
             }
-            IconButton(
+            Button(
                 onClick = onFoldersClick,
-                modifier = Modifier.onGloballyPositioned { onFoldersCoordsChanged(it) }) {
+                shape = middleShape,
+                modifier = Modifier
+                    .onGloballyPositioned { onFoldersCoordsChanged(it) }
+                    .widthIn(min = 1.dp)
+                    .padding(end = 2.dp),
+                contentPadding = PaddingValues(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            ) {
                 Icon(Icons.Outlined.Folder, "Folders")
             }
-            IconButton(onClick = onSettingsClick) {
+            Button(
+                onClick = onSettingsClick,
+                shape = endingShape,
+                modifier = Modifier
+                    .widthIn(min = 1.dp)
+                    .padding(end = 2.dp),
+                contentPadding = PaddingValues(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            ) {
                 Icon(Icons.Outlined.Settings, "Settings")
             }
         },
