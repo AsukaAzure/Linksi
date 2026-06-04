@@ -167,16 +167,24 @@ fun ShareReceiverSheet(
 
             HorizontalDivider()
 
+            val startingShape =
+                RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
+            val middleShape =
+                RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+            val endingShape =
+                RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
+
             // Folder selection
             var showCreateFolder by remember { mutableStateOf(false) }
 
             Text("Save to folder", style = MaterialTheme.typography.labelLarge)
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 item {
                     FilterChip(
+                        shape = startingShape,
                         selected = selectedFolderId == null,
                         onClick = { selectedFolderId = null },
                         label = { Text("📥 Inbox") }
@@ -184,6 +192,7 @@ fun ShareReceiverSheet(
                 }
                 items(state.folders) { folder ->
                     FilterChip(
+                        shape = middleShape,
                         selected = selectedFolderId == folder.id,
                         onClick = { selectedFolderId = folder.id },
                         label = { // AFTER
@@ -203,6 +212,7 @@ fun ShareReceiverSheet(
                 item {
                     // New folder button at end of row
                     FilterChip(
+                        shape = endingShape,
                         selected = false,
                         onClick = { showCreateFolder = true },
                         label = { Text("New folder") },

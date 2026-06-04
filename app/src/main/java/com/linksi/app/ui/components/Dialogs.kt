@@ -822,7 +822,13 @@ fun ReminderPicker(
                 }
             }
         } else {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                val startingShape =
+                    RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
+                val middleShape =
+                    RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+                val endingShape =
+                    RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
                 val suggestions = listOf(
                     "1h" to (System.currentTimeMillis() + 3_600_000L),
                     "Tonight" to todayAt(21, 0),
@@ -831,12 +837,14 @@ fun ReminderPicker(
                 )
                 items(suggestions) { (label, time) ->
                     SuggestionChip(
+                        shape = if (label == "1h") startingShape else middleShape,
                         onClick = { setReminderWithPermissionCheck(time) },
                         label = { Text(label, style = MaterialTheme.typography.labelSmall) }
                     )
                 }
                 item {
                     SuggestionChip(
+                        shape = endingShape,
                         onClick = { showDatePicker = true },
                         label = { Text("Custom", style = MaterialTheme.typography.labelSmall) }
                     )
