@@ -15,6 +15,7 @@ A Material 3 Android app to save, organize, and rediscover links. Appears in the
 - Favorites, read/unread tracking
 - Grid and list view toggle
 - Sort by date, title, domain — filter by favorites or unread
+- Reminder to notify your saved links
 - Bulk select, move, and delete
 - Inbuilt browser for quick view
 - Import and export links as JSON or CSV
