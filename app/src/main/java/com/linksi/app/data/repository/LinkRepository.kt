@@ -81,6 +81,12 @@ class LinkRepository @Inject constructor(
     suspend fun deleteFolder(folder: Folder) =
         folderDao.deleteFolder(FolderEntity(folder.id, folder.name, folder.icon, folder.color, folder.createdAt))
 
+    suspend fun getFolderById(id: Long): Folder? =
+        folderDao.getFolderById(id)?.let { toFolder(it) }
+
+    suspend fun getFolderByName(name: String): Folder? =
+        folderDao.getFolderByName(name)?.let { toFolder(it) }
+
     suspend fun isUrlAlreadySaved(url: String): Boolean {
         return linkDao.getLinkByUrl(url) != null
     }
@@ -114,5 +120,13 @@ class LinkRepository @Inject constructor(
         reminderAt = link.reminderAt,
         previewImageUrl = link.previewImageUrl,
         domain = link.domain
+    )
+
+    private fun toFolder(entity: FolderEntity) = Folder(
+        id = entity.id,
+        name = entity.name,
+        icon = entity.icon,
+        color = entity.color,
+        createdAt = entity.createdAt
     )
 }

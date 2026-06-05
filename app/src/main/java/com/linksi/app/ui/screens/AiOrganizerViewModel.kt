@@ -35,6 +35,7 @@ data class AiOrganizerUiState(
     val step: AiOrganizerStep = AiOrganizerStep.IDLE,
     val selectedScope: String = OrganizeScope.UNORGANIZED,
     val plan: OrganizePlan? = null,
+    val folders: List<Folder> = emptyList(),
     val errorMessage: String? = null,
     val applyProgress: Int = 0,
     val applyTotal: Int = 0,
@@ -150,6 +151,8 @@ class AiOrganizerViewModel @Inject constructor(
 
             val allLinks = repository.getAllLinks().first()
             val folders = repository.getAllFolders().first()
+            
+            _uiState.update { it.copy(folders = folders) }
 
             val linksToOrganize = when (state.selectedScope) {
                 OrganizeScope.UNORGANIZED -> allLinks.filter { it.folderId == null }
@@ -224,25 +227,15 @@ class AiOrganizerViewModel @Inject constructor(
 
             // Create new folders first
             val newFolderIdMap = mutableMapOf<String, Long>()
-            plan.newFoldersToCreate.forEach { name ->
-                // Pick a color and icon automatically
-                val colorOptions = listOf(
-                    "#6366F1", "#8B5CF6", "#EC4899", "#EF4444",
-                    "#F59E0B", "#10B981", "#06B6D4", "#3B82F6", "#84CC16", "#F97316"
-                )
-                val iconOptions = listOf(
-                    "folder", "work", "bookmark", "star", "code",
-                    "school", "movie", "music", "shopping", "travel",
-                    "food", "health", "news", "game", "design", "home"
-                )
-                val index = newFolderIdMap.size
-                val color = colorOptions[index % colorOptions.size]
-                val icon = iconOptions[index % iconOptions.size]
-
+            plan.newFolders.forEach { folderPlan ->
                 val newId = repository.insertFolder(
-                    Folder(name = name, icon = icon, color = color)
+                    Folder(
+                        name = folderPlan.name,
+                        icon = folderPlan.icon,
+                        color = folderPlan.color
+                    )
                 )
-                newFolderIdMap[name] = newId
+                newFolderIdMap[folderPlan.name] = newId
             }
 
             // Apply link assignments
@@ -261,7 +254,7 @@ class AiOrganizerViewModel @Inject constructor(
                 sessionId = plan.sessionId,
                 timestamp = System.currentTimeMillis(),
                 movedLinks = snapshot,
-                createdFolderNames = plan.newFoldersToCreate
+                createdFolderNames = plan.newFolders.map { it.name }
             )
             saveSession(session)
 
@@ -286,7 +279,8 @@ class AiOrganizerViewModel @Inject constructor(
     }
 
     fun onScreenOpened() {
-        if (_uiState.value.step == AiOrganizerStep.DONE) {
+        val currentStep = _uiState.value.step
+        if (currentStep == AiOrganizerStep.DONE || currentStep == AiOrganizerStep.ERROR) {
             _uiState.update {
                 it.copy(
                     step = AiOrganizerStep.IDLE,
@@ -309,9 +303,8 @@ class AiOrganizerViewModel @Inject constructor(
             }
 
             // Delete folders that were created by AI
-            val allFolders = repository.getAllFolders().first()
             session.createdFolderNames.forEach { name ->
-                val folder = allFolders.find { it.name == name }
+                val folder = repository.getFolderByName(name)
                 folder?.let { repository.deleteFolder(it) }
             }
 

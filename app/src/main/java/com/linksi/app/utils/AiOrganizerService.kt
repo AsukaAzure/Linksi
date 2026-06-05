@@ -38,6 +38,9 @@ class AiOrganizerService {
             """{"id": ${f.id}, "name": "${f.name.replace("\"", "'")}"}"""
         }.joinToString(",\n")
 
+        val availableIcons = "folder, work, bookmark, star, heart, code, school, movie, music, shopping, travel, food, health, news, game, finance, science, design, home, photo, book, fitness, tech, nature, pets, video, article, recipe, idea, social, events, gifts, automotive, tool, family, sports, reading, writing, productivity, ai, audio, security, cloud, weather, history, archive, personal, wallet, coffee, entertainment, mobile, camera, medicine, banking, map, messaging, email, key, flag, rocket, support, wellness, celebration"
+        val availableColors = "#6366F1, #8B5CF6, #EC4899, #EF4444, #F59E0B, #10B981, #06B6D4, #3B82F6, #84CC16, #F97316"
+
         return """
 You are a smart link organizer. Organize the following saved links into folders.
 
@@ -53,13 +56,22 @@ RULES:
 3. Group similar content together
 4. Folder names should be short (1-3 words)
 5. Every link must be assigned to exactly one folder
+6. For each new folder, pick the most relatable icon and color from the provided list.
+
+AVAILABLE ICONS:
+$availableIcons
+
+AVAILABLE COLORS:
+$availableColors
 
 Respond ONLY with valid JSON in this exact format, no other text:
 {
   "assignments": [
     {"linkId": 1, "folderName": "existing or new folder name", "isExistingFolder": true, "existingFolderId": 5}
   ],
-  "newFolders": ["New Folder 1", "New Folder 2"]
+  "newFolders": [
+    {"name": "New Folder Name", "icon": "icon_name", "color": "hex_color"}
+  ]
 }
 
 For existing folders set isExistingFolder=true and existingFolderId=<the folder id>.
@@ -235,11 +247,23 @@ For new folders set isExistingFolder=false and existingFolderId=null.
 
         val json = JSONObject(cleaned)
         val assignments = json.getJSONArray("assignments")
-        val newFolderNames = mutableListOf<String>()
+        val newFolders = mutableListOf<NewFolderPlan>()
 
         json.optJSONArray("newFolders")?.let { arr ->
             for (i in 0 until arr.length()) {
-                newFolderNames.add(arr.getString(i))
+                val item = arr.get(i)
+                if (item is JSONObject) {
+                    newFolders.add(
+                        NewFolderPlan(
+                            name = item.getString("name"),
+                            icon = item.optString("icon", "folder"),
+                            color = item.optString("color", "#6366F1")
+                        )
+                    )
+                } else if (item is String) {
+                    // Fallback for older models/unexpected formats
+                    newFolders.add(NewFolderPlan(item, "folder", "#6366F1"))
+                }
             }
         }
 
@@ -270,7 +294,7 @@ For new folders set isExistingFolder=false and existingFolderId=null.
 
         return OrganizePlan(
             linkPlans = linkPlans,
-            newFoldersToCreate = newFolderNames
+            newFolders = newFolders
         )
     }
 }

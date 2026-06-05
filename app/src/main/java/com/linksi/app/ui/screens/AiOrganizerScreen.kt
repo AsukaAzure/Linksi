@@ -47,46 +47,59 @@ fun AiOrganizerScreen(
         viewModel.onScreenOpened()
     }
 
-    when (state.step) {
-        AiOrganizerStep.IDLE -> AiOrganizerIdle(
-            state = state,
-            onBack = onBack,
-            onStartOrganize = viewModel::startOrganize,
-            onRevert = viewModel::revertLastSession
-        )
+    AnimatedContent(
+        targetState = state.step,
+        transitionSpec = {
+            if (targetState.ordinal > initialState.ordinal) {
+                (slideInHorizontally { it } + fadeIn()).togetherWith(slideOutHorizontally { -it } + fadeOut())
+            } else {
+                (slideInHorizontally { -it } + fadeIn()).togetherWith(slideOutHorizontally { it } + fadeOut())
+            }
+        },
+        label = "ai_organizer_step_transition"
+    ) { step ->
+        when (step) {
+            AiOrganizerStep.IDLE -> AiOrganizerIdle(
+                state = state,
+                onBack = onBack,
+                onStartOrganize = viewModel::startOrganize,
+                onRevert = viewModel::revertLastSession
+            )
 
-        AiOrganizerStep.SELECT_SCOPE -> AiScopeSelector(
-            selectedScope = state.selectedScope,
-            onScopeSelect = viewModel::setScope,
-            onConfirm = viewModel::generatePlan,
-            onCancel = viewModel::cancelOrganize
-        )
+            AiOrganizerStep.SELECT_SCOPE -> AiScopeSelector(
+                selectedScope = state.selectedScope,
+                onScopeSelect = viewModel::setScope,
+                onConfirm = viewModel::generatePlan,
+                onCancel = viewModel::cancelOrganize
+            )
 
-        AiOrganizerStep.GENERATING -> AiGeneratingScreen()
-        AiOrganizerStep.PREVIEW -> state.plan?.let { plan ->
-            AiPreviewScreen(
-                plan = plan,
-                onApply = viewModel::applyPlan,
+            AiOrganizerStep.GENERATING -> AiGeneratingScreen(onCancel = viewModel::cancelOrganize)
+            AiOrganizerStep.PREVIEW -> state.plan?.let { plan ->
+                AiPreviewScreen(
+                    plan = plan,
+                    existingFolders = state.folders,
+                    onApply = viewModel::applyPlan,
+                    onCancel = viewModel::cancelOrganize
+                )
+            }
+
+            AiOrganizerStep.APPLYING -> AiApplyingScreen(
+                progress = state.applyProgress,
+                total = state.applyTotal
+            )
+
+            AiOrganizerStep.DONE -> AiDoneScreen(
+                onBack = onBack,
+                onRevert = viewModel::revertLastSession,
+                onOrganizeAgain = viewModel::resetToIdle
+            )
+
+            AiOrganizerStep.ERROR -> AiErrorScreen(
+                message = state.errorMessage ?: "Unknown error",
+                onRetry = viewModel::generatePlan,
                 onCancel = viewModel::cancelOrganize
             )
         }
-
-        AiOrganizerStep.APPLYING -> AiApplyingScreen(
-            progress = state.applyProgress,
-            total = state.applyTotal
-        )
-
-        AiOrganizerStep.DONE -> AiDoneScreen(
-            onBack = onBack,
-            onRevert = viewModel::revertLastSession,
-            onOrganizeAgain = viewModel::resetToIdle
-        )
-
-        AiOrganizerStep.ERROR -> AiErrorScreen(
-            message = state.errorMessage ?: "Unknown error",
-            onRetry = viewModel::generatePlan,
-            onCancel = viewModel::cancelOrganize
-        )
     }
 }
 
@@ -389,7 +402,7 @@ fun ScopeOption(
 
 // ── Generating ────────────────────────────────────────────────
 @Composable
-fun AiGeneratingScreen() {
+fun AiGeneratingScreen(onCancel: () -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.4f,
@@ -451,6 +464,12 @@ fun AiGeneratingScreen() {
                     .clip(RoundedCornerShape(4.dp)),
                 color = MaterialTheme.colorScheme.primary
             )
+
+            Spacer(Modifier.height(16.dp))
+
+            TextButton(onClick = onCancel) {
+                Text("Cancel")
+            }
         }
     }
 }
@@ -460,6 +479,7 @@ fun AiGeneratingScreen() {
 @Composable
 fun AiPreviewScreen(
     plan: OrganizePlan,
+    existingFolders: List<Folder>,
     onApply: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -502,9 +522,9 @@ fun AiPreviewScreen(
                             label = "${grouped.size} folders",
                             icon = Icons.Outlined.Folder
                         )
-                        if (plan.newFoldersToCreate.isNotEmpty()) {
+                        if (plan.newFolders.isNotEmpty()) {
                             SummaryChip(
-                                label = "${plan.newFoldersToCreate.size} new",
+                                label = "${plan.newFolders.size} new",
                                 icon = Icons.Outlined.CreateNewFolder,
                                 highlight = true
                             )
@@ -542,7 +562,7 @@ fun AiPreviewScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // New folders notice
-            if (plan.newFoldersToCreate.isNotEmpty()) {
+            if (plan.newFolders.isNotEmpty()) {
                 item {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -564,7 +584,7 @@ fun AiPreviewScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    plan.newFoldersToCreate.joinToString(" · "),
+                                    plan.newFolders.joinToString(" · ") { it.name },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
@@ -576,10 +596,21 @@ fun AiPreviewScreen(
 
             // Grouped by folder
             grouped.forEach { (folderName, linkPlans) ->
+                val isNew = linkPlans.first().isNewFolder
+                val (icon, color) = if (isNew) {
+                    val newFolder = plan.newFolders.find { it.name == folderName }
+                    (newFolder?.icon ?: "folder") to (newFolder?.color ?: "#6366F1")
+                } else {
+                    val folder = existingFolders.find { it.name == folderName }
+                    (folder?.icon ?: "folder") to (folder?.color ?: "#6750A4")
+                }
+
                 item {
                     FolderPreviewGroup(
                         folderName = folderName,
-                        isNew = linkPlans.first().isNewFolder,
+                        icon = icon,
+                        color = color,
+                        isNew = isNew,
                         linkPlans = linkPlans
                     )
                 }
@@ -593,6 +624,8 @@ fun AiPreviewScreen(
 @Composable
 fun FolderPreviewGroup(
     folderName: String,
+    icon: String,
+    color: String,
     isNew: Boolean,
     linkPlans: List<LinkOrganizePlan>
 ) {
@@ -612,11 +645,19 @@ fun FolderPreviewGroup(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(
-                    Icons.Outlined.Folder, null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(android.graphics.Color.parseColor(color)).copy(alpha = 0.15f),
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            iconFromName(icon), null,
+                            tint = Color(android.graphics.Color.parseColor(color)),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
                 Text(
                     folderName,
                     style = MaterialTheme.typography.titleSmall,
@@ -774,6 +815,54 @@ fun AiApplyingScreen(progress: Int, total: Int) {
 
 // ── Done ──────────────────────────────────────────────────────
 @Composable
+fun AnimatedCheckmark(modifier: Modifier = Modifier) {
+    val checkProgress = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        checkProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+        )
+    }
+
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val containerColor = MaterialTheme.colorScheme.primaryContainer
+
+    Box(
+        modifier = modifier
+            .size(100.dp)
+            .background(containerColor, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.foundation.Canvas(modifier = Modifier.size(48.dp)) {
+            val width = size.width
+            val height = size.height
+
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(width * 0.2f, height * 0.5f)
+                lineTo(width * 0.45f, height * 0.75f)
+                lineTo(width * 0.8f, height * 0.3f)
+            }
+
+            val pathMeasure = androidx.compose.ui.graphics.PathMeasure()
+            pathMeasure.setPath(path, false)
+            val segmentPath = androidx.compose.ui.graphics.Path()
+            pathMeasure.getSegment(0f, checkProgress.value * pathMeasure.length, segmentPath)
+
+            drawPath(
+                path = segmentPath,
+                color = primaryColor,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 6.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                )
+            )
+        }
+    }
+}
+
+@Composable
 fun AiDoneScreen(onBack: () -> Unit, onRevert: () -> Unit, onOrganizeAgain: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
@@ -781,7 +870,7 @@ fun AiDoneScreen(onBack: () -> Unit, onRevert: () -> Unit, onOrganizeAgain: () -
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.padding(32.dp)
         ) {
-            Text("✅", fontSize = 72.sp)
+            AnimatedCheckmark()
             Text(
                 "Links Organized!",
                 style = MaterialTheme.typography.headlineMedium,
@@ -967,40 +1056,155 @@ fun ModelPickerSheet(
     }
 }
 
-// ── Error ─────────────────────────────────────────────────────
 @Composable
-fun AiErrorScreen(message: String, onRetry: () -> Unit, onCancel: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(32.dp)
-        ) {
-            Text("❌", fontSize = 56.sp)
-            Text(
-                "Something went wrong",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+fun AnimatedCross(modifier: Modifier = Modifier) {
+    val crossProgress = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        crossProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+        )
+    }
+
+    val errorColor = MaterialTheme.colorScheme.error
+    val containerColor = MaterialTheme.colorScheme.errorContainer
+
+    Box(
+        modifier = modifier
+            .size(100.dp)
+            .background(containerColor, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.foundation.Canvas(modifier = Modifier.size(48.dp)) {
+            val width = size.width
+            val height = size.height
+            val strokeWidth = 6.dp.toPx()
+
+            // Line 1: \
+            val path1 = androidx.compose.ui.graphics.Path().apply {
+                moveTo(width * 0.3f, height * 0.3f)
+                lineTo(width * 0.7f, height * 0.7f)
+            }
+
+            // Line 2: /
+            val path2 = androidx.compose.ui.graphics.Path().apply {
+                moveTo(width * 0.7f, height * 0.3f)
+                lineTo(width * 0.3f, height * 0.7f)
+            }
+
+            val pathMeasure = androidx.compose.ui.graphics.PathMeasure()
+
+            // Draw first line
+            pathMeasure.setPath(path1, false)
+            val segmentPath1 = androidx.compose.ui.graphics.Path()
+            val progress1 = (crossProgress.value * 2f).coerceAtMost(1f)
+            pathMeasure.getSegment(0f, progress1 * pathMeasure.length, segmentPath1)
+            drawPath(
+                path = segmentPath1,
+                color = errorColor,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = strokeWidth,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                )
             )
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.errorContainer
-            ) {
-                Text(
-                    message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.padding(12.dp),
-                    textAlign = TextAlign.Center
+
+            // Draw second line
+            if (crossProgress.value > 0.5f) {
+                pathMeasure.setPath(path2, false)
+                val segmentPath2 = androidx.compose.ui.graphics.Path()
+                val progress2 = (crossProgress.value - 0.5f) * 2f
+                pathMeasure.getSegment(0f, progress2 * pathMeasure.length, segmentPath2)
+                drawPath(
+                    path = segmentPath2,
+                    color = errorColor,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = strokeWidth,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
                 )
             }
-            Button(
-                onClick = onRetry,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) { Text("Try Again") }
-            TextButton(onClick = onCancel) { Text("Cancel") }
+        }
+    }
+}
+
+// ── Error ─────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AiErrorScreen(
+    message: String,
+    onRetry: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Error") },
+                navigationIcon = {
+                    IconButton(onClick = onCancel) {
+                        Icon(Icons.Outlined.Close, "Close")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .padding(32.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                AnimatedCross()
+                Text(
+                    "Something went wrong",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(12.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                
+                Spacer(Modifier.height(8.dp))
+                
+                Button(
+                    onClick = onRetry,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Outlined.Refresh, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Try Again")
+                }
+                
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Go Back")
+                }
+            }
         }
     }
 }

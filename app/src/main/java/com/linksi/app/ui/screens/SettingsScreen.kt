@@ -111,8 +111,10 @@ fun SettingsScreen(
                         subtitle = "Backup, restore, or import from browsers",
                         onClick = { showImportExport = true },
                         trailingContent = {
-                            Icon(Icons.Outlined.ChevronRight, null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                Icons.Outlined.ChevronRight, null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     )
                 }
@@ -134,8 +136,10 @@ fun SettingsScreen(
                             )
                         },
                         leadingContent = {
-                            Icon(Icons.Outlined.AutoAwesome, null,
-                                tint = MaterialTheme.colorScheme.primary)
+                            Icon(
+                                Icons.Outlined.AutoAwesome, null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         },
                         trailingContent = {
                             Switch(
@@ -159,12 +163,16 @@ fun SettingsScreen(
                                 )
                             },
                             leadingContent = {
-                                Icon(Icons.Outlined.SmartToy, null,
-                                    tint = MaterialTheme.colorScheme.primary)
+                                Icon(
+                                    Icons.Outlined.SmartToy, null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                             },
                             trailingContent = {
-                                Icon(Icons.Outlined.ChevronRight, null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(
+                                    Icons.Outlined.ChevronRight, null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             },
                             modifier = Modifier.clickable { showModelPicker = true }
                         )
@@ -174,11 +182,11 @@ fun SettingsScreen(
                         // API Key — only for selected provider
                         if (selectedModel != null) {
                             val providerName = when (selectedModel.provider) {
-                                AiProvider.OPENAI    -> "OpenAI"
+                                AiProvider.OPENAI -> "OpenAI"
                                 AiProvider.ANTHROPIC -> "Anthropic"
-                                AiProvider.GEMINI    -> "Google Gemini"
-                                AiProvider.DEEPSEEK  -> "DeepSeek"
-                                AiProvider.GROK      -> "Grok (xAI)"
+                                AiProvider.GEMINI -> "Google Gemini"
+                                AiProvider.DEEPSEEK -> "DeepSeek"
+                                AiProvider.GROK -> "Grok (xAI)"
                             }
                             ApiKeyItem(
                                 provider = selectedModel.provider,
@@ -193,16 +201,22 @@ fun SettingsScreen(
                         ListItem(
                             headlineContent = { Text("Organize My Links") },
                             supportingContent = {
-                                Text("Start organizing now",
-                                    style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    "Start organizing now",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                             },
                             leadingContent = {
-                                Icon(Icons.Outlined.AutoFixHigh, null,
-                                    tint = MaterialTheme.colorScheme.primary)
+                                Icon(
+                                    Icons.Outlined.AutoFixHigh, null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                             },
                             trailingContent = {
-                                Icon(Icons.Outlined.ChevronRight, null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(
+                                    Icons.Outlined.ChevronRight, null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             },
                             modifier = Modifier.clickable { showAiOrganizer = true }
                         )
@@ -263,8 +277,10 @@ fun SettingsScreen(
                             )
                         },
                         leadingContent = {
-                            Icon(Icons.Outlined.Info, null,
-                                tint = MaterialTheme.colorScheme.primary)
+                            Icon(
+                                Icons.Outlined.Info, null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         },
                         trailingContent = {
                             when {
@@ -274,6 +290,7 @@ fun SettingsScreen(
                                         strokeWidth = 2.dp
                                     )
                                 }
+
                                 state.updateAvailable -> {
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
@@ -289,9 +306,12 @@ fun SettingsScreen(
                                         )
                                     }
                                 }
+
                                 state.latestVersion.isNotBlank() -> {
-                                    Icon(Icons.Outlined.CheckCircle, null,
-                                        tint = MaterialTheme.colorScheme.primary)
+                                    Icon(
+                                        Icons.Outlined.CheckCircle, null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
                                 }
                             }
                         }
@@ -301,14 +321,18 @@ fun SettingsScreen(
 
                     ListItem(
                         headlineContent = {
-                            Text(if (state.updateAvailable) "Download update"
-                            else "Check for updates")
+                            Text(
+                                if (state.updateAvailable) "Download update"
+                                else "Check for updates"
+                            )
                         },
                         supportingContent = {
                             state.updateCheckError?.let {
-                                Text(it,
+                                Text(
+                                    it,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error)
+                                    color = MaterialTheme.colorScheme.error
+                                )
                             }
                         },
                         leadingContent = {
@@ -353,7 +377,44 @@ fun SettingsScreen(
                 }
             }
 
-            item { Spacer(Modifier.height(32.dp)) }
+            item {
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Made with ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "❤️",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(
+                        " by ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "Anush",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable {
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://github.com/AsukaAzure/")
+                            )
+                            context.startActivity(intent)
+                        }
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
         }
     }
 
@@ -361,8 +422,12 @@ fun SettingsScreen(
     state.importResult?.let { result ->
         AlertDialog(
             onDismissRequest = viewModel::dismissImportResult,
-            icon = { Icon(Icons.Outlined.CheckCircle, null,
-                tint = MaterialTheme.colorScheme.primary) },
+            icon = {
+                Icon(
+                    Icons.Outlined.CheckCircle, null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
             title = { Text("Import complete") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -379,9 +444,11 @@ fun SettingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Outlined.Info, null,
+                                Icon(
+                                    Icons.Outlined.Info, null,
                                     Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
                                 Text(
                                     "${state.duplicateCount} duplicate links skipped.",
                                     style = MaterialTheme.typography.bodySmall,

@@ -88,4 +88,7 @@ interface FolderDao {
 
     @Query("SELECT * FROM folders WHERE id = :id")
     suspend fun getFolderById(id: Long): FolderEntity?
+
+    @Query("SELECT * FROM folders WHERE name = :name LIMIT 1")
+    suspend fun getFolderByName(name: String): FolderEntity?
 }

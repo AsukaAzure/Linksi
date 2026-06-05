@@ -48,13 +48,6 @@ val AI_MODELS = listOf(
         "gemini-2.5-flash"
     ),
 
-    AiModel(
-        "gemini15flash",
-        "Gemini 1.5 Flash",
-        AiProvider.GEMINI,
-        "gemini-1.5-flash"
-    ),
-
     // DeepSeek
     AiModel(
         "deepseekv3",
@@ -101,9 +94,15 @@ data class LinkOrganizePlan(
     val currentFolderName: String?
 )
 
+data class NewFolderPlan(
+    val name: String,
+    val icon: String,
+    val color: String
+)
+
 data class OrganizePlan(
     val linkPlans: List<LinkOrganizePlan>,
-    val newFoldersToCreate: List<String>,
+    val newFolders: List<NewFolderPlan>,
     val sessionId: String = System.currentTimeMillis().toString()
 )
 
