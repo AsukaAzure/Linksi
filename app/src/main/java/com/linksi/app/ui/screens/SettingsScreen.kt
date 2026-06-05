@@ -16,12 +16,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.materialIcon
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.linksi.app.domain.model.AI_MODELS
+import com.linksi.app.domain.model.AiProvider
 import com.linksi.app.utils.exportFileName
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,22 +40,29 @@ fun SettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    BackHandler { onBack() }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
-    // Export JSON launcher
+    var showModelPicker by remember { mutableStateOf(false) }
+    var showAiOrganizer by remember { mutableStateOf(false) }
+    var showImportExport by remember { mutableStateOf(false) }
+
+    // Handle system back button
+    BackHandler(enabled = !showAiOrganizer && !showImportExport) {
+        onBack()
+    }
+
+    // File launchers
     val exportJsonLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri -> uri?.let { viewModel.exportJson(context, it) } }
 
-    // Export CSV launcher
     val exportCsvLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/csv")
     ) { uri -> uri?.let { viewModel.exportCsv(context, it) } }
 
-    // Import launcher — accepts JSON and HTML
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { viewModel.importFile(context, it) } }
@@ -65,10 +82,14 @@ fun SettingsScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.Outlined.ArrowBack, "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -77,107 +98,122 @@ fun SettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // ── Export section ────────────────────────────────
-            item {
-                Text(
-                    "Export", style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
 
+            // ── Import & Export ───────────────────────────────────
+            item {
+                SectionHeader("Import & Export", Icons.Outlined.SwapHoriz)
+            }
             item {
                 SettingsCard {
                     SettingsItem(
-                        icon = Icons.Outlined.FileDownload,
-                        title = "Export as Linksi JSON",
-                        subtitle = "Full backup — reimport on any device with Linksi",
-                        onClick = { exportJsonLauncher.launch(exportFileName("json")) }
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    SettingsItem(
-                        icon = Icons.Outlined.TableChart,
-                        title = "Export as CSV",
-                        subtitle = "Open in Excel, Google Sheets, or any spreadsheet app",
-                        onClick = { exportCsvLauncher.launch(exportFileName("csv")) }
-                    )
-                }
-            }
-
-            // ── Import section ────────────────────────────────
-            item {
-                Text(
-                    "Import", style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-
-            item {
-                SettingsCard {
-                    SettingsItem(
-                        icon = Icons.Outlined.FileUpload,
-                        title = "Import Linksi backup",
-                        subtitle = "Restore from a .json file exported from Linksi",
-                        onClick = { importLauncher.launch(arrayOf("application/json")) }
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    SettingsItem(
-                        icon = Icons.Outlined.Language,
-                        title = "Import browser bookmarks",
-                        subtitle = "Import from Chrome, Firefox, Safari — export bookmarks as HTML first",
-                        onClick = {
-                            importLauncher.launch(
-                                arrayOf(
-                                    "text/html",
-                                    "text/plain",
-                                    "*/*"
-                                )
-                            )
+                        icon = Icons.Outlined.FolderOpen,
+                        title = "Import & Export",
+                        subtitle = "Backup, restore, or import from browsers",
+                        onClick = { showImportExport = true },
+                        trailingContent = {
+                            Icon(Icons.Outlined.ChevronRight, null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     )
                 }
             }
 
-            // ── How to export from browser ────────────────────
+            // ── AI Organizer ──────────────────────────────────────
             item {
-                Text(
-                    "How to export browser bookmarks \n(desktop browser)",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                SectionHeader("AI Organizer", Icons.Outlined.AutoAwesome)
             }
-
             item {
                 SettingsCard {
-                    BrowserInstructionItem(
-                        browser = "Chrome",
-                        steps = "Menu (⋮) → Bookmarks → Bookmark manager → Menu (⋮) → Export bookmarks \n or \n Press Ctrl+Shift+O To open Bookmark Manager"
+                    // Enable toggle
+                    ListItem(
+                        headlineContent = { Text("AI Organizer") },
+                        supportingContent = {
+                            Text(
+                                "Auto-organize links into folders using AI",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        leadingContent = {
+                            Icon(Icons.Outlined.AutoAwesome, null,
+                                tint = MaterialTheme.colorScheme.primary)
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = state.aiEnabled,
+                                onCheckedChange = { viewModel.setAiEnabled(it) }
+                            )
+                        }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    BrowserInstructionItem(
-                        browser = "Firefox",
-                        steps = "Menu → Bookmarks → Manage bookmarks → Import & Backup → Export HTML \n or \n Press Ctrl+Shift+O To open Bookmark Manager"
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    BrowserInstructionItem(
-                        browser = "Safari (Mac)",
-                        steps = "File → Export Bookmarks → save as HTML → transfer to phone"
-                    )
+
+                    if (state.aiEnabled) {
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        // Model selector
+                        val selectedModel = AI_MODELS.find { it.id == state.selectedModelId }
+                        ListItem(
+                            headlineContent = { Text("AI Model") },
+                            supportingContent = {
+                                Text(
+                                    selectedModel?.name ?: "Select a model",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            },
+                            leadingContent = {
+                                Icon(Icons.Outlined.SmartToy, null,
+                                    tint = MaterialTheme.colorScheme.primary)
+                            },
+                            trailingContent = {
+                                Icon(Icons.Outlined.ChevronRight, null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            },
+                            modifier = Modifier.clickable { showModelPicker = true }
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        // API Key — only for selected provider
+                        if (selectedModel != null) {
+                            val providerName = when (selectedModel.provider) {
+                                AiProvider.OPENAI    -> "OpenAI"
+                                AiProvider.ANTHROPIC -> "Anthropic"
+                                AiProvider.GEMINI    -> "Google Gemini"
+                                AiProvider.DEEPSEEK  -> "DeepSeek"
+                                AiProvider.GROK      -> "Grok (xAI)"
+                            }
+                            ApiKeyItem(
+                                provider = selectedModel.provider,
+                                currentKey = state.apiKeys[selectedModel.provider] ?: "",
+                                onSave = { key -> viewModel.setApiKey(selectedModel.provider, key) }
+                            )
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        // Open organizer
+                        ListItem(
+                            headlineContent = { Text("Organize My Links") },
+                            supportingContent = {
+                                Text("Start organizing now",
+                                    style = MaterialTheme.typography.bodySmall)
+                            },
+                            leadingContent = {
+                                Icon(Icons.Outlined.AutoFixHigh, null,
+                                    tint = MaterialTheme.colorScheme.primary)
+                            },
+                            trailingContent = {
+                                Icon(Icons.Outlined.ChevronRight, null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            },
+                            modifier = Modifier.clickable { showAiOrganizer = true }
+                        )
+                    }
                 }
             }
 
-            // Browser section
+            // ── Browser ───────────────────────────────────────────
             item {
-                Text(
-                    "Browser",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                SectionHeader("Browser", Icons.Outlined.Language)
             }
-
             item {
                 SettingsCard {
                     ListItem(
@@ -209,13 +245,9 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Updates ───────────────────────────────────────────
             item {
-                Text(
-                    "App",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                SectionHeader("Updates", Icons.Outlined.SystemUpdate)
             }
             item {
                 SettingsCard {
@@ -225,12 +257,16 @@ fun SettingsScreen(
                             Text(
                                 "Current: ${state.currentVersion}" +
                                         if (state.latestVersion.isNotBlank())
-                                            " . Latest: ${state.latestVersion}"
+                                            " · Latest: ${state.latestVersion}"
                                         else "",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         },
                         leadingContent = {
+                            Icon(Icons.Outlined.Info, null,
+                                tint = MaterialTheme.colorScheme.primary)
+                        },
+                        trailingContent = {
                             when {
                                 state.isCheckingUpdate -> {
                                     CircularProgressIndicator(
@@ -238,7 +274,6 @@ fun SettingsScreen(
                                         strokeWidth = 2.dp
                                     )
                                 }
-
                                 state.updateAvailable -> {
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
@@ -249,33 +284,31 @@ fun SettingsScreen(
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                                             modifier = Modifier.padding(
-                                                horizontal = 8.dp,
-                                                vertical = 4.dp
+                                                horizontal = 8.dp, vertical = 4.dp
                                             )
                                         )
                                     }
                                 }
-
-                                state.latestVersion.isNotBlank() && !state.updateAvailable -> {
-                                    Icon(
-                                        Icons.Outlined.CheckCircle, null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
+                                state.latestVersion.isNotBlank() -> {
+                                    Icon(Icons.Outlined.CheckCircle, null,
+                                        tint = MaterialTheme.colorScheme.primary)
                                 }
                             }
                         }
                     )
+
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
                     ListItem(
                         headlineContent = {
-                            Text(if (state.updateAvailable) "Download update" else "Check for updates")
+                            Text(if (state.updateAvailable) "Download update"
+                            else "Check for updates")
                         },
                         supportingContent = {
                             state.updateCheckError?.let {
-                                Text(
-                                    it, style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
+                                Text(it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error)
                             }
                         },
                         leadingContent = {
@@ -298,19 +331,13 @@ fun SettingsScreen(
                             }
                         }
                     )
-
                 }
             }
 
-            // ── Stats ─────────────────────────────────────────
+            // ── Stats ─────────────────────────────────────────────
             item {
-                Text(
-                    "Stats", style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                SectionHeader("Stats", Icons.Outlined.BarChart)
             }
-
             item {
                 SettingsCard {
                     Row(
@@ -326,65 +353,22 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                Spacer(Modifier.height(16.dp))
-                HorizontalDivider()
-                Spacer(Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Made with ",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "❤️",
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                    Text(
-                        " by ",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "Anush",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable {
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://github.com/AsukaAzure/")
-                            )
-                            context.startActivity(intent)
-                        }
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-            }
-
+            item { Spacer(Modifier.height(32.dp)) }
         }
     }
 
-    // Import result dialog
+    // ── Import Result Dialog ──────────────────────────────────
     state.importResult?.let { result ->
         AlertDialog(
             onDismissRequest = viewModel::dismissImportResult,
-            icon = {
-                Icon(
-                    Icons.Outlined.CheckCircle, null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            },
+            icon = { Icon(Icons.Outlined.CheckCircle, null,
+                tint = MaterialTheme.colorScheme.primary) },
             title = { Text("Import complete") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Successfully imported ${result.count} links from ${result.source}.")
-                    if (result.folders.isNotEmpty()) {
+                    Text("Imported ${result.count} links from ${result.source}.")
+                    if (result.folders.isNotEmpty())
                         Text("${result.folders.size} folders also imported.")
-                    }
                     if (state.duplicateCount > 0) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
@@ -395,13 +379,11 @@ fun SettingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    Icons.Outlined.Info, null,
+                                Icon(Icons.Outlined.Info, null,
                                     Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer)
                                 Text(
-                                    "${state.duplicateCount} duplicate links were skipped.",
+                                    "${state.duplicateCount} duplicate links skipped.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
@@ -413,6 +395,72 @@ fun SettingsScreen(
             confirmButton = {
                 Button(onClick = viewModel::dismissImportResult) { Text("Done") }
             }
+        )
+    }
+
+    // ── Model Picker ──────────────────────────────────────────
+    if (showModelPicker) {
+        ModelPickerSheet(
+            currentModelId = state.selectedModelId,
+            onModelSelected = { viewModel.setSelectedModel(it) },
+            onDismiss = { showModelPicker = false }
+        )
+    }
+
+    // ── AI Organizer overlay ──────────────────────────────────
+    AnimatedVisibility(
+        visible = showAiOrganizer,
+        enter = slideInHorizontally(initialOffsetX = { it }),
+        exit = slideOutHorizontally(targetOffsetX = { it })
+    ) {
+        BackHandler { showAiOrganizer = false }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            AiOrganizerScreen(onBack = { showAiOrganizer = false })
+        }
+    }
+
+    // ── Import Export overlay ─────────────────────────────────
+    AnimatedVisibility(
+        visible = showImportExport,
+        enter = slideInHorizontally(initialOffsetX = { it }),
+        exit = slideOutHorizontally(targetOffsetX = { it })
+    ) {
+        BackHandler { showImportExport = false }
+        ImportExportScreen(
+            onBack = { showImportExport = false },
+            exportJsonLauncher = exportJsonLauncher,
+            exportCsvLauncher = exportCsvLauncher,
+            importLauncher = importLauncher,
+            exportFileName = ::exportFileName
+        )
+    }
+}
+
+// ── Section Header ────────────────────────────────────────────
+@Composable
+fun SectionHeader(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+    ) {
+        Icon(
+            icon, null,
+            Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
@@ -429,7 +477,8 @@ fun SettingsItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    trailingContent: (@Composable () -> Unit)? = null
 ) {
     ListItem(
         headlineContent = { Text(title) },
@@ -437,6 +486,7 @@ fun SettingsItem(
         leadingContent = {
             Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
         },
+        trailingContent = trailingContent,
         modifier = androidx.compose.ui.Modifier.clickable(onClick = onClick)
     )
 }
@@ -474,5 +524,93 @@ fun StatItem(label: String, value: String) {
             label, style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+fun ApiKeyItem(
+    provider: AiProvider,
+    currentKey: String,
+    onSave: (String) -> Unit
+) {
+    var editing by remember { mutableStateOf(false) }
+    var keyInput by remember { mutableStateOf(currentKey) }
+    var showKey by remember { mutableStateOf(false) }
+
+    val providerName = when (provider) {
+        AiProvider.OPENAI -> "OpenAI"
+        AiProvider.ANTHROPIC -> "Anthropic"
+        AiProvider.GEMINI -> "Google Gemini"
+        AiProvider.DEEPSEEK -> "DeepSeek"
+        AiProvider.GROK -> "Grok (xAI)"
+    }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                providerName,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            if (currentKey.isNotBlank()) {
+                Icon(
+                    Icons.Outlined.CheckCircle, null,
+                    Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            TextButton(
+                onClick = { editing = !editing; keyInput = currentKey }
+            ) {
+                Text(if (editing) "Cancel" else if (currentKey.isBlank()) "Add" else "Edit")
+            }
+        }
+
+        if (editing) {
+            OutlinedTextField(
+                value = keyInput,
+                onValueChange = { keyInput = it },
+                placeholder = { Text("Paste API key…") },
+                singleLine = true,
+                visualTransformation = if (showKey)
+                    androidx.compose.ui.text.input.VisualTransformation.None
+                else
+                    androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                trailingIcon = {
+                    Row {
+                        IconButton(onClick = { showKey = !showKey }) {
+                            Icon(
+                                if (showKey) Icons.Outlined.VisibilityOff
+                                else Icons.Outlined.Visibility,
+                                null
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                onSave(keyInput.trim())
+                                editing = false
+                            },
+                            enabled = keyInput.isNotBlank()
+                        ) {
+                            Icon(
+                                Icons.Outlined.Check, null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+        } else if (currentKey.isNotBlank()) {
+            Text(
+                "••••••••${currentKey.takeLast(4)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

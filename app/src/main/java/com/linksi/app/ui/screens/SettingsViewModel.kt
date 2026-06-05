@@ -15,6 +15,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.datastore.core.DataStore
+import com.linksi.app.domain.model.AiProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -31,7 +32,10 @@ data class SettingsUiState(
     val latestVersion: String = "",
     val updateAvailable: Boolean = false,
     val isCheckingUpdate: Boolean = false,
-    val updateCheckError: String? = null
+    val updateCheckError: String? = null,
+    val aiEnabled: Boolean = false,
+    val selectedModelId: String = "",
+    val apiKeys: Map<AiProvider, String> = emptyMap()
 )
 
 @HiltViewModel
@@ -61,9 +65,19 @@ class SettingsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             context.dataStore.data.collect { prefs ->
+                val keys = mapOf(
+                    AiProvider.OPENAI    to (prefs[AI_KEY_OPENAI]    ?: ""),
+                    AiProvider.ANTHROPIC to (prefs[AI_KEY_ANTHROPIC] ?: ""),
+                    AiProvider.GEMINI    to (prefs[AI_KEY_GEMINI]    ?: ""),
+                    AiProvider.DEEPSEEK  to (prefs[AI_KEY_DEEPSEEK]  ?: ""),
+                    AiProvider.GROK      to (prefs[AI_KEY_GROK]      ?: "")
+                )
                 _uiState.update {
                     it.copy(
-                        useInAppBrowser = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true
+                        useInAppBrowser  = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true,
+                        aiEnabled        = prefs[AI_ENABLED]        ?: false,
+                        selectedModelId  = prefs[AI_SELECTED_MODEL] ?: "claude35sonnet",
+                        apiKeys          = keys
                     )
                 }
             }
@@ -225,6 +239,34 @@ class SettingsViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update { it.copy(message = "Import failed: ${e.message}") }
             }
+        }
+    }
+
+    fun setAiEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[AI_ENABLED] = enabled }
+            _uiState.update { it.copy(aiEnabled = enabled) }
+        }
+    }
+
+    fun setApiKey(provider: AiProvider, key: String) {
+        viewModelScope.launch {
+            context.dataStore.edit { prefs ->
+                when (provider) {
+                    AiProvider.OPENAI -> prefs[AI_KEY_OPENAI] = key
+                    AiProvider.ANTHROPIC -> prefs[AI_KEY_ANTHROPIC] = key
+                    AiProvider.GEMINI -> prefs[AI_KEY_GEMINI] = key
+                    AiProvider.DEEPSEEK -> prefs[AI_KEY_DEEPSEEK] = key
+                    AiProvider.GROK -> prefs[AI_KEY_GROK] = key
+                }
+            }
+        }
+    }
+
+    fun setSelectedModel(modelId: String) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[AI_SELECTED_MODEL] = modelId }
+            _uiState.update { it.copy(selectedModelId = modelId) }
         }
     }
 

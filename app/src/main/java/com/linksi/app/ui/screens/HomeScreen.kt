@@ -702,6 +702,8 @@ fun FolderAndFilterRow(
             RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
         val middleShape =
             RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+        val endingShape =
+            RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
         item {
             FilterChip(
                 shape = startingShape,
@@ -729,9 +731,14 @@ fun FolderAndFilterRow(
                 leadingIcon = { Icon(Icons.Outlined.FiberNew, null, Modifier.size(16.dp)) }
             )
         }
-        items(folders) { folder ->
+        itemsIndexed(folders) {index, folder ->
+            val currentShape = if(index == folders.lastIndex){
+                endingShape
+            } else {
+                middleShape
+            }
             FilterChip(
-                shape = middleShape,
+                shape = currentShape,
                 selected = selectedFolderId == folder.id,
                 onClick = { onFolderSelect(folder.id) },
                 label = {

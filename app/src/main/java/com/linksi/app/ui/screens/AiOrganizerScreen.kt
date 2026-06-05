@@ -1,0 +1,1006 @@
+package com.linksi.app.ui.screens
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.linksi.app.domain.model.*
+import com.linksi.app.ui.components.iconFromName
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AiOrganizerScreen(
+    onBack: () -> Unit,
+    viewModel: AiOrganizerViewModel = hiltViewModel()
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.onScreenOpened()
+    }
+
+    when (state.step) {
+        AiOrganizerStep.IDLE -> AiOrganizerIdle(
+            state = state,
+            onBack = onBack,
+            onStartOrganize = viewModel::startOrganize,
+            onRevert = viewModel::revertLastSession
+        )
+
+        AiOrganizerStep.SELECT_SCOPE -> AiScopeSelector(
+            selectedScope = state.selectedScope,
+            onScopeSelect = viewModel::setScope,
+            onConfirm = viewModel::generatePlan,
+            onCancel = viewModel::cancelOrganize
+        )
+
+        AiOrganizerStep.GENERATING -> AiGeneratingScreen()
+        AiOrganizerStep.PREVIEW -> state.plan?.let { plan ->
+            AiPreviewScreen(
+                plan = plan,
+                onApply = viewModel::applyPlan,
+                onCancel = viewModel::cancelOrganize
+            )
+        }
+
+        AiOrganizerStep.APPLYING -> AiApplyingScreen(
+            progress = state.applyProgress,
+            total = state.applyTotal
+        )
+
+        AiOrganizerStep.DONE -> AiDoneScreen(
+            onBack = onBack,
+            onRevert = viewModel::revertLastSession,
+            onOrganizeAgain = viewModel::resetToIdle
+        )
+
+        AiOrganizerStep.ERROR -> AiErrorScreen(
+            message = state.errorMessage ?: "Unknown error",
+            onRetry = viewModel::generatePlan,
+            onCancel = viewModel::cancelOrganize
+        )
+    }
+}
+
+// ── Idle / Home ───────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AiOrganizerIdle(
+    state: AiOrganizerUiState,
+    onBack: () -> Unit,
+    onStartOrganize: () -> Unit,
+    onRevert: () -> Unit
+) {
+    val selectedModel = AI_MODELS.find { it.id == state.selectedModelId }
+    val apiKey = state.apiKeys[selectedModel?.provider] ?: ""
+    val isReady = apiKey.isNotBlank()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("AI Organizer") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Outlined.ArrowBack, "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // Hero section
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF6366F1), Color(0xFF8B5CF6))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Outlined.AutoAwesome, null,
+                    Modifier.size(52.dp),
+                    tint = Color.White
+                )
+            }
+
+            Text(
+                "AI Link Organizer",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                "Let AI automatically organize your saved links into folders based on their content.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Current model info
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.SmartToy, null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Model",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            selectedModel?.name ?: "None selected",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isReady)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.errorContainer
+                    ) {
+                        Text(
+                            if (isReady) "Ready" else "No API Key",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isReady)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            // Last session info
+            if (state.hasRevertableSession) {
+                state.lastSession?.let { session ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.History, null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Last organized",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    "${session.movedLinks.size} links • ${
+                                        SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+                                            .format(Date(session.timestamp))
+                                    }",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                            TextButton(onClick = onRevert) {
+                                Text("Revert")
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            // Organize button
+            Button(
+                onClick = onStartOrganize,
+                enabled = isReady,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Outlined.AutoAwesome, null, Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Organize with AI",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            if (!isReady) {
+                Text(
+                    "Add an API key in Settings → AI Settings to get started",
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+// ── Scope Selector ────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AiScopeSelector(
+    selectedScope: String,
+    onScopeSelect: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        icon = { Icon(Icons.Outlined.FilterList, null) },
+        title = { Text("What to organize?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ScopeOption(
+                    title = "Unorganized links only",
+                    description = "Only links that are not in any folder",
+                    icon = Icons.Outlined.FolderOff,
+                    isSelected = selectedScope == OrganizeScope.UNORGANIZED,
+                    onClick = { onScopeSelect(OrganizeScope.UNORGANIZED) }
+                )
+                ScopeOption(
+                    title = "All links",
+                    description = "Reorganize all saved links including those already in folders",
+                    icon = Icons.Outlined.SelectAll,
+                    isSelected = selectedScope == OrganizeScope.ALL,
+                    onClick = { onScopeSelect(OrganizeScope.ALL) }
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Generate Plan")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+fun ScopeOption(
+    title: String,
+    description: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .then(
+                if (isSelected) Modifier.border(
+                    1.dp,
+                    MaterialTheme.colorScheme.primary,
+                    RoundedCornerShape(12.dp)
+                ) else Modifier
+            )
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                icon, null,
+                tint = if (isSelected)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (isSelected) {
+                Icon(
+                    Icons.Outlined.CheckCircle, null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+// ── Generating ────────────────────────────────────────────────
+@Composable
+fun AiGeneratingScreen() {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(
+                                Color(0xFF6366F1).copy(alpha = alpha),
+                                Color(0xFF8B5CF6).copy(alpha = alpha * 0.5f)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Outlined.AutoAwesome, null,
+                    Modifier.size(48.dp),
+                    tint = Color.White
+                )
+            }
+
+            Text(
+                "AI is analyzing your links…",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                "This may take a few seconds depending on the number of links and the model.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(4.dp)),
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+// ── Preview ───────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AiPreviewScreen(
+    plan: OrganizePlan,
+    onApply: () -> Unit,
+    onCancel: () -> Unit
+) {
+    // Group by target folder
+    val grouped = plan.linkPlans.groupBy { it.targetFolderName }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Review AI Plan") },
+                navigationIcon = {
+                    IconButton(onClick = onCancel) {
+                        Icon(Icons.Outlined.Close, "Cancel")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        bottomBar = {
+            Surface(tonalElevation = 3.dp) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Summary
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        SummaryChip(
+                            label = "${plan.linkPlans.size} links",
+                            icon = Icons.Outlined.Link
+                        )
+                        SummaryChip(
+                            label = "${grouped.size} folders",
+                            icon = Icons.Outlined.Folder
+                        )
+                        if (plan.newFoldersToCreate.isNotEmpty()) {
+                            SummaryChip(
+                                label = "${plan.newFoldersToCreate.size} new",
+                                icon = Icons.Outlined.CreateNewFolder,
+                                highlight = true
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onCancel,
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Cancel") }
+
+                        Button(
+                            onClick = onApply,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Outlined.Check, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Apply Plan")
+                        }
+                    }
+                }
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // New folders notice
+            if (plan.newFoldersToCreate.isNotEmpty()) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Outlined.CreateNewFolder, null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Column {
+                                Text(
+                                    "New folders to be created:",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    plan.newFoldersToCreate.joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Grouped by folder
+            grouped.forEach { (folderName, linkPlans) ->
+                item {
+                    FolderPreviewGroup(
+                        folderName = folderName,
+                        isNew = linkPlans.first().isNewFolder,
+                        linkPlans = linkPlans
+                    )
+                }
+            }
+
+            item { Spacer(Modifier.height(8.dp)) }
+        }
+    }
+}
+
+@Composable
+fun FolderPreviewGroup(
+    folderName: String,
+    isNew: Boolean,
+    linkPlans: List<LinkOrganizePlan>
+) {
+    var expanded by remember { mutableStateOf(true) }
+
+    Column {
+        // Folder header
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.Folder, null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    folderName,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+                if (isNew) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            "NEW",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Text(
+                    "${linkPlans.size}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Icon(
+                    if (expanded) Icons.Outlined.ExpandLess
+                    else Icons.Outlined.ExpandMore,
+                    null,
+                    Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // Links in this folder
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                modifier = Modifier.padding(start = 12.dp, top = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                linkPlans.forEach { lp ->
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Link, null,
+                                Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    lp.link.title.ifBlank { lp.link.url },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (lp.currentFolderName != null) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            "from: ${lp.currentFolderName}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Icon(
+                                            Icons.Outlined.ArrowForward, null,
+                                            Modifier.size(10.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            folderName,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SummaryChip(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    highlight: Boolean = false
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = if (highlight)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                icon, null, Modifier.size(14.dp),
+                tint = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// ── Applying ──────────────────────────────────────────────────
+@Composable
+fun AiApplyingScreen(progress: Int, total: Int) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            CircularProgressIndicator(
+                progress = { if (total > 0) progress.toFloat() / total else 0f },
+                modifier = Modifier.size(80.dp),
+                strokeWidth = 6.dp
+            )
+            Text(
+                "Organizing…",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "$progress of $total links",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// ── Done ──────────────────────────────────────────────────────
+@Composable
+fun AiDoneScreen(onBack: () -> Unit, onRevert: () -> Unit, onOrganizeAgain: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Text("✅", fontSize = 72.sp)
+            Text(
+                "Links Organized!",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "Your links have been organized into folders.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onRevert,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Outlined.Undo, null, Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Undo Organization")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ModelPickerSheet(
+    currentModelId: String,
+    onModelSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedProvider by remember {
+        mutableStateOf(
+            AI_MODELS.find { it.id == currentModelId }?.provider ?: AiProvider.ANTHROPIC
+        )
+    }
+
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+    val scope = rememberCoroutineScope()
+
+    fun dismissWithAnimation() {
+        scope.launch {
+            sheetState.hide()
+            onDismiss()
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp)
+        ) {
+            // Title
+            Text(
+                "Select AI Model",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            )
+
+            HorizontalDivider()
+
+            // Provider tabs
+            val providers = AiProvider.values().toList()
+            val providerNames = mapOf(
+                AiProvider.OPENAI    to "OpenAI",
+                AiProvider.ANTHROPIC to "Anthropic",
+                AiProvider.GEMINI    to "Gemini",
+                AiProvider.DEEPSEEK  to "DeepSeek",
+                AiProvider.GROK      to "Grok"
+            )
+
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(providers) { provider ->
+                    FilterChip(
+                        selected = selectedProvider == provider,
+                        onClick = { selectedProvider = provider },
+                        label = { Text(providerNames[provider] ?: provider.name) }
+                    )
+                }
+            }
+
+            HorizontalDivider()
+
+            // Models for selected provider
+            val providerModels = AI_MODELS.filter { it.provider == selectedProvider }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    "Models",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+
+                AnimatedContent(
+                    targetState = selectedProvider,
+                    transitionSpec = {
+                        slideInHorizontally { it } + fadeIn() togetherWith
+                                slideOutHorizontally { -it } + fadeOut()
+                    },
+                    label = "provider_models"
+                ) { provider ->
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        AI_MODELS.filter { it.provider == provider }.forEach { model ->
+                            val isSelected = model.id == currentModelId
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onModelSelected(model.id)
+                                        dismissWithAnimation()
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(
+                                        horizontal = 16.dp,
+                                        vertical = 14.dp
+                                    ),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            model.name,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = if (isSelected)
+                                                FontWeight.SemiBold
+                                            else
+                                                FontWeight.Normal,
+                                            color = if (isSelected)
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            else
+                                                MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            model.modelId,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (isSelected)
+                                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                            else
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (isSelected) {
+                                        Icon(
+                                            Icons.Outlined.CheckCircle, null,
+                                            Modifier.size(20.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Error ─────────────────────────────────────────────────────
+@Composable
+fun AiErrorScreen(message: String, onRetry: () -> Unit, onCancel: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Text("❌", fontSize = 56.sp)
+            Text(
+                "Something went wrong",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.errorContainer
+            ) {
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.padding(12.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+            Button(
+                onClick = onRetry,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) { Text("Try Again") }
+            TextButton(onClick = onCancel) { Text("Cancel") }
+        }
+    }
+}

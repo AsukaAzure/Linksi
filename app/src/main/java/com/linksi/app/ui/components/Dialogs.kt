@@ -54,6 +54,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.window.Dialog
@@ -109,6 +110,12 @@ fun AddLinkDialog(
     var selectedFolderId by remember { mutableStateOf<Long?>(null) }
     var showCreateFolder by remember { mutableStateOf(false) }
     var reminderAt by remember { mutableStateOf<Long?>(null) }
+    val startingShape =
+        RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
+    val middleShape =
+        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+    val endingShape =
+        RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -222,9 +229,10 @@ fun AddLinkDialog(
                 // Folder picker
                 // AFTER
                 Text("Folder", style = MaterialTheme.typography.labelMedium)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     item {
                         FilterChip(
+                            shape = startingShape,
                             selected = selectedFolderId == null,
                             onClick = { selectedFolderId = null },
                             label = { Text("📥 Inbox") }
@@ -232,6 +240,7 @@ fun AddLinkDialog(
                     }
                     items(folders) { folder ->
                         FilterChip(
+                            shape = middleShape,
                             selected = selectedFolderId == folder.id,
                             onClick = { selectedFolderId = folder.id },
                             label = {
@@ -252,6 +261,7 @@ fun AddLinkDialog(
 
                     item {
                         FilterChip(
+                            shape = endingShape,
                             selected = false,
                             onClick = { showCreateFolder = true },
                             label = { Text("New folder") },
@@ -679,7 +689,24 @@ fun EditLinkDialog(
     var title by remember { mutableStateOf(link.title) }
     var description by remember { mutableStateOf(link.description) }
     var reminderAt by remember { mutableStateOf(link.reminderAt) }
-    var selectedFolderId by remember { mutableStateOf(link.folderId) }
+    var selectedFolderId by remember {
+        mutableStateOf(link.folderId)
+    }
+    val startingShape =
+        RoundedCornerShape(
+            topStart = 20.dp,
+            topEnd = 4.dp,
+            bottomStart = 20.dp,
+            bottomEnd = 4.dp
+        )
+    val middleShape =
+        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+    val endingShape = RoundedCornerShape(
+        topStart = 4.dp,
+        topEnd = 20.dp,
+        bottomStart = 4.dp,
+        bottomEnd = 20.dp
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -704,15 +731,22 @@ fun EditLinkDialog(
                 )
                 if (folders.isNotEmpty()) {
                     Text("Folder", style = MaterialTheme.typography.labelMedium)
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         item {
                             FilterChip(
+                                shape = startingShape,
                                 selected = selectedFolderId == null,
                                 onClick = { selectedFolderId = null },
-                                label = { Text("None") })
+                                label = { Text("\uD83D\uDCE5 Inbox") })
                         }
-                        items(folders) { folder ->
+                        itemsIndexed(folders) { index, folder ->
+                            val currentShape = if (index == folders.lastIndex){
+                                endingShape
+                            } else {
+                                middleShape
+                            }
                             FilterChip(
+                                shape = currentShape,
                                 selected = selectedFolderId == folder.id,
                                 onClick = { selectedFolderId = folder.id },
                                 label = {
@@ -721,8 +755,14 @@ fun EditLinkDialog(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Icon(
-                                            iconFromName(folder.icon), null, Modifier.size(14.dp),
-                                            tint = Color(android.graphics.Color.parseColor(folder.color))
+                                            iconFromName(folder.icon),
+                                            null,
+                                            Modifier.size(14.dp),
+                                            tint = Color(
+                                                android.graphics.Color.parseColor(
+                                                    folder.color
+                                                )
+                                            )
                                         )
                                         Text(folder.name)
                                     }
@@ -824,11 +864,26 @@ fun ReminderPicker(
         } else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 val startingShape =
-                    RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
+                    RoundedCornerShape(
+                        topStart = 20.dp,
+                        topEnd = 4.dp,
+                        bottomStart = 20.dp,
+                        bottomEnd = 4.dp
+                    )
                 val middleShape =
-                    RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+                    RoundedCornerShape(
+                        topStart = 4.dp,
+                        topEnd = 4.dp,
+                        bottomStart = 4.dp,
+                        bottomEnd = 4.dp
+                    )
                 val endingShape =
-                    RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
+                    RoundedCornerShape(
+                        topStart = 4.dp,
+                        topEnd = 20.dp,
+                        bottomStart = 4.dp,
+                        bottomEnd = 20.dp
+                    )
                 val suggestions = listOf(
                     "1h" to (System.currentTimeMillis() + 3_600_000L),
                     "Tonight" to todayAt(21, 0),

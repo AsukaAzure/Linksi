@@ -50,7 +50,17 @@ fun FoldersScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFolder by remember { mutableStateOf<Folder?>(null) }
-    var browserUrl by remember { mutableStateOf<String?>(null) }   // add
+    // Keep track of the folder even when selectedFolder becomes null to allow exit animation
+    val activeFolder = remember(selectedFolder) { 
+        if (selectedFolder != null) selectedFolder else null 
+    }
+    // We actually need to keep the last non-null folder for the exit animation
+    var lastFolder by remember { mutableStateOf<Folder?>(null) }
+    LaunchedEffect(selectedFolder) {
+        if (selectedFolder != null) lastFolder = selectedFolder
+    }
+
+    var browserUrl by remember { mutableStateOf<String?>(null) }
     var browserTitle by remember { mutableStateOf("") }            // add
 
     BackHandler {
@@ -78,12 +88,12 @@ fun FoldersScreen(
             enter = slideInHorizontally(initialOffsetX = { it }),
             exit = slideOutHorizontally(targetOffsetX = { it })
         ) {
-            selectedFolder?.let { folder ->
+            lastFolder?.let { folder ->
                 FolderDetailScreen(
                     folder = folder,
                     viewModel = viewModel,
                     onBack = { selectedFolder = null },
-                    onOpenBrowser = { url, title ->     // add
+                    onOpenBrowser = { url, title ->
                         browserUrl = url
                         browserTitle = title
                     }
