@@ -498,6 +498,7 @@ fun SettingsScreen(
     ) {
         BackHandler { showImportExport = false }
         ImportExportScreen(
+            state = state,
             onBack = { showImportExport = false },
             exportJsonLauncher = exportJsonLauncher,
             exportCsvLauncher = exportCsvLauncher,

@@ -35,6 +35,10 @@ data class SettingsUiState(
     val updateCheckError: String? = null,
     val aiEnabled: Boolean = false,
     val selectedModelId: String = "",
+    val importProgress: Int = 0,
+    val importTotal: Int = 0,
+    val isImporting: Boolean = false,
+    val importPhase: String = "",
     val apiKeys: Map<AiProvider, String> = emptyMap()
 )
 
@@ -191,53 +195,92 @@ class SettingsViewModel @Inject constructor(
     fun importFile(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
+                _uiState.update { it.copy(isImporting = true, importPhase = "Reading file…") }
+
                 val fileName = uri.path?.lowercase() ?: ""
                 val result = when {
                     fileName.endsWith(".json") -> importFromLinksJson(context, uri)
                     else -> importFromBrowserHtml(context, uri)
                 }
 
-                // Insert folders first, build ID map
+                // Insert folders first
                 val folderIdMap = mutableMapOf<Long, Long>()
                 result.folders.forEach { folder ->
                     val newId = repository.insertFolder(folder)
                     folderIdMap[folder.id] = newId
                 }
 
-                // Insert links, track duplicates
+                // Insert links tracking duplicates
                 var importedCount = 0
                 var duplicateCount = 0
+                val insertedLinks = mutableListOf<Pair<Long, String>>() // id + url
 
-                result.links.forEach { link ->
+                _uiState.update { it.copy(
+                    importPhase = "Importing links…",
+                    importTotal = result.links.size,
+                    importProgress = 0
+                )}
+
+                result.links.forEachIndexed { index, link ->
                     if (repository.isUrlAlreadySaved(link.url)) {
                         duplicateCount++
                     } else {
-                        repository.insertLink(
-                            link.copy(
-                                folderId = link.folderId?.let { folderIdMap[it] }
-                            ))
+                        val newId = repository.insertLink(
+                            link.copy(folderId = link.folderId?.let { folderIdMap[it] })
+                        )
+                        insertedLinks.add(newId to link.url)
                         importedCount++
                     }
+                    _uiState.update { it.copy(importProgress = index + 1) }
                 }
 
-                // Build result message
+                // ── Fetch metadata for all imported links ─────────
+                _uiState.update { it.copy(
+                    importPhase = "Fetching metadata…",
+                    importTotal = insertedLinks.size,
+                    importProgress = 0
+                )}
+
+                insertedLinks.forEachIndexed { index, (id, url) ->
+                    try {
+                        val meta = MetadataFetcher.fetch(url)
+                        val existing = repository.getLinkById(id)
+                        existing?.let {
+                            repository.updateLink(it.copy(
+                                title = meta.title.ifBlank { it.title.ifBlank { extractDomain(url) } },
+                                description = meta.description.ifBlank { it.description },
+                                faviconUrl = meta.faviconUrl.ifBlank { it.faviconUrl },
+                                previewImageUrl = meta.previewImageUrl,
+                                domain = meta.domain.ifBlank { it.domain }
+                            ))
+                        }
+                    } catch (e: Exception) {
+                        // Skip failed metadata, link is still saved
+                    }
+                    _uiState.update { it.copy(importProgress = index + 1) }
+                }
+
                 val message = buildString {
                     append("Imported $importedCount links")
-                    if (duplicateCount > 0) {
-                        append(" • $duplicateCount duplicates skipped")
-                    }
+                    if (duplicateCount > 0) append(" • $duplicateCount duplicates skipped")
                 }
 
-                _uiState.update {
-                    it.copy(
-                        importResult = result.copy(count = importedCount),
-                        duplicateCount = duplicateCount,
-                        message = message
-                    )
-                }
+                _uiState.update { it.copy(
+                    isImporting = false,
+                    importPhase = "",
+                    importProgress = 0,
+                    importTotal = 0,
+                    importResult = result.copy(count = importedCount),
+                    duplicateCount = duplicateCount,
+                    message = message
+                )}
 
             } catch (e: Exception) {
-                _uiState.update { it.copy(message = "Import failed: ${e.message}") }
+                _uiState.update { it.copy(
+                    isImporting = false,
+                    importPhase = "",
+                    message = "Import failed: ${e.message}"
+                )}
             }
         }
     }

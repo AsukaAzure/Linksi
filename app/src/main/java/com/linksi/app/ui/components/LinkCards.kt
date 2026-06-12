@@ -29,7 +29,10 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
@@ -290,7 +293,8 @@ fun LinkCard(
                                         )
                                     },
                                     onToggleFavorite = { showMenu = false; onFavoriteToggle() },
-                                    onMarkRead = { showMenu = false; /* call markAsRead */ }
+                                    onMarkRead = { showMenu = false; /* call markAsRead */ },
+                                    onRefreshMetadata = { showMenu = false; /* call refreshMetadata */ }
                                 )
                             }
                         }
@@ -407,14 +411,33 @@ fun LinkGridCard(
         Box {
             Column {
                 if (link.previewImageUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = link.previewImageUrl,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
-                        contentScale = ContentScale.Crop
-                    )
+                    var imageLoadFailed by remember { mutableStateOf(false) }
+                    if (!imageLoadFailed) {
+                        AsyncImage(
+                            model = link.previewImageUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            contentScale = ContentScale.Crop,
+                            onError = { imageLoadFailed = true }
+                        )
+                    } else {
+                        // Fallback to favicon gradient
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(70.dp)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AsyncImage(
+                                model = link.faviconUrl,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp).clip(CircleShape)
+                            )
+                        }
+                    }
                 } else {
                     Box(
                         modifier = Modifier
@@ -426,9 +449,7 @@ fun LinkGridCard(
                         AsyncImage(
                             model = link.faviconUrl,
                             contentDescription = null,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
+                            modifier = Modifier.size(32.dp).clip(CircleShape)
                         )
                     }
                 }
@@ -498,33 +519,36 @@ fun LinkOptionsSheet(
     onMoveToFolder: () -> Unit,
     onShare: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onMarkRead: () -> Unit
+    onMarkRead: () -> Unit,
+    onRefreshMetadata: () -> Unit
 ) {
+    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    var showReminderSheet by remember { mutableStateOf(false) }
 
-    fun hideThen(action: () -> Unit) {
-        scope.launch {
-            sheetState.hide()
-            action()
-        }
+    fun dismiss() {
+        scope.launch { sheetState.hide(); onDismiss() }
     }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = null,
-        containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-
-            // ── Header with preview image + title ────────────────
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(160.dp)
             ) {
-                // Preview image background
                 if (link.previewImageUrl.isNotBlank()) {
                     AsyncImage(
                         model = link.previewImageUrl,
@@ -533,143 +557,595 @@ fun LinkOptionsSheet(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Fallback gradient with favicon
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
                                 Brush.linearGradient(
                                     listOf(
-                                        Color(domainColor(link.domain).value.toLong()),
-                                        Color(domainColor(link.domain).copy(alpha = 0.6f).value.toLong())
+                                        domainColor(link.domain),
+                                        domainColor(link.domain).copy(alpha = 0.4f)
                                     )
                                 )
-                            )
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
                         AsyncImage(
                             model = link.faviconUrl,
                             contentDescription = null,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .align(Alignment.Center)
+                            modifier = Modifier.size(48.dp).clip(CircleShape)
                         )
                     }
                 }
 
-                // Gradient scrim over image
+                // Gradient scrim
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
                                 listOf(
+                                    Color.Black.copy(alpha = 0.3f), // Top shadow for handle
                                     Color.Transparent,
-                                    Color.Black.copy(alpha = 0.7f)
+                                    Color.Black.copy(alpha = 0.65f) // Bottom shadow for text
                                 )
                             )
                         )
                 )
 
-                // Title + domain + drag handle
+                // Drag handle
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 12.dp)
+                        .width(40.dp)
+                        .height(4.dp),
+                    shape = RoundedCornerShape(2.dp),
+                    color = Color.White.copy(alpha = 0.5f)
+                ) {}
+
+                // Link name + domain at bottom
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(16.dp)
                 ) {
                     Text(
-                        text = link.title.ifBlank { link.url },
+                        link.title.ifBlank { link.url },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(2.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         AsyncImage(
                             model = link.faviconUrl,
                             contentDescription = null,
-                            modifier = Modifier
-                                .size(14.dp)
-                                .clip(CircleShape)
+                            modifier = Modifier.size(12.dp).clip(CircleShape)
                         )
                         Text(
-                            text = link.domain.ifBlank { "link" },
+                            link.domain.ifBlank { "link" },
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White.copy(alpha = 0.8f)
                         )
-                        if (folder != null) {
-                            Text("·", color = Color.White.copy(alpha = 0.6f))
-                            Icon(
-                                iconFromName(folder.icon), null,
-                                Modifier.size(12.dp),
-                                tint = Color.White.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                folder.name,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
-                        }
                     }
-                }
-
-                // Drag handle at top center
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    contentAlignment = Alignment.TopCenter
-                ) {
-                    Surface(
-                        modifier = Modifier
-                            .width(40.dp)
-                            .height(4.dp),
-                        shape = RoundedCornerShape(2.dp),
-                        color = Color.White.copy(alpha = 0.5f)
-                    ) {}
                 }
             }
 
-            // ── Options list ──────────────────────────────────────
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(vertical = 8.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                SheetOption(
+                // ── Row 1: Copy link (wide) + Share + Delete ──────
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Copy link — wide
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                val clipboard = context.getSystemService(
+                                    android.content.ClipboardManager::class.java
+                                )
+                                clipboard?.setPrimaryClip(
+                                    android.content.ClipData.newPlainText("url", link.url)
+                                )
+                                dismiss()
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.ContentCopy, null,
+                                Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Copy link",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    link.url,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+
+                    // Share square
+                    OptionsSquareButton(
+                        icon = Icons.Outlined.Share,
+                        onClick = { onShare(); dismiss() }
+                    )
+
+                    // Delete square
+                    OptionsSquareButton(
+                        icon = Icons.Outlined.Delete,
+                        iconTint = MaterialTheme.colorScheme.error,
+                        onClick = { onDelete(); dismiss() }
+                    )
+                }
+
+                // ── Edit bookmark ─────────────────────────────────
+                OptionsFullRow(
                     icon = Icons.Outlined.Edit,
-                    label = "Edit link",
-                    onClick = { hideThen(onEdit) }
+                    title = "Edit bookmark",
+                    onClick = { onEdit(); dismiss() }
                 )
-                SheetOption(
-                    icon = if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    label = if (link.isFavorite) "Remove from favorites" else "Add to favorites",
-                    iconTint = if (link.isFavorite) MaterialTheme.colorScheme.error else null,
-                    onClick = { hideThen(onToggleFavorite) }
+
+                // ── Set note ──────────────────────────────────────
+                OptionsFullRow(
+                    icon = Icons.Outlined.Notes,
+                    title = "Set note",
+                    onClick = { /* TODO */ }
                 )
-                SheetOption(
-                    icon = Icons.Outlined.FolderOpen,
-                    label = "Move to folder",
-                    onClick = { hideThen(onMoveToFolder) }
+
+                // ── Set reminder ──────────────────────────────────
+                OptionsFullRow(
+                    icon = Icons.Outlined.Notifications,
+                    title = "Set reminder",
+                    onClick = { showReminderSheet = true }
                 )
-                SheetOption(
-                    icon = Icons.Outlined.Share,
-                    label = "Share link",
-                    onClick = { hideThen(onShare) }
+
+                // ── Set expiration ────────────────────────────────
+                OptionsFullRow(
+                    icon = Icons.Outlined.Timer,
+                    title = "Set expiration",
+                    subtitle = "Deletes bookmark after selected time",
+                    onClick = { /* TODO */ }
                 )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-                SheetOption(
-                    icon = Icons.Outlined.Delete,
-                    label = "Delete link",
-                    iconTint = MaterialTheme.colorScheme.error,
-                    labelColor = MaterialTheme.colorScheme.error,
-                    onClick = { hideThen(onDelete) }
+
+                // ── Manage Tags ───────────────────────────────────
+                OptionsFullRow(
+                    icon = Icons.Outlined.Tag,
+                    title = "Manage Tags",
+                    subtitle = "Add tags for easy access and search",
+                    onClick = { /* TODO */ }
+                )
+
+                // ── Pin to Top ────────────────────────────────────
+                OptionsFullRow(
+                    icon = Icons.Outlined.PushPin,
+                    title = "Pin to Top",
+                    subtitle = "Keep this bookmark on top for quicker access",
+                    onClick = { /* TODO */ }
+                )
+
+                Spacer(Modifier.height(4.dp))
+            }
+        }
+    }
+
+    // Reminder sheet on top
+    if (showReminderSheet) {
+        ReminderBottomSheet(
+            currentReminder = link.reminderAt,
+            onSet = { showReminderSheet = false },
+            onDismiss = { showReminderSheet = false }
+        )
+    }
+}
+
+// ── Square icon button ────────────────────────────────────────
+@Composable
+fun OptionsSquareButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color? = null,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .size(56.dp)
+            .clickable { onClick() }
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                icon, null,
+                Modifier.size(22.dp),
+                tint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// ── Full width row button ─────────────────────────────────────
+@Composable
+fun OptionsFullRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String? = null,
+    iconTint: Color? = null,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(
+                horizontal = 16.dp,
+                vertical = if (subtitle != null) 14.dp else 16.dp
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Icon(
+                icon, null,
+                Modifier.size(22.dp),
+                tint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Column {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Normal,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (subtitle != null) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ── Icon only square button ───────────────────────────────────
+@Composable
+fun SheetIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String? = null,
+    iconTint: Color? = null,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .size(if (label != null) 64.dp else 52.dp)
+            .clickable { onClick() }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                icon, null,
+                Modifier.size(20.dp),
+                tint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (label != null) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+// ── Text + icon wide button ───────────────────────────────────
+@Composable
+fun SheetTextButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+    iconTint: Color? = null,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier
+            .height(52.dp)
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                icon, null,
+                Modifier.size(16.dp),
+                tint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+// ── Reminder bottom sheet ─────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReminderBottomSheet(
+    currentReminder: Long?,
+    onSet: (Long?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var selectedDate by remember { mutableStateOf<Long?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
+    val now = System.currentTimeMillis()
+    val cal = Calendar.getInstance()
+
+    // Tonight 9:30 PM
+    val tonightTime = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 21)
+        set(Calendar.MINUTE, 30)
+        set(Calendar.SECOND, 0)
+        if (timeInMillis < now) add(Calendar.DAY_OF_YEAR, 1)
+    }.timeInMillis
+
+    // Tomorrow 8:30 PM
+    val tomorrowTime = Calendar.getInstance().apply {
+        add(Calendar.DAY_OF_YEAR, 1)
+        set(Calendar.HOUR_OF_DAY, 20)
+        set(Calendar.MINUTE, 30)
+        set(Calendar.SECOND, 0)
+    }.timeInMillis
+
+    // Next week same time
+    val nextWeekTime = Calendar.getInstance().apply {
+        add(Calendar.WEEK_OF_YEAR, 1)
+        set(Calendar.HOUR_OF_DAY, 20)
+        set(Calendar.MINUTE, 30)
+        set(Calendar.SECOND, 0)
+    }.timeInMillis
+
+    val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+    val dateFormatter = remember { SimpleDateFormat("EEE h:mm a", Locale.getDefault()) }
+    val fullFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+
+    fun dismiss() {
+        scope.launch { sheetState.hide(); onDismiss() }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = null,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrimColor = Color.Black.copy(alpha = 0.3f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+//                .padding(horizontal = 16.dp, bottom = 16.dp)
+        ) {
+            // Drag handle
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp, bottom = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    modifier = Modifier.width(40.dp).height(4.dp),
+                    shape = RoundedCornerShape(2.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                ) {}
+            }
+
+            Text(
+                "Set reminder",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+
+            // 2x2 grid of options
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Later today
+                ReminderOptionCard(
+                    icon = Icons.Outlined.WbTwilight,
+                    title = "Later today",
+                    subtitle = timeFormatter.format(Date(tonightTime)),
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSet(tonightTime) }
+                )
+                // Tomorrow
+                ReminderOptionCard(
+                    icon = Icons.Outlined.LightMode,
+                    title = "Tomorrow",
+                    subtitle = timeFormatter.format(Date(tomorrowTime)),
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSet(tomorrowTime) }
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Next week
+                ReminderOptionCard(
+                    icon = Icons.Outlined.CalendarMonth,
+                    title = "Next week",
+                    subtitle = dateFormatter.format(Date(nextWeekTime)),
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSet(nextWeekTime) }
+                )
+                // Pick custom
+                ReminderOptionCard(
+                    icon = Icons.Outlined.EditCalendar,
+                    title = "Pick date & time",
+                    subtitle = fullFormatter.format(Date(now)),
+                    modifier = Modifier.weight(1f),
+                    onClick = { showDatePicker = true }
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Save / clear button
+            Button(
+                onClick = { dismiss() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) {
+                Text("Save", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+    }
+
+    // Date picker
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = now
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedDate = datePickerState.selectedDateMillis
+                    showDatePicker = false
+                    showTimePicker = true
+                }) { Text("Next") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) { DatePicker(state = datePickerState) }
+    }
+
+    // Time picker
+    if (showTimePicker) {
+        val timePickerState = rememberTimePickerState(initialHour = 20, initialMinute = 30)
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("Pick a time") },
+            text = { TimePicker(state = timePickerState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val date = selectedDate ?: now
+                    val finalTime = Calendar.getInstance().apply {
+                        timeInMillis = date
+                        set(Calendar.HOUR_OF_DAY, timePickerState.hour)
+                        set(Calendar.MINUTE, timePickerState.minute)
+                        set(Calendar.SECOND, 0)
+                    }.timeInMillis
+                    onSet(finalTime)
+                    showTimePicker = false
+                }) { Text("Set") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+@Composable
+fun ReminderOptionCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier
+            .height(90.dp)
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                icon, null,
+                Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Column {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

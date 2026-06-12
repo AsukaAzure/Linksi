@@ -267,6 +267,23 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun refreshLinkMetadata(link: Link) {
+        viewModelScope.launch {
+            try {
+                val meta = MetadataFetcher.fetch(link.url)
+                repository.updateLink(link.copy(
+                    title = meta.title.ifBlank { link.title },
+                    description = meta.description.ifBlank { link.description },
+                    faviconUrl = meta.faviconUrl.ifBlank { link.faviconUrl },
+                    previewImageUrl = meta.previewImageUrl  // always update
+                ))
+                _uiState.update { it.copy(snackbarMessage = "Metadata refreshed ✓") }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(snackbarMessage = "Could not refresh metadata") }
+            }
+        }
+    }
+
     fun undoFolderDelete() {
         viewModelScope.launch {
             val folder = _uiState.value.lastDeletedFolder ?: return@launch

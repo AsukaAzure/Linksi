@@ -19,19 +19,60 @@ object MetadataFetcher {
     suspend fun fetch(url: String): LinkMetadata = withContext(Dispatchers.IO) {
         try {
             val doc = Jsoup.connect(url)
-                .timeout(8000)
-                .userAgent("Mozilla/5.0 (compatible; Linksibot/1.0)")
+                .timeout(10000)
+                .userAgent(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                            "Chrome/124.0.0.0 Safari/537.36"
+                )
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                .followRedirects(true)
+                .ignoreHttpErrors(true)
                 .get()
 
-            val title = doc.select("meta[property=og:title]").attr("content")
-                .ifBlank { doc.select("meta[name=twitter:title]").attr("content") }
-                .ifBlank { doc.title() }
+            // Title — try multiple sources
+            val title = listOfNotNull(
+                doc.title().takeIf { it.isNotBlank() },
+                doc.select("meta[property=og:title]").attr("content").takeIf { it.isNotBlank() },
+                doc.select("meta[name=twitter:title]").attr("content").takeIf { it.isNotBlank() },
+                doc.select("h1").first()?.text()?.takeIf { it.isNotBlank() }
+            ).firstOrNull()?.trim() ?: ""
 
-            val description = doc.select("meta[property=og:description]").attr("content")
-                .ifBlank { doc.select("meta[name=description]").attr("content") }
+            // Description
+            val description = listOfNotNull(
+                doc.select("meta[property=og:description]").attr("content").takeIf { it.isNotBlank() },
+                doc.select("meta[name=twitter:description]").attr("content").takeIf { it.isNotBlank() },
+                doc.select("meta[name=description]").attr("content").takeIf { it.isNotBlank() }
+            ).firstOrNull()?.trim() ?: ""
 
-            val previewImage = doc.select("meta[property=og:image]").attr("content")
-                .ifBlank { doc.select("meta[name=twitter:image]").attr("content") }
+            // Preview image — make relative URLs absolute
+            val rawImage = listOfNotNull(
+                doc.select("meta[property=og:image]").attr("content").takeIf { it.isNotBlank() },
+                doc.select("meta[property=og:image:url]").attr("content").takeIf { it.isNotBlank() },
+                doc.select("meta[name=twitter:image]").attr("content").takeIf { it.isNotBlank() },
+                doc.select("meta[name=twitter:image:src]").attr("content").takeIf { it.isNotBlank() },
+                // Fallback: first large image
+                doc.select("img[src]").firstOrNull { img ->
+                    val w = img.attr("width").toIntOrNull() ?: 0
+                    val h = img.attr("height").toIntOrNull() ?: 0
+                    val src = img.attr("src")
+                    src.isNotBlank() && (w > 200 || h > 200 || (w == 0 && h == 0))
+                            && !src.contains("logo", ignoreCase = true)
+                            && !src.contains("icon", ignoreCase = true)
+                            && !src.contains("avatar", ignoreCase = true)
+                }?.attr("abs:src")?.takeIf { it.isNotBlank() }
+            ).firstOrNull() ?: ""
+
+            val previewImage = when {
+                rawImage.startsWith("http://") || rawImage.startsWith("https://") -> rawImage
+                rawImage.startsWith("//") -> "https:$rawImage"
+                rawImage.startsWith("/") -> {
+                    val uri = URI(url)
+                    "${uri.scheme}://${uri.host}$rawImage"
+                }
+                else -> rawImage
+            }
 
             val domain = URI(url).host?.removePrefix("www.") ?: ""
             val faviconUrl = "https://www.google.com/s2/favicons?domain=$domain&sz=64"
