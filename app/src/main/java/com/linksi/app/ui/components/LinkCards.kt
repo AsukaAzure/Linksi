@@ -526,6 +526,7 @@ fun LinkOptionsSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var showReminderSheet by remember { mutableStateOf(false) }
+    var showFolderPicker by remember { mutableStateOf(false) }
 
     fun dismiss() {
         scope.launch { sheetState.hide(); onDismiss() }
@@ -710,6 +711,13 @@ fun LinkOptionsSheet(
                     icon = Icons.Outlined.Edit,
                     title = "Edit bookmark",
                     onClick = { onEdit(); dismiss() }
+                )
+
+                // ── Move to folder ────────────────────────────────
+                OptionsFullRow(
+                    icon = Icons.Outlined.Folder,
+                    title = "Move to folder",
+                    onClick = { onMoveToFolder(); dismiss() }
                 )
 
                 // ── Set note ──────────────────────────────────────

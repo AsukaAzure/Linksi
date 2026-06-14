@@ -29,6 +29,7 @@ data class HomeUiState(
     val sortOption: SortOption = SortOption.DATE_NEWEST,
     val isLoading: Boolean = false,
     val isFetchingMetadata: Boolean = false,
+    val isAddingLink: Boolean = false,
     val showAddLinkDialog: Boolean = false,
     val showAddFolderDialog: Boolean = false,
     val editingLink: Link? = null,
@@ -126,17 +127,23 @@ class HomeViewModel @Inject constructor(
     }
 
     fun addLink(url: String, folderId: Long? = null, reminderAt: Long? = null) {
+        if (_uiState.value.isAddingLink) return
         val normalized = normalizeUrl(url)
         if (!isValidUrl(normalized)) {
             _uiState.update { it.copy(snackbarMessage = "Invalid URL") }
             return
         }
         viewModelScope.launch {
-            if (repository.isUrlAlreadySaved((normalized))) {
-                _uiState.update { it.copy(snackbarMessage = "Link already saved") }
+            _uiState.update { it.copy(isAddingLink = true, isFetchingMetadata = true) }
+            if (repository.isUrlAlreadySaved(normalized)) {
+                _uiState.update { it.copy(
+                    isAddingLink = false,
+                    isFetchingMetadata = false,
+                    snackbarMessage = "Link already saved"
+                )}
                 return@launch
             }
-            _uiState.update { it.copy(isFetchingMetadata = true) }
+            // Fetch once on save — never again unless user manually refreshes
             val meta = MetadataFetcher.fetch(normalized)
             val link = Link(
                 url = normalized,
@@ -145,20 +152,18 @@ class HomeViewModel @Inject constructor(
                 faviconUrl = meta.faviconUrl,
                 previewImageUrl = meta.previewImageUrl,
                 domain = meta.domain.ifBlank { extractDomain(normalized) },
-                reminderAt = reminderAt,
-                folderId = folderId
+                folderId = folderId,
+                reminderAt = reminderAt
             )
             val id = repository.insertLink(link)
             if (reminderAt != null) {
-                scheduleReminder(
-                    context,
-                    id,
-                    link.title.ifBlank { link.domain },
-                    link.url,
-                    reminderAt
-                )
+                scheduleReminder(context, id, link.title, link.url, reminderAt)
             }
-            _uiState.update { it.copy(isFetchingMetadata = false, snackbarMessage = "Link saved ") }
+            _uiState.update { it.copy(
+                isAddingLink = false,
+                isFetchingMetadata = false,
+                snackbarMessage = "Link saved"
+            )}
         }
     }
 

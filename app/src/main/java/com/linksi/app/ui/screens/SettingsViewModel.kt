@@ -243,20 +243,25 @@ class SettingsViewModel @Inject constructor(
 
                 insertedLinks.forEachIndexed { index, (id, url) ->
                     try {
-                        val meta = MetadataFetcher.fetch(url)
                         val existing = repository.getLinkById(id)
-                        existing?.let {
-                            repository.updateLink(it.copy(
-                                title = meta.title.ifBlank { it.title.ifBlank { extractDomain(url) } },
-                                description = meta.description.ifBlank { it.description },
-                                faviconUrl = meta.faviconUrl.ifBlank { it.faviconUrl },
-                                previewImageUrl = meta.previewImageUrl,
-                                domain = meta.domain.ifBlank { it.domain }
-                            ))
+                        // Only fetch if title is blank or equals domain — metadata missing
+                        val needsFetch = existing?.title.isNullOrBlank() ||
+                                existing?.title == existing?.domain ||
+                                existing?.previewImageUrl.isNullOrBlank()
+
+                        if (needsFetch) {
+                            val meta = MetadataFetcher.fetch(url)
+                            existing?.let {
+                                repository.updateLink(it.copy(
+                                    title = meta.title.ifBlank { it.title.ifBlank { extractDomain(url) } },
+                                    description = meta.description.ifBlank { it.description },
+                                    faviconUrl = meta.faviconUrl.ifBlank { it.faviconUrl },
+                                    previewImageUrl = meta.previewImageUrl,
+                                    domain = meta.domain.ifBlank { it.domain }
+                                ))
+                            }
                         }
-                    } catch (e: Exception) {
-                        // Skip failed metadata, link is still saved
-                    }
+                    } catch (e: Exception) { }
                     _uiState.update { it.copy(importProgress = index + 1) }
                 }
 
