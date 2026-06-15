@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -30,8 +31,13 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.linksi.app.domain.model.Folder
@@ -59,6 +65,7 @@ fun LinkCard(
     onSetNote: (String) -> Unit = {},
     onSetReminder: (Long?) -> Unit = {},
     onSetExpiry: (Long?) -> Unit = {},
+    onSetTags: (List<String>) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -224,6 +231,16 @@ fun LinkCard(
                         Column(modifier = Modifier.weight(1f)) {
                             // Domain + unread indicator
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Pin indicator
+                                if (link.isPinned) {
+                                    Icon(
+                                        Icons.Filled.PushPin,
+                                        null,
+                                        Modifier.size(12.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                }
                                 if (!link.isRead) {
                                     Box(
                                         modifier = Modifier
@@ -302,7 +319,8 @@ fun LinkCard(
                                     onPin = { onPin() },
                                     onSetNote = { note -> onSetNote(note) },
                                     onSetReminder = { time -> onSetReminder(time) },
-                                    onSetExpiry = { time -> onSetExpiry(time) }
+                                    onSetExpiry = { time -> onSetExpiry(time) },
+                                    onSetTags = { tags -> onSetTags(tags) }
 
                                 )
                             }
@@ -352,7 +370,11 @@ fun LinkCard(
                                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                                    .background(
+                                        MaterialTheme.colorScheme.primaryContainer.copy(
+                                            alpha = 0.6f
+                                        )
+                                    )
                                     .padding(horizontal = 5.dp, vertical = 2.dp)
                             ) {
                                 Icon(
@@ -436,17 +458,32 @@ fun LinkCard(
 }
 
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LinkGridCard(
     link: Link,
     isSelected: Boolean = false,
     isSelectionMode: Boolean = false,
     onLongPress: () -> Unit = {},
+    folders: List<Folder>,
     onClick: () -> Unit,
     onFavoriteToggle: () -> Unit,
+    onDelete: () -> Unit,
+    onMoveToFolder: (Long?) -> Unit,
+    onEdit: () -> Unit,
+    onMarkRead: () -> Unit = {},
+    onFolderClick: (Folder) -> Unit = {},
+    onPin: () -> Unit = {},
+    onSetNote: (String) -> Unit = {},
+    onSetReminder: (Long?) -> Unit = {},
+    onSetExpiry: (Long?) -> Unit = {},
+    onSetTags: (List<String>) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showFolderPicker by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
     ElevatedCard(
         modifier = modifier
             .fillMaxWidth()
@@ -516,12 +553,65 @@ fun LinkGridCard(
                 }
 
                 Column(Modifier.padding(10.dp)) {
-                    Text(
-                        text = link.domain.ifBlank { "link" },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = link.domain.ifBlank { "link" },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        // Menu button in Grid
+                        Box {
+                            IconButton(
+                                onClick = { showMenu = true },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(Icons.Filled.MoreVert, "More", Modifier.size(16.dp))
+                            }
+
+                            if (showMenu) {
+                                LinkOptionsSheet(
+                                    link = link,
+                                    folder = folders.find { it.id == link.folderId },
+                                    onDismiss = { showMenu = false },
+                                    onEdit = { showMenu = false; onEdit() },
+                                    onDelete = { showMenu = false; onDelete() },
+                                    onMoveToFolder = { showMenu = false; showFolderPicker = true },
+                                    onShare = {
+                                        showMenu = false
+                                        val sendIntent = Intent().apply {
+                                            action = Intent.ACTION_SEND
+                                            putExtra(
+                                                Intent.EXTRA_TEXT,
+                                                "${link.title}\n${link.url}"
+                                            )
+                                            type = "text/plain"
+                                        }
+                                        context.startActivity(
+                                            Intent.createChooser(
+                                                sendIntent,
+                                                "Share link via"
+                                            )
+                                        )
+                                    },
+                                    onToggleFavorite = { showMenu = false; onFavoriteToggle() },
+                                    onMarkRead = { },
+                                    onRefreshMetadata = { },
+                                    onPin = { onPin() },
+                                    onSetNote = { note -> onSetNote(note) },
+                                    onSetReminder = { time -> onSetReminder(time) },
+                                    onSetExpiry = { time -> onSetExpiry(time) },
+                                    onSetTags = { tags -> onSetTags(tags) }
+                                )
+                            }
+                        }
+                    }
                     Text(
                         text = link.title.ifBlank { link.url },
                         style = MaterialTheme.typography.bodySmall,
@@ -567,6 +657,15 @@ fun LinkGridCard(
             }
         }
     }
+
+    if (showFolderPicker) {
+        FolderPickerDialog(
+            folders = folders,
+            currentFolderId = link.folderId,
+            onSelect = { folderId -> onMoveToFolder(folderId); showFolderPicker = false },
+            onDismiss = { showFolderPicker = false }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -586,6 +685,7 @@ fun LinkOptionsSheet(
     onSetNote: (String) -> Unit,
     onSetReminder: (Long?) -> Unit,
     onSetExpiry: (Long?) -> Unit,
+    onSetTags: (List<String>) -> Unit = {}
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -594,6 +694,7 @@ fun LinkOptionsSheet(
     var showExpirySheet by remember { mutableStateOf(false) }
     var showNoteSheet by remember { mutableStateOf(false) }
     var showFolderPicker by remember { mutableStateOf(false) }
+    var showTagSheet by remember { mutableStateOf(false) }
 
     fun dismiss() {
         scope.launch { sheetState.hide(); onDismiss() }
@@ -830,8 +931,11 @@ fun LinkOptionsSheet(
                 OptionsFullRow(
                     icon = Icons.Outlined.Tag,
                     title = "Manage Tags",
-                    subtitle = "Add tags for easy access and search",
-                    onClick = { /* TODO */ }
+                    subtitle = if (link.tags.isNotEmpty())
+                        link.tags.joinToString(" · ") { "#$it" }
+                    else
+                        "Add tags for easy search",
+                    onClick = { showTagSheet = true }
                 )
 
                 // ── Pin to Top ────────────────────────────────────
@@ -869,6 +973,14 @@ fun LinkOptionsSheet(
             currentExpiry = link.expiresAt,
             onSet = { time -> onSetExpiry(time); showExpirySheet = false; dismiss() },
             onDismiss = { showExpirySheet = false }
+        )
+    }
+
+    if (showTagSheet) {
+        TagManagerSheet(
+            currentTags = link.tags,
+            onSave = { tags -> onSetTags(tags); showTagSheet = false; dismiss() },
+            onDismiss = { showTagSheet = false }
         )
     }
 
@@ -1092,7 +1204,8 @@ fun ReminderBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-//                .padding(horizontal = 16.dp, bottom = 16.dp)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp)
         ) {
             // Drag handle
             Box(
@@ -1128,7 +1241,7 @@ fun ReminderBottomSheet(
                     title = "Later today",
                     subtitle = timeFormatter.format(Date(tonightTime)),
                     modifier = Modifier.weight(1f),
-                    onClick = { onSet(tonightTime) }
+                    onClick = { onSet(tonightTime); dismiss() }
                 )
                 // Tomorrow
                 ReminderOptionCard(
@@ -1136,7 +1249,7 @@ fun ReminderBottomSheet(
                     title = "Tomorrow",
                     subtitle = timeFormatter.format(Date(tomorrowTime)),
                     modifier = Modifier.weight(1f),
-                    onClick = { onSet(tomorrowTime) }
+                    onClick = { onSet(tomorrowTime); dismiss() }
                 )
             }
 
@@ -1152,7 +1265,7 @@ fun ReminderBottomSheet(
                     title = "Next week",
                     subtitle = dateFormatter.format(Date(nextWeekTime)),
                     modifier = Modifier.weight(1f),
-                    onClick = { onSet(nextWeekTime) }
+                    onClick = { onSet(nextWeekTime); dismiss() }
                 )
                 // Pick custom
                 ReminderOptionCard(
@@ -1162,6 +1275,22 @@ fun ReminderBottomSheet(
                     modifier = Modifier.weight(1f),
                     onClick = { showDatePicker = true }
                 )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            if (currentReminder != null) {
+                OutlinedButton(
+                    onClick = { onSet(null); dismiss() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Outlined.NotificationsOff, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Remove reminder")
+                }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -1178,7 +1307,7 @@ fun ReminderBottomSheet(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
-                Text("Save", style = MaterialTheme.typography.titleMedium)
+                Text("Cancel", style = MaterialTheme.typography.titleMedium)
             }
         }
     }
@@ -1396,7 +1525,8 @@ fun ExpiryBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding( bottom = 16.dp), //horizontal 16
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp), //horizontal 16
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
@@ -1559,6 +1689,127 @@ fun SheetOption(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun TagManagerSheet(
+    currentTags: List<String>,
+    onSave: (List<String>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var tags by remember { mutableStateOf(currentTags.toMutableList()) }
+    var input by remember { mutableStateOf("") }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
+    fun dismiss() {
+        scope.launch { sheetState.hide(); onDismiss() }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = null,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Handle
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp, bottom = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    Modifier
+                        .width(40.dp)
+                        .height(4.dp),
+                    CircleShape,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                ) {}
+            }
+
+            Text(
+                "Manage Tags",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Tag input
+            OutlinedTextField(
+                value = input,
+                onValueChange = { input = it.lowercase().replace(" ", "-") },
+                placeholder = { Text("Add a tag…") },
+                leadingIcon = { Icon(Icons.Outlined.Tag, null) },
+                trailingIcon = {
+                    if (input.isNotBlank()) {
+                        IconButton(onClick = {
+                            val tag = input.trim()
+                            if (tag.isNotBlank() && !tags.contains(tag)) {
+                                tags = (tags + tag).toMutableList()
+                            }
+                            input = ""
+                        }) {
+                            Icon(Icons.Filled.Add, null)
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    val tag = input.trim()
+                    if (tag.isNotBlank() && !tags.contains(tag)) {
+                        tags = (tags + tag).toMutableList()
+                    }
+                    input = ""
+                }),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Current tags
+            if (tags.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    tags.forEach { tag ->
+                        InputChip(
+                            selected = false,
+                            onClick = { tags = (tags - tag).toMutableList() },
+                            label = { Text("#$tag") },
+                            trailingIcon = {
+                                Icon(Icons.Filled.Close, null, Modifier.size(14.dp))
+                            }
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    "No tags yet — add some above",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Button(
+                onClick = { onSave(tags) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp)
+            ) { Text("Save tags", style = MaterialTheme.typography.titleMedium) }
+        }
+    }
+}
+
 private fun formatDate(timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
@@ -1574,10 +1825,10 @@ private fun formatDate(timestamp: Long): String {
 private fun formatTimeLeft(timestamp: Long): String {
     val diff = timestamp - System.currentTimeMillis()
     return when {
-        diff < 0             -> "expired"
-        diff < 3_600_000     -> "${diff / 60_000}m"
-        diff < 86_400_000    -> "${diff / 3_600_000}h"
-        diff < 604_800_000   -> "${diff / 86_400_000}d"
+        diff < 0 -> "expired"
+        diff < 3_600_000 -> "${diff / 60_000}m"
+        diff < 86_400_000 -> "${diff / 3_600_000}h"
+        diff < 604_800_000 -> "${diff / 86_400_000}d"
         else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
     }
 }

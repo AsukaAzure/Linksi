@@ -170,7 +170,7 @@ class SettingsViewModel @Inject constructor(
                 context.contentResolver.openOutputStream(uri)?.use {
                     it.write(json.toByteArray())
                 }
-                _uiState.update { it.copy(message = "Exported ${links.size} links ✓") }
+                _uiState.update { it.copy(message = "Exported ${links.size} links") }
             } catch (e: Exception) {
                 _uiState.update { it.copy(message = "Export failed: ${e.message}") }
             }
@@ -185,7 +185,7 @@ class SettingsViewModel @Inject constructor(
                 context.contentResolver.openOutputStream(uri)?.use {
                     it.write(csv.toByteArray())
                 }
-                _uiState.update { it.copy(message = "Exported ${links.size} links as CSV ✓") }
+                _uiState.update { it.copy(message = "Exported ${links.size} links as CSV") }
             } catch (e: Exception) {
                 _uiState.update { it.copy(message = "Export failed: ${e.message}") }
             }

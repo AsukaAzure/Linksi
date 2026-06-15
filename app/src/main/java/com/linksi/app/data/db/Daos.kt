@@ -24,11 +24,12 @@ interface LinkDao {
     @Query(
         """
         SELECT * FROM links 
-        WHERE url LIKE '%' || :query || '%' 
-        OR title LIKE '%' || :query || '%' 
-        OR description LIKE '%' || :query || '%'
-        OR domain LIKE '%' || :query || '%'
-        ORDER BY createdAt DESC
+    WHERE url LIKE '%' || :query || '%' 
+    OR title LIKE '%' || :query || '%' 
+    OR description LIKE '%' || :query || '%'
+    OR tags LIKE '%' || :query || '%'
+    OR domain LIKE '%' || :query || '%'
+    ORDER BY createdAt DESC
     """
     )
     fun searchLinks(query: String): Flow<List<LinkEntity>>

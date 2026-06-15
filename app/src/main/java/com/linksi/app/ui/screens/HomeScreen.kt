@@ -48,10 +48,13 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,6 +74,7 @@ fun HomeScreen(
     var offsetY by remember { mutableStateOf(3000f) }
     val screenHeightPx = LocalConfiguration.current.screenHeightDp.toFloat()
     val context = LocalContext.current
+    val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
 // Tour state
@@ -88,6 +92,31 @@ fun HomeScreen(
             tourStep = TourStep.SAVE_BUTTON
         }
     }
+
+    LaunchedEffect(state.links.size) {
+        if (state.links.isNotEmpty()) {
+            scope.launch {
+                listState.animateScrollToItem(0)
+            }
+        }
+    }
+
+// Auto scroll to top when search cleared
+    LaunchedEffect(state.searchQuery) {
+        if (state.searchQuery.isBlank()) {
+            scope.launch {
+                listState.animateScrollToItem(0)
+            }
+        }
+    }
+
+    LaunchedEffect(state.scrollToTop) {
+        if (state.scrollToTop) {
+            listState.animateScrollToItem(0)
+            viewModel.consumeScrollToTop()
+        }
+    }
+
     val isInTour = tourComplete == false
 
     fun nextStep() {
@@ -119,14 +148,15 @@ fun HomeScreen(
         }
     }
 
-    // Tour overlay — sits above everything
-
-
     BackHandler(enabled = state.selectedFolderId != null) {
         viewModel.selectFolder(null)
     }
     BackHandler(enabled = state.isSelectionMode) {
         viewModel.clearSelection()
+    }
+    BackHandler(enabled = state.searchQuery.isNotBlank()) {
+        viewModel.onSearchQueryChange("")
+        scope.launch { listState.animateScrollToItem(0) }
     }
     BackHandler(enabled = browserUrl != null) {
         offsetY = screenHeightPx
@@ -409,6 +439,7 @@ fun HomeScreen(
                     when (viewMode) {
                         ViewMode.LIST -> LinksList(
                             links = state.links,
+                            listState = listState,
                             folders = state.folders,
                             selectedIds = state.selectedIds,
                             isSelectionMode = state.isSelectionMode,
@@ -440,10 +471,12 @@ fun HomeScreen(
                             onSetNote = { link, note -> viewModel.setNote(link, note) },
                             onSetReminder = { link, time -> viewModel.setReminder(link, time) },
                             onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
+                            onSetTags = { link, tags -> viewModel.setTags(link, tags) }
                         )
 
                         ViewMode.GRID -> LinksGrid(
                             links = state.links,
+                            folders = state.folders,
                             selectedIds = state.selectedIds,
                             isSelectionMode = state.isSelectionMode,
                             onLongPress = viewModel::toggleSelction,
@@ -461,7 +494,19 @@ fun HomeScreen(
                                 }
                             },
                             onFavoriteToggle = viewModel::toggleFavorite,
-                            onDelete = viewModel::deleteLink
+                            onDelete = viewModel::deleteLink,
+                            onMoveToFolder = { link, folderId ->
+                                viewModel.moveToFolder(link, folderId)
+                            },
+                            onEdit = viewModel::setEditingLink,
+                            onFolderClick = { folder ->
+                                viewModel.selectFolder(folder.id)
+                            },
+                            onPin = viewModel::setPinned,
+                            onSetNote = { link, note -> viewModel.setNote(link, note) },
+                            onSetReminder = { link, time -> viewModel.setReminder(link, time) },
+                            onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
+                            onSetTags = { link, tags -> viewModel.setTags(link, tags) }
                         )
                     }
                 }
@@ -703,11 +748,21 @@ fun FolderAndFilterRow(
         modifier = Modifier.padding(vertical = 4.dp)
     ) {
         val startingShape =
-            RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
+            RoundedCornerShape(
+                topStart = 20.dp,
+                topEnd = 4.dp,
+                bottomStart = 20.dp,
+                bottomEnd = 4.dp
+            )
         val middleShape =
             RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
         val endingShape =
-            RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
+            RoundedCornerShape(
+                topStart = 4.dp,
+                topEnd = 20.dp,
+                bottomStart = 4.dp,
+                bottomEnd = 20.dp
+            )
         item {
             FilterChip(
                 shape = startingShape,
@@ -735,8 +790,8 @@ fun FolderAndFilterRow(
                 leadingIcon = { Icon(Icons.Outlined.FiberNew, null, Modifier.size(16.dp)) }
             )
         }
-        itemsIndexed(folders) {index, folder ->
-            val currentShape = if(index == folders.lastIndex){
+        itemsIndexed(folders) { index, folder ->
+            val currentShape = if (index == folders.lastIndex) {
                 endingShape
             } else {
                 middleShape
@@ -765,6 +820,7 @@ fun FolderAndFilterRow(
 @Composable
 fun LinksList(
     links: List<Link>,
+    listState: LazyListState = rememberLazyListState(),
     folders: List<Folder>,
     selectedIds: Set<Long>,
     isSelectionMode: Boolean,
@@ -779,9 +835,11 @@ fun LinksList(
     onPin: (Link) -> Unit = {},
     onSetNote: (Link, String) -> Unit = { _, _ -> },
     onSetReminder: (Link, Long?) -> Unit = { _, _ -> },
-    onSetExpiry: (Link, Long?) -> Unit = { _, _ -> }
+    onSetExpiry: (Link, Long?) -> Unit = { _, _ -> },
+    onSetTags: (Link, List<String>) -> Unit = { _, _ -> }
 ) {
     LazyColumn(
+        state = listState,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -802,6 +860,7 @@ fun LinksList(
                 onSetNote = { note -> onSetNote(link, note) },
                 onSetReminder = { time -> onSetReminder(link, time) },
                 onSetExpiry = { time -> onSetExpiry(link, time) },
+                onSetTags = { tags -> onSetTags(link, tags) },
                 modifier = if (index == 0) Modifier.onGloballyPositioned { onFirstLinkPosition(it) }
                 else Modifier
             )
@@ -813,12 +872,21 @@ fun LinksList(
 @Composable
 fun LinksGrid(
     links: List<Link>,
+    folders: List<Folder>,
     selectedIds: Set<Long>,
     isSelectionMode: Boolean,
     onLongPress: (Long) -> Unit,
     onLinkClick: (Link) -> Unit,
     onFavoriteToggle: (Link) -> Unit,
-    onDelete: (Link) -> Unit
+    onDelete: (Link) -> Unit,
+    onMoveToFolder: (Link, Long?) -> Unit,
+    onEdit: (Link) -> Unit,
+    onFolderClick: (Folder) -> Unit,
+    onPin: (Link) -> Unit = {},
+    onSetNote: (Link, String) -> Unit = { _, _ -> },
+    onSetReminder: (Link, Long?) -> Unit = { _, _ -> },
+    onSetExpiry: (Link, Long?) -> Unit = { _, _ -> },
+    onSetTags: (Link, List<String>) -> Unit = { _, _ -> }
 ) {
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Fixed(2),
@@ -832,8 +900,18 @@ fun LinksGrid(
                 isSelected = selectedIds.contains(link.id),
                 isSelectionMode = isSelectionMode,
                 onLongPress = { onLongPress(link.id) },
+                folders = folders,
                 onClick = { onLinkClick(link) },
-                onFavoriteToggle = { onFavoriteToggle(link) }
+                onFavoriteToggle = { onFavoriteToggle(link) },
+                onDelete = { onDelete(link) },
+                onMoveToFolder = { folderId -> onMoveToFolder(link, folderId) },
+                onEdit = { onEdit(link) },
+//                onFolderClick = onFolderClick,
+//                onPin = { onPin(link) },
+//                onSetNote = { note -> onSetNote(link, note) },
+//                onSetReminder = { time -> onSetReminder(link, time) },
+//                onSetExpiry = { time -> onSetExpiry(link, time) },
+//                onSetTags = { tags -> onSetTags(link, tags) }
             )
         }
         item { Spacer(Modifier.height(80.dp)) }

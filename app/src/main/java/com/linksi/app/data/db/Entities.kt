@@ -19,7 +19,8 @@ data class LinkEntity(
     val domain: String = "",
     val isPinned: Boolean = false,
     val note: String = "",
-    val expiresAt: Long? = null
+    val expiresAt: Long? = null,
+    val tags: String = ""
 )
 
 @Entity(tableName = "folders")

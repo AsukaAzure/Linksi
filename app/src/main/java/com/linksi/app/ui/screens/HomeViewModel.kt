@@ -44,6 +44,7 @@ data class HomeUiState(
     val lastDeletedFolder: Folder? = null,
     val lastDeletedFolderLinks: List<Link> = emptyList(),
     val useInAppBrowser: Boolean = true,
+    val scrollToTop: Boolean = false,
 )
 
 @HiltViewModel
@@ -108,6 +109,13 @@ class HomeViewModel @Inject constructor(
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
         _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun setTags(link: Link, tags: List<String>) {
+        viewModelScope.launch {
+            repository.updateLink(link.copy(tags = tags))
+            _uiState.update { it.copy(snackbarMessage = "Tags saved ✓") }
+        }
     }
 
     fun selectFolder(folderId: Long?) {
@@ -217,7 +225,7 @@ class HomeViewModel @Inject constructor(
                 it.copy(
                     lastMovedLinks = emptyList(),
                     lastMovedToFolderId = null,
-                    snackbarMessage = "Moved back ✓"
+                    snackbarMessage = "Moved back"
                 )
             }
         }
@@ -289,7 +297,7 @@ class HomeViewModel @Inject constructor(
                         previewImageUrl = meta.previewImageUrl  // always update
                     )
                 )
-                _uiState.update { it.copy(snackbarMessage = "Metadata refreshed ✓") }
+                _uiState.update { it.copy(snackbarMessage = "Metadata refreshed") }
             } catch (e: Exception) {
                 _uiState.update { it.copy(snackbarMessage = "Could not refresh metadata") }
             }
@@ -333,23 +341,28 @@ class HomeViewModel @Inject constructor(
     fun setPinned(link: Link) {
         viewModelScope.launch {
             val currentPinnedCount = _uiState.value.links.count { it.isPinned }
-            if (!link.isPinned && currentPinnedCount >= 3) {
-                _uiState.update { it.copy(snackbarMessage = "Max 3 links can be pinned") }
+            if (!link.isPinned && currentPinnedCount >= 5) {
+                _uiState.update { it.copy(snackbarMessage = "Max 5 links can be pinned") }
                 return@launch
             }
             repository.setPinned(link.id, !link.isPinned)
             _uiState.update {
                 it.copy(
-                    snackbarMessage = if (!link.isPinned) "Link pinned ✓" else "Link unpinned"
+                    snackbarMessage = if (!link.isPinned) "Link pinned" else "Link unpinned",
+                    scrollToTop = true
                 )
             }
         }
     }
 
+    fun consumeScrollToTop() {
+        _uiState.update { it.copy(scrollToTop = false) }
+    }
+
     fun setNote(link: Link, note: String) {
         viewModelScope.launch {
             repository.setNote(link.id, note)
-            _uiState.update { it.copy(snackbarMessage = "Note saved ✓") }
+            _uiState.update { it.copy(snackbarMessage = "Note saved") }
         }
     }
 
@@ -358,7 +371,7 @@ class HomeViewModel @Inject constructor(
             repository.setExpiry(link.id, expiresAt)
             _uiState.update {
                 it.copy(
-                    snackbarMessage = if (expiresAt != null) "Expiration set ✓" else "Expiration removed"
+                    snackbarMessage = if (expiresAt != null) "Expiration set" else "Expiration removed"
                 )
             }
         }
@@ -379,7 +392,7 @@ class HomeViewModel @Inject constructor(
                     link.url,
                     reminderAt
                 )
-                _uiState.update { it.copy(snackbarMessage = "Reminder set ✓") }
+                _uiState.update { it.copy(snackbarMessage = "Reminder set") }
             } else {
                 _uiState.update { it.copy(snackbarMessage = "Reminder removed") }
             }
@@ -406,15 +419,15 @@ class HomeViewModel @Inject constructor(
     fun hideAddFolderDialog() = _uiState.update { it.copy(showAddFolderDialog = false) }
     fun setEditingLink(link: Link?) = _uiState.update { it.copy(editingLink = link) }
 
-    private fun sortLinks(links: List<Link>, sort: SortOption) : List<Link> {
+    private fun sortLinks(links: List<Link>, sort: SortOption): List<Link> {
         val pinned = links.filter { it.isPinned }
         val rest = links.filter { !it.isPinned }
         val sortedRest = when (sort) {
             SortOption.DATE_NEWEST -> rest.sortedByDescending { it.createdAt }
             SortOption.DATE_OLDEST -> rest.sortedBy { it.createdAt }
-            SortOption.TITLE_AZ    -> rest.sortedBy { it.title.lowercase() }
-            SortOption.TITLE_ZA    -> rest.sortedByDescending { it.title.lowercase() }
-            SortOption.DOMAIN      -> rest.sortedBy { it.domain }
+            SortOption.TITLE_AZ -> rest.sortedBy { it.title.lowercase() }
+            SortOption.TITLE_ZA -> rest.sortedByDescending { it.title.lowercase() }
+            SortOption.DOMAIN -> rest.sortedBy { it.domain }
         }
         return pinned + sortedRest
     }

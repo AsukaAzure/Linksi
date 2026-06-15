@@ -137,7 +137,8 @@ class LinkRepository @Inject constructor(
         domain = entity.domain,
         isPinned = entity.isPinned,
         note = entity.note,
-        expiresAt = entity.expiresAt
+        expiresAt = entity.expiresAt,
+        tags = entity.tags.split(",").filter { it.isNotBlank() }
     )
 
     private fun toEntity(link: Link) = LinkEntity(
@@ -155,7 +156,8 @@ class LinkRepository @Inject constructor(
         domain = link.domain,
         isPinned = link.isPinned,
         note = link.note,
-        expiresAt = link.expiresAt
+        expiresAt = link.expiresAt,
+        tags = link.tags.joinToString(",")
     )
 
     private fun toFolder(entity: FolderEntity) = Folder(
