@@ -16,7 +16,10 @@ data class Link(
     val createdAt: Long = System.currentTimeMillis(),
     val reminderAt: Long? = null,
     val previewImageUrl: String = "",
-    val domain: String = ""
+    val domain: String = "",
+    val isPinned: Boolean = false,
+    val note: String = "",
+    val expiresAt: Long? = null
 ) : Parcelable
 
 @Parcelize

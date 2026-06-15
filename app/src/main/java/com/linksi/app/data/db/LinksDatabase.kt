@@ -7,7 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [LinkEntity::class, FolderEntity::class],
-    version = 3,  // bumped
+    version = 4,  // bumped
     exportSchema = false
 )
 abstract class LinksDatabase : RoomDatabase() {
@@ -61,6 +61,13 @@ abstract class LinksDatabase : RoomDatabase() {
                 """)
                 database.execSQL("DROP TABLE links")
                 database.execSQL("ALTER TABLE links_new RENAME TO links")
+            }
+        }
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE links ADD COLUMN isPinned INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE links ADD COLUMN note TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE links ADD COLUMN expiresAt INTEGER")
             }
         }
     }

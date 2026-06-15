@@ -21,14 +21,16 @@ interface LinkDao {
     @Query("SELECT * FROM links WHERE isRead = 0 ORDER BY createdAt DESC")
     fun getUnreadLinks(): Flow<List<LinkEntity>>
 
-    @Query("""
+    @Query(
+        """
         SELECT * FROM links 
         WHERE url LIKE '%' || :query || '%' 
         OR title LIKE '%' || :query || '%' 
         OR description LIKE '%' || :query || '%'
         OR domain LIKE '%' || :query || '%'
         ORDER BY createdAt DESC
-    """)
+    """
+    )
     fun searchLinks(query: String): Flow<List<LinkEntity>>
 
     @Query("SELECT * FROM links WHERE reminderAt IS NOT NULL AND reminderAt > :now ORDER BY reminderAt ASC")
@@ -63,18 +65,32 @@ interface LinkDao {
 
     @Query("SELECT * FROM links WHERE url = :url LIMIT 1")
     suspend fun getLinkByUrl(url: String): LinkEntity?
+
+    @Query("UPDATE links SET isPinned = :isPinned WHERE id = :id")
+    suspend fun setPinned(id: Long, isPinned: Boolean)
+
+    @Query("UPDATE links SET note = :note WHERE id = :id")
+    suspend fun setNote(id: Long, note: String)
+
+    @Query("UPDATE links SET expiresAt = :expiresAt WHERE id = :id")
+    suspend fun setExpiry(id: Long, expiresAt: Long?)
+
+    @Query("SELECT * FROM links WHERE expiresAt IS NOT NULL AND expiresAt < :now")
+    suspend fun getExpiredLinks(now: Long = System.currentTimeMillis()): List<LinkEntity>
 }
 
 @Dao
 interface FolderDao {
 
-    @Query("""
+    @Query(
+        """
         SELECT f.*, COUNT(l.id) as link_count 
         FROM folders f 
         LEFT JOIN links l ON l.folderId = f.id 
         GROUP BY f.id
         ORDER BY f.createdAt ASC
-    """)
+    """
+    )
     fun getAllFoldersWithCount(): Flow<List<FolderWithCount>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

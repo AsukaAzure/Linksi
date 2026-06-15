@@ -60,7 +60,16 @@ class LinkRepository @Inject constructor(
     // ─── Folders ─────────────────────────────────────────────
     fun getAllFolders(): Flow<List<Folder>> =
         folderDao.getAllFoldersWithCount().map { list ->
-            list.map { Folder(it.folder.id, it.folder.name, it.folder.icon, it.folder.color, it.folder.createdAt, it.linkCount) }
+            list.map {
+                Folder(
+                    it.folder.id,
+                    it.folder.name,
+                    it.folder.icon,
+                    it.folder.color,
+                    it.folder.createdAt,
+                    it.linkCount
+                )
+            }
         }
 
     suspend fun insertFolder(folder: Folder): Long {
@@ -76,10 +85,26 @@ class LinkRepository @Inject constructor(
     }
 
     suspend fun updateFolder(folder: Folder) =
-        folderDao.updateFolder(FolderEntity(folder.id, folder.name, folder.icon, folder.color, folder.createdAt))
+        folderDao.updateFolder(
+            FolderEntity(
+                folder.id,
+                folder.name,
+                folder.icon,
+                folder.color,
+                folder.createdAt
+            )
+        )
 
     suspend fun deleteFolder(folder: Folder) =
-        folderDao.deleteFolder(FolderEntity(folder.id, folder.name, folder.icon, folder.color, folder.createdAt))
+        folderDao.deleteFolder(
+            FolderEntity(
+                folder.id,
+                folder.name,
+                folder.icon,
+                folder.color,
+                folder.createdAt
+            )
+        )
 
     suspend fun getFolderById(id: Long): Folder? =
         folderDao.getFolderById(id)?.let { toFolder(it) }
@@ -90,6 +115,11 @@ class LinkRepository @Inject constructor(
     suspend fun isUrlAlreadySaved(url: String): Boolean {
         return linkDao.getLinkByUrl(url) != null
     }
+
+    suspend fun setPinned(id: Long, isPinned: Boolean) = linkDao.setPinned(id, isPinned)
+    suspend fun setNote(id: Long, note: String) = linkDao.setNote(id, note)
+    suspend fun setExpiry(id: Long, expiresAt: Long?) = linkDao.setExpiry(id, expiresAt)
+    suspend fun getExpiredLinks() = linkDao.getExpiredLinks().map(::toLink)
 
     // ─── Mappers ─────────────────────────────────────────────
     private fun toLink(entity: LinkEntity) = Link(
@@ -104,7 +134,10 @@ class LinkRepository @Inject constructor(
         createdAt = entity.createdAt,
         reminderAt = entity.reminderAt,
         previewImageUrl = entity.previewImageUrl,
-        domain = entity.domain
+        domain = entity.domain,
+        isPinned = entity.isPinned,
+        note = entity.note,
+        expiresAt = entity.expiresAt
     )
 
     private fun toEntity(link: Link) = LinkEntity(
@@ -119,7 +152,10 @@ class LinkRepository @Inject constructor(
         createdAt = link.createdAt,
         reminderAt = link.reminderAt,
         previewImageUrl = link.previewImageUrl,
-        domain = link.domain
+        domain = link.domain,
+        isPinned = link.isPinned,
+        note = link.note,
+        expiresAt = link.expiresAt
     )
 
     private fun toFolder(entity: FolderEntity) = Folder(

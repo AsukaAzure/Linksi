@@ -435,7 +435,11 @@ fun HomeScreen(
                             onFolderClick = { folder ->
                                 viewModel.selectFolder(folder.id)
                             },
-                            onFirstLinkPosition = { firstLinkCoords = it }
+                            onFirstLinkPosition = { firstLinkCoords = it },
+                            onPin = viewModel::setPinned,
+                            onSetNote = { link, note -> viewModel.setNote(link, note) },
+                            onSetReminder = { link, time -> viewModel.setReminder(link, time) },
+                            onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
                         )
 
                         ViewMode.GRID -> LinksGrid(
@@ -771,7 +775,11 @@ fun LinksList(
     onMoveToFolder: (Link, Long?) -> Unit,
     onEdit: (Link) -> Unit,
     onFolderClick: (Folder) -> Unit,
-    onFirstLinkPosition: (LayoutCoordinates) -> Unit = {}
+    onFirstLinkPosition: (LayoutCoordinates) -> Unit = {},
+    onPin: (Link) -> Unit = {},
+    onSetNote: (Link, String) -> Unit = { _, _ -> },
+    onSetReminder: (Link, Long?) -> Unit = { _, _ -> },
+    onSetExpiry: (Link, Long?) -> Unit = { _, _ -> }
 ) {
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -790,6 +798,10 @@ fun LinksList(
                 onMoveToFolder = { folderId -> onMoveToFolder(link, folderId) },
                 onEdit = { onEdit(link) },
                 onFolderClick = onFolderClick,
+                onPin = { onPin(link) },
+                onSetNote = { note -> onSetNote(link, note) },
+                onSetReminder = { time -> onSetReminder(link, time) },
+                onSetExpiry = { time -> onSetExpiry(link, time) },
                 modifier = if (index == 0) Modifier.onGloballyPositioned { onFirstLinkPosition(it) }
                 else Modifier
             )

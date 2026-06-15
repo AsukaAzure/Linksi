@@ -55,6 +55,10 @@ fun LinkCard(
     onEdit: () -> Unit,
     onMarkRead: () -> Unit = {},
     onFolderClick: (Folder) -> Unit = {},
+    onPin: () -> Unit = {},
+    onSetNote: (String) -> Unit = {},
+    onSetReminder: (Long?) -> Unit = {},
+    onSetExpiry: (Long?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -293,8 +297,13 @@ fun LinkCard(
                                         )
                                     },
                                     onToggleFavorite = { showMenu = false; onFavoriteToggle() },
-                                    onMarkRead = { showMenu = false; /* call markAsRead */ },
-                                    onRefreshMetadata = { showMenu = false; /* call refreshMetadata */ }
+                                    onMarkRead = { },
+                                    onRefreshMetadata = { },
+                                    onPin = { onPin() },
+                                    onSetNote = { note -> onSetNote(note) },
+                                    onSetReminder = { time -> onSetReminder(time) },
+                                    onSetExpiry = { time -> onSetExpiry(time) }
+
                                 )
                             }
                         }
@@ -335,8 +344,56 @@ fun LinkCard(
                             )
                             Spacer(Modifier.width(6.dp))
                         }
-
                         Spacer(Modifier.weight(1f))
+
+                        if (link.reminderAt != null && link.reminderAt > System.currentTimeMillis()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Notifications, null,
+                                    Modifier.size(10.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    formatTimeLeft(link.reminderAt),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 9.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(Modifier.width(4.dp))
+                        }
+
+                        // ── Expiry indicator ──────────────────────────────
+                        if (link.expiresAt != null && link.expiresAt > System.currentTimeMillis()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Timer, null,
+                                    Modifier.size(10.dp),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                                Text(
+                                    formatTimeLeft(link.expiresAt),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 9.sp,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            Spacer(Modifier.width(4.dp))
+                        }
 
                         // Date
                         Text(
@@ -434,7 +491,9 @@ fun LinkGridCard(
                             AsyncImage(
                                 model = link.faviconUrl,
                                 contentDescription = null,
-                                modifier = Modifier.size(32.dp).clip(CircleShape)
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
                             )
                         }
                     }
@@ -449,7 +508,9 @@ fun LinkGridCard(
                         AsyncImage(
                             model = link.faviconUrl,
                             contentDescription = null,
-                            modifier = Modifier.size(32.dp).clip(CircleShape)
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
                         )
                     }
                 }
@@ -520,12 +581,18 @@ fun LinkOptionsSheet(
     onShare: () -> Unit,
     onToggleFavorite: () -> Unit,
     onMarkRead: () -> Unit,
-    onRefreshMetadata: () -> Unit
+    onRefreshMetadata: () -> Unit,
+    onPin: () -> Unit,
+    onSetNote: (String) -> Unit,
+    onSetReminder: (Long?) -> Unit,
+    onSetExpiry: (Long?) -> Unit,
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var showReminderSheet by remember { mutableStateOf(false) }
+    var showExpirySheet by remember { mutableStateOf(false) }
+    var showNoteSheet by remember { mutableStateOf(false) }
     var showFolderPicker by remember { mutableStateOf(false) }
 
     fun dismiss() {
@@ -574,7 +641,9 @@ fun LinkOptionsSheet(
                         AsyncImage(
                             model = link.faviconUrl,
                             contentDescription = null,
-                            modifier = Modifier.size(48.dp).clip(CircleShape)
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
                         )
                     }
                 }
@@ -627,7 +696,9 @@ fun LinkOptionsSheet(
                         AsyncImage(
                             model = link.faviconUrl,
                             contentDescription = null,
-                            modifier = Modifier.size(12.dp).clip(CircleShape)
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clip(CircleShape)
                         )
                         Text(
                             link.domain.ifBlank { "link" },
@@ -724,13 +795,18 @@ fun LinkOptionsSheet(
                 OptionsFullRow(
                     icon = Icons.Outlined.Notes,
                     title = "Set note",
-                    onClick = { /* TODO */ }
+                    subtitle = link.note.ifBlank { null },
+                    onClick = { showNoteSheet = true }
                 )
 
                 // ── Set reminder ──────────────────────────────────
                 OptionsFullRow(
                     icon = Icons.Outlined.Notifications,
                     title = "Set reminder",
+                    subtitle = link.reminderAt?.let {
+                        SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(it))
+                    },
+                    iconTint = if (link.reminderAt != null) MaterialTheme.colorScheme.primary else null,
                     onClick = { showReminderSheet = true }
                 )
 
@@ -738,8 +814,16 @@ fun LinkOptionsSheet(
                 OptionsFullRow(
                     icon = Icons.Outlined.Timer,
                     title = "Set expiration",
-                    subtitle = "Deletes bookmark after selected time",
-                    onClick = { /* TODO */ }
+                    subtitle = link.expiresAt?.let {
+                        "Expires ${
+                            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(
+                                Date(
+                                    it
+                                )
+                            )
+                        }"
+                    } ?: "Auto-delete after selected time",
+                    onClick = { showExpirySheet = true }
                 )
 
                 // ── Manage Tags ───────────────────────────────────
@@ -752,10 +836,11 @@ fun LinkOptionsSheet(
 
                 // ── Pin to Top ────────────────────────────────────
                 OptionsFullRow(
-                    icon = Icons.Outlined.PushPin,
-                    title = "Pin to Top",
-                    subtitle = "Keep this bookmark on top for quicker access",
-                    onClick = { /* TODO */ }
+                    icon = if (link.isPinned) Icons.Outlined.PushPin else Icons.Outlined.PushPin,
+                    title = if (link.isPinned) "Unpin link" else "Pin to top",
+                    subtitle = if (!link.isPinned) "Keep this link at the top (max 3)" else null,
+                    iconTint = if (link.isPinned) MaterialTheme.colorScheme.primary else null,
+                    onClick = { onPin(); dismiss() }
                 )
 
                 Spacer(Modifier.height(4.dp))
@@ -763,14 +848,40 @@ fun LinkOptionsSheet(
         }
     }
 
-    // Reminder sheet on top
+    if (showNoteSheet) {
+        NoteBottomSheet(
+            currentNote = link.note,
+            onSave = { note -> onSetNote(note); showNoteSheet = false; dismiss() },
+            onDismiss = { showNoteSheet = false }
+        )
+    }
+
     if (showReminderSheet) {
         ReminderBottomSheet(
             currentReminder = link.reminderAt,
-            onSet = { showReminderSheet = false },
+            onSet = { time -> onSetReminder(time); showReminderSheet = false; dismiss() },
             onDismiss = { showReminderSheet = false }
         )
     }
+
+    if (showExpirySheet) {
+        ExpiryBottomSheet(
+            currentExpiry = link.expiresAt,
+            onSet = { time -> onSetExpiry(time); showExpirySheet = false; dismiss() },
+            onDismiss = { showExpirySheet = false }
+        )
+    }
+
+//    if (showFolderPicker) {
+//        FolderPickerDialog(
+//            folders = folders,
+//            currentFolderId = link.folderId,
+//            onSelect = { folderId ->
+//                onMoveToFolder(folderId); showFolderPicker = false; dismiss()
+//            },
+//            onDismiss = { showFolderPicker = false }
+//        )
+//    }
 }
 
 // ── Square icon button ────────────────────────────────────────
@@ -991,7 +1102,9 @@ fun ReminderBottomSheet(
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
-                    modifier = Modifier.width(40.dp).height(4.dp),
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.dp),
                     shape = RoundedCornerShape(2.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 ) {}
@@ -1160,6 +1273,266 @@ fun ReminderOptionCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NoteBottomSheet(
+    currentNote: String,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var note by remember { mutableStateOf(currentNote) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
+    fun dismiss() {
+        scope.launch { sheetState.hide(); onDismiss() }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = null,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    Modifier
+                        .width(40.dp)
+                        .height(4.dp), CircleShape,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                ) {}
+            }
+
+            Text(
+                "Set note", style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            OutlinedTextField(
+                value = note,
+                onValueChange = { note = it },
+                placeholder = { Text("Write a note about this link…") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp),
+                shape = RoundedCornerShape(16.dp),
+                maxLines = 6
+            )
+
+            Button(
+                onClick = { onSave(note) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp)
+            ) { Text("Save note", style = MaterialTheme.typography.titleMedium) }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExpiryBottomSheet(
+    currentExpiry: Long?,
+    onSet: (Long?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var selectedDate by remember { mutableStateOf<Long?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    val now = System.currentTimeMillis()
+
+    fun dismiss() {
+        scope.launch { sheetState.hide(); onDismiss() }
+    }
+
+    val laterToday = Calendar.getInstance().apply {
+        add(Calendar.HOUR_OF_DAY, 1)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+    }.timeInMillis
+
+    val tomorrow = Calendar.getInstance().apply {
+        add(Calendar.DAY_OF_YEAR, 1)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+    }.timeInMillis
+
+    val nextWeek = Calendar.getInstance().apply {
+        add(Calendar.WEEK_OF_YEAR, 1)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+    }.timeInMillis
+
+    val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+    val dateFormatter = remember { SimpleDateFormat("EEE h:mm a", Locale.getDefault()) }
+    val fullFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = null,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        scrimColor = Color.Black.copy(alpha = 0.3f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding( bottom = 16.dp), //horizontal 16
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp, bottom = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    Modifier
+                        .width(40.dp)
+                        .height(4.dp), CircleShape,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                ) {}
+            }
+
+            Text(
+                "Set expiration",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            // 2x2 grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ReminderOptionCard(
+                    icon = Icons.Outlined.WbTwilight,
+                    title = "Later today",
+                    subtitle = timeFormatter.format(Date(laterToday)),
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSet(laterToday); dismiss() }
+                )
+                ReminderOptionCard(
+                    icon = Icons.Outlined.LightMode,
+                    title = "Tomorrow",
+                    subtitle = timeFormatter.format(Date(tomorrow)),
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSet(tomorrow); dismiss() }
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ReminderOptionCard(
+                    icon = Icons.Outlined.CalendarMonth,
+                    title = "Next week",
+                    subtitle = dateFormatter.format(Date(nextWeek)),
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSet(nextWeek); dismiss() }
+                )
+                ReminderOptionCard(
+                    icon = Icons.Outlined.EditCalendar,
+                    title = "Pick date & time",
+                    subtitle = fullFormatter.format(Date(now)),
+                    modifier = Modifier.weight(1f),
+                    onClick = { showDatePicker = true }
+                )
+            }
+
+            // Remove expiry if set
+            if (currentExpiry != null) {
+                OutlinedButton(
+                    onClick = { onSet(null); dismiss() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Outlined.Clear, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Remove expiration")
+                }
+            }
+
+            // Save button (dismiss without changing)
+            Button(
+                onClick = { dismiss() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) { Text("Cancel", style = MaterialTheme.typography.titleMedium) }
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = now)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedDate = datePickerState.selectedDateMillis
+                    showDatePicker = false
+                    showTimePicker = true
+                }) { Text("Next") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) { DatePicker(state = datePickerState) }
+    }
+
+    if (showTimePicker) {
+        val timePickerState = rememberTimePickerState(initialHour = 8, initialMinute = 0)
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("Pick expiry time") },
+            text = { TimePicker(state = timePickerState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val final = Calendar.getInstance().apply {
+                        timeInMillis = selectedDate ?: now
+                        set(Calendar.HOUR_OF_DAY, timePickerState.hour)
+                        set(Calendar.MINUTE, timePickerState.minute)
+                        set(Calendar.SECOND, 0)
+                    }.timeInMillis
+                    onSet(final)
+                    showTimePicker = false
+                    dismiss()
+                }) { Text("Set") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
 
 @Composable
 fun SheetOption(
@@ -1194,6 +1567,17 @@ private fun formatDate(timestamp: Long): String {
         diff < 3_600_000 -> "${diff / 60_000}m ago"
         diff < 86_400_000 -> "${diff / 3_600_000}h ago"
         diff < 604_800_000 -> "${diff / 86_400_000}d ago"
+        else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
+    }
+}
+
+private fun formatTimeLeft(timestamp: Long): String {
+    val diff = timestamp - System.currentTimeMillis()
+    return when {
+        diff < 0             -> "expired"
+        diff < 3_600_000     -> "${diff / 60_000}m"
+        diff < 86_400_000    -> "${diff / 3_600_000}h"
+        diff < 604_800_000   -> "${diff / 86_400_000}d"
         else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
     }
 }

@@ -61,6 +61,7 @@ class HomeViewModel @Inject constructor(
         createNotificationChannel(context)
         observeData()
         loadFolders()
+        startExpiryChecker()
 
         viewModelScope.launch {
             context.dataStore.data.collect { prefs ->
@@ -136,11 +137,13 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isAddingLink = true, isFetchingMetadata = true) }
             if (repository.isUrlAlreadySaved(normalized)) {
-                _uiState.update { it.copy(
-                    isAddingLink = false,
-                    isFetchingMetadata = false,
-                    snackbarMessage = "Link already saved"
-                )}
+                _uiState.update {
+                    it.copy(
+                        isAddingLink = false,
+                        isFetchingMetadata = false,
+                        snackbarMessage = "Link already saved"
+                    )
+                }
                 return@launch
             }
             // Fetch once on save — never again unless user manually refreshes
@@ -159,11 +162,13 @@ class HomeViewModel @Inject constructor(
             if (reminderAt != null) {
                 scheduleReminder(context, id, link.title, link.url, reminderAt)
             }
-            _uiState.update { it.copy(
-                isAddingLink = false,
-                isFetchingMetadata = false,
-                snackbarMessage = "Link saved"
-            )}
+            _uiState.update {
+                it.copy(
+                    isAddingLink = false,
+                    isFetchingMetadata = false,
+                    snackbarMessage = "Link saved"
+                )
+            }
         }
     }
 
@@ -276,12 +281,14 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val meta = MetadataFetcher.fetch(link.url)
-                repository.updateLink(link.copy(
-                    title = meta.title.ifBlank { link.title },
-                    description = meta.description.ifBlank { link.description },
-                    faviconUrl = meta.faviconUrl.ifBlank { link.faviconUrl },
-                    previewImageUrl = meta.previewImageUrl  // always update
-                ))
+                repository.updateLink(
+                    link.copy(
+                        title = meta.title.ifBlank { link.title },
+                        description = meta.description.ifBlank { link.description },
+                        faviconUrl = meta.faviconUrl.ifBlank { link.faviconUrl },
+                        previewImageUrl = meta.previewImageUrl  // always update
+                    )
+                )
                 _uiState.update { it.copy(snackbarMessage = "Metadata refreshed ✓") }
             } catch (e: Exception) {
                 _uiState.update { it.copy(snackbarMessage = "Could not refresh metadata") }
@@ -323,6 +330,73 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun setPinned(link: Link) {
+        viewModelScope.launch {
+            val currentPinnedCount = _uiState.value.links.count { it.isPinned }
+            if (!link.isPinned && currentPinnedCount >= 3) {
+                _uiState.update { it.copy(snackbarMessage = "Max 3 links can be pinned") }
+                return@launch
+            }
+            repository.setPinned(link.id, !link.isPinned)
+            _uiState.update {
+                it.copy(
+                    snackbarMessage = if (!link.isPinned) "Link pinned ✓" else "Link unpinned"
+                )
+            }
+        }
+    }
+
+    fun setNote(link: Link, note: String) {
+        viewModelScope.launch {
+            repository.setNote(link.id, note)
+            _uiState.update { it.copy(snackbarMessage = "Note saved ✓") }
+        }
+    }
+
+    fun setExpiry(link: Link, expiresAt: Long?) {
+        viewModelScope.launch {
+            repository.setExpiry(link.id, expiresAt)
+            _uiState.update {
+                it.copy(
+                    snackbarMessage = if (expiresAt != null) "Expiration set ✓" else "Expiration removed"
+                )
+            }
+        }
+    }
+
+    fun setReminder(link: Link, reminderAt: Long?) {
+        viewModelScope.launch {
+            // Cancel old reminder
+            cancelReminder(context, link.id)
+            // Save to DB
+            repository.updateLink(link.copy(reminderAt = reminderAt))
+            // Schedule new reminder
+            if (reminderAt != null && reminderAt > System.currentTimeMillis()) {
+                scheduleReminder(
+                    context,
+                    link.id,
+                    link.title.ifBlank { link.domain },
+                    link.url,
+                    reminderAt
+                )
+                _uiState.update { it.copy(snackbarMessage = "Reminder set ✓") }
+            } else {
+                _uiState.update { it.copy(snackbarMessage = "Reminder removed") }
+            }
+        }
+    }
+
+    // Auto-delete expired links — call in init
+    private fun startExpiryChecker() {
+        viewModelScope.launch {
+            while (true) {
+                val expired = repository.getExpiredLinks()
+                expired.forEach { repository.deleteLink(it) }
+                kotlinx.coroutines.delay(60_000) // check every minute
+            }
+        }
+    }
+
     fun dismissSnackbar() = _uiState.update { it.copy(snackbarMessage = null) }
     fun dismissFolderSnackbar() = _uiState.update { it.copy(folderSnackbarMessage = null) }
 
@@ -332,12 +406,17 @@ class HomeViewModel @Inject constructor(
     fun hideAddFolderDialog() = _uiState.update { it.copy(showAddFolderDialog = false) }
     fun setEditingLink(link: Link?) = _uiState.update { it.copy(editingLink = link) }
 
-    private fun sortLinks(links: List<Link>, sort: SortOption) = when (sort) {
-        SortOption.DATE_NEWEST -> links.sortedByDescending { it.createdAt }
-        SortOption.DATE_OLDEST -> links.sortedBy { it.createdAt }
-        SortOption.TITLE_AZ -> links.sortedBy { it.title.lowercase() }
-        SortOption.TITLE_ZA -> links.sortedByDescending { it.title.lowercase() }
-        SortOption.DOMAIN -> links.sortedBy { it.domain }
+    private fun sortLinks(links: List<Link>, sort: SortOption) : List<Link> {
+        val pinned = links.filter { it.isPinned }
+        val rest = links.filter { !it.isPinned }
+        val sortedRest = when (sort) {
+            SortOption.DATE_NEWEST -> rest.sortedByDescending { it.createdAt }
+            SortOption.DATE_OLDEST -> rest.sortedBy { it.createdAt }
+            SortOption.TITLE_AZ    -> rest.sortedBy { it.title.lowercase() }
+            SortOption.TITLE_ZA    -> rest.sortedByDescending { it.title.lowercase() }
+            SortOption.DOMAIN      -> rest.sortedBy { it.domain }
+        }
+        return pinned + sortedRest
     }
 
     fun toggleSelction(id: Long) {
