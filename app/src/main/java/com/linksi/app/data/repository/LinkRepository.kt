@@ -16,6 +16,8 @@ class LinkRepository @Inject constructor(
     fun getAllLinks(): Flow<List<Link>> =
         linkDao.getAllLinks().map { it.map(::toLink) }
 
+
+
     fun getLinksByFolder(folderId: Long): Flow<List<Link>> =
         linkDao.getLinksByFolder(folderId).map { it.map(::toLink) }
 
@@ -56,6 +58,15 @@ class LinkRepository @Inject constructor(
         linkDao.getLinkById(id)?.let(::toLink)
 
     suspend fun getTotalCount(): Int = linkDao.getTotalCount()
+
+    suspend fun getAllTags(): List<String> {
+        return linkDao.getAllTagStrings()
+            .flatMap { it.split(",") }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+    }
+
 
     // ─── Folders ─────────────────────────────────────────────
     fun getAllFolders(): Flow<List<Folder>> =

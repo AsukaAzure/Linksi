@@ -78,6 +78,9 @@ interface LinkDao {
 
     @Query("SELECT * FROM links WHERE expiresAt IS NOT NULL AND expiresAt < :now")
     suspend fun getExpiredLinks(now: Long = System.currentTimeMillis()): List<LinkEntity>
+
+    @Query("SELECT tags FROM links WHERE tags != ''")
+    suspend fun getAllTagStrings(): List<String>
 }
 
 @Dao

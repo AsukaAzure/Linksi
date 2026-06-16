@@ -45,6 +45,7 @@ data class HomeUiState(
     val lastDeletedFolderLinks: List<Link> = emptyList(),
     val useInAppBrowser: Boolean = true,
     val scrollToTop: Boolean = false,
+    val allTags: List<String> = emptyList(),
 )
 
 @HiltViewModel
@@ -63,6 +64,7 @@ class HomeViewModel @Inject constructor(
         observeData()
         loadFolders()
         startExpiryChecker()
+        loadAllTags()
 
         viewModelScope.launch {
             context.dataStore.data.collect { prefs ->
@@ -357,6 +359,23 @@ class HomeViewModel @Inject constructor(
 
     fun consumeScrollToTop() {
         _uiState.update { it.copy(scrollToTop = false) }
+    }
+
+    fun getAllTags(): Flow<List<String>> = flow {
+        emit(repository.getAllTags())
+    }
+
+    private fun loadAllTags() {
+        viewModelScope.launch {
+            repository.getAllLinks().collect { links ->
+                val tags = links
+                    .flatMap { it.tags }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .sorted()
+                _uiState.update { it.copy(allTags = tags) }
+            }
+        }
     }
 
     fun setNote(link: Link, note: String) {

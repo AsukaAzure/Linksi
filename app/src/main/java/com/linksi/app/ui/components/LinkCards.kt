@@ -1,6 +1,8 @@
 package com.linksi.app.ui.components
 
 import android.content.Intent
+import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -29,10 +31,13 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -66,6 +71,7 @@ fun LinkCard(
     onSetReminder: (Long?) -> Unit = {},
     onSetExpiry: (Long?) -> Unit = {},
     onSetTags: (List<String>) -> Unit = {},
+    allTags: List<String> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -277,6 +283,37 @@ fun LinkCard(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
+
+                            if (link.tags.isNotEmpty()) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState())
+                                ) {
+                                    link.tags.forEach { tag ->
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0xFF22C55E).copy(alpha = 0.12f),
+                                            border = BorderStroke(
+                                                0.5.dp,
+                                                Color(0xFF22C55E).copy(alpha = 0.4f)
+                                            )
+                                        ) {
+                                            Text(
+                                                "#$tag",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontSize = 9.sp,
+                                                color = Color(0xFF22C55E),
+                                                modifier = Modifier.padding(
+                                                    horizontal = 6.dp,
+                                                    vertical = 2.dp
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         // Menu button
@@ -320,15 +357,13 @@ fun LinkCard(
                                     onSetNote = { note -> onSetNote(note) },
                                     onSetReminder = { time -> onSetReminder(time) },
                                     onSetExpiry = { time -> onSetExpiry(time) },
-                                    onSetTags = { tags -> onSetTags(tags) }
-
+                                    onSetTags = { tags -> onSetTags(tags) },
+                                    allTags = allTags
                                 )
                             }
                         }
                     }
 
-                    // FIX #1: Bottom row — folder badge + spacer + date + favorite
-                    // all correctly inside one single Row
                     Spacer(Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -399,7 +434,11 @@ fun LinkCard(
                                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f))
+                                    .background(
+                                        MaterialTheme.colorScheme.errorContainer.copy(
+                                            alpha = 0.6f
+                                        )
+                                    )
                                     .padding(horizontal = 5.dp, vertical = 2.dp)
                             ) {
                                 Icon(
@@ -478,6 +517,7 @@ fun LinkGridCard(
     onSetReminder: (Long?) -> Unit = {},
     onSetExpiry: (Long?) -> Unit = {},
     onSetTags: (List<String>) -> Unit = {},
+    allTags: List<String> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -565,7 +605,7 @@ fun LinkGridCard(
                             maxLines = 1,
                             modifier = Modifier.weight(1f)
                         )
-                        
+
                         // Menu button in Grid
                         Box {
                             IconButton(
@@ -607,7 +647,8 @@ fun LinkGridCard(
                                     onSetNote = { note -> onSetNote(note) },
                                     onSetReminder = { time -> onSetReminder(time) },
                                     onSetExpiry = { time -> onSetExpiry(time) },
-                                    onSetTags = { tags -> onSetTags(tags) }
+                                    onSetTags = { tags -> onSetTags(tags) },
+                                    allTags = allTags
                                 )
                             }
                         }
@@ -685,7 +726,8 @@ fun LinkOptionsSheet(
     onSetNote: (String) -> Unit,
     onSetReminder: (Long?) -> Unit,
     onSetExpiry: (Long?) -> Unit,
-    onSetTags: (List<String>) -> Unit = {}
+    onSetTags: (List<String>) -> Unit = {},
+    allTags: List<String> = emptyList()
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -707,247 +749,266 @@ fun LinkOptionsSheet(
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
-        ) {
-            Box(
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
             ) {
-                if (link.previewImageUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = link.previewImageUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                ) {
+                    if (link.previewImageUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = link.previewImageUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(
+                                            domainColor(link.domain),
+                                            domainColor(link.domain).copy(alpha = 0.4f)
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AsyncImage(
+                                model = link.faviconUrl,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                            )
+                        }
+                    }
+
+                    // Gradient scrim
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
-                                Brush.linearGradient(
+                                Brush.verticalGradient(
                                     listOf(
-                                        domainColor(link.domain),
-                                        domainColor(link.domain).copy(alpha = 0.4f)
+                                        Color.Black.copy(alpha = 0.3f), // Top shadow for handle
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.65f) // Bottom shadow for text
                                     )
                                 )
-                            ),
-                        contentAlignment = Alignment.Center
+                            )
+                    )
+
+                    // Drag handle
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 12.dp)
+                            .width(40.dp)
+                            .height(4.dp),
+                        shape = RoundedCornerShape(2.dp),
+                        color = Color.White.copy(alpha = 0.5f)
+                    ) {}
+
+                    // Link name + domain at bottom
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(16.dp)
                     ) {
-                        AsyncImage(
-                            model = link.faviconUrl,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
+                        Text(
+                            link.title.ifBlank { link.url },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
+                        Spacer(Modifier.height(2.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            AsyncImage(
+                                model = link.faviconUrl,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .clip(CircleShape)
+                            )
+                            Text(
+                                link.domain.ifBlank { "link" },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
                     }
                 }
 
-                // Gradient scrim
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    Color.Black.copy(alpha = 0.3f), // Top shadow for handle
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.65f) // Bottom shadow for text
-                                )
-                            )
-                        )
-                )
-
-                // Drag handle
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 12.dp)
-                        .width(40.dp)
-                        .height(4.dp),
-                    shape = RoundedCornerShape(2.dp),
-                    color = Color.White.copy(alpha = 0.5f)
-                ) {}
-
-                // Link name + domain at bottom
                 Column(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(16.dp)
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        link.title.ifBlank { link.url },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(Modifier.height(2.dp))
+                    // ── Row 1: Copy link (wide) + Share + Delete ──────
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        AsyncImage(
-                            model = link.faviconUrl,
-                            contentDescription = null,
+                        // Copy link — wide
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier
-                                .size(12.dp)
-                                .clip(CircleShape)
+                                .weight(1f)
+                                .clickable {
+                                    val clipboard = context.getSystemService(
+                                        android.content.ClipboardManager::class.java
+                                    )
+                                    clipboard?.setPrimaryClip(
+                                        android.content.ClipData.newPlainText("url", link.url)
+                                    )
+                                    dismiss()
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.ContentCopy, null,
+                                    Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "Copy link",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        link.url,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+
+                        // Share square
+                        OptionsSquareButton(
+                            icon = Icons.Outlined.Share,
+                            onClick = { onShare(); dismiss() }
                         )
-                        Text(
-                            link.domain.ifBlank { "link" },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.8f)
+
+                        // Delete square
+                        OptionsSquareButton(
+                            icon = Icons.Outlined.Delete,
+                            iconTint = MaterialTheme.colorScheme.error,
+                            onClick = { onDelete(); dismiss() }
                         )
                     }
+
+                    // ── Edit bookmark ─────────────────────────────────
+                    OptionsFullRow(
+                        icon = Icons.Outlined.Edit,
+                        title = "Edit bookmark",
+                        onClick = { onEdit(); dismiss() }
+                    )
+
+                    // ── Move to folder ────────────────────────────────
+                    OptionsFullRow(
+                        icon = Icons.Outlined.Folder,
+                        title = "Move to folder",
+                        onClick = { onMoveToFolder(); dismiss() }
+                    )
+
+                    // ── Set note ──────────────────────────────────────
+                    OptionsFullRow(
+                        icon = Icons.Outlined.Notes,
+                        title = "Set note",
+                        subtitle = link.note.ifBlank { null },
+                        onClick = { showNoteSheet = true }
+                    )
+
+                    // ── Set reminder ──────────────────────────────────
+                    OptionsFullRow(
+                        icon = Icons.Outlined.Notifications,
+                        title = "Set reminder",
+                        subtitle = link.reminderAt?.let {
+                            SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(it))
+                        },
+                        iconTint = if (link.reminderAt != null) MaterialTheme.colorScheme.primary else null,
+                        onClick = { showReminderSheet = true }
+                    )
+
+                    // ── Set expiration ────────────────────────────────
+                    OptionsFullRow(
+                        icon = Icons.Outlined.Timer,
+                        title = "Set expiration",
+                        subtitle = link.expiresAt?.let {
+                            "Expires ${
+                                SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(
+                                    Date(
+                                        it
+                                    )
+                                )
+                            }"
+                        } ?: "Auto-delete after selected time",
+                        onClick = { showExpirySheet = true }
+                    )
+
+                    // ── Manage Tags ───────────────────────────────────
+                    OptionsFullRow(
+                        icon = Icons.Outlined.Tag,
+                        title = "Manage Tags",
+                        subtitle = if (link.tags.isNotEmpty())
+                            link.tags.joinToString(" · ") { "#$it" }
+                        else
+                            "Add tags for easy search",
+                        onClick = { showTagSheet = true }
+                    )
+
+                    // ── Pin to Top ────────────────────────────────────
+                    OptionsFullRow(
+                        icon = if (link.isPinned) Icons.Outlined.PushPin else Icons.Outlined.PushPin,
+                        title = if (link.isPinned) "Unpin link" else "Pin to top",
+                        subtitle = if (!link.isPinned) "Keep this link at the top (max 3)" else null,
+                        iconTint = if (link.isPinned) MaterialTheme.colorScheme.primary else null,
+                        onClick = { onPin(); dismiss() }
+                    )
+
+                    Spacer(Modifier.height(4.dp))
                 }
             }
 
-            Column(
+            FloatingActionButton(
+                onClick = {
+                    val browserIntent = Intent(Intent.ACTION_VIEW, link.url.toUri())
+                    context.startActivity(browserIntent)
+                    dismiss()
+                },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+                    .navigationBarsPadding(),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = CircleShape
             ) {
-                // ── Row 1: Copy link (wide) + Share + Delete ──────
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    // Copy link — wide
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable {
-                                val clipboard = context.getSystemService(
-                                    android.content.ClipboardManager::class.java
-                                )
-                                clipboard?.setPrimaryClip(
-                                    android.content.ClipData.newPlainText("url", link.url)
-                                )
-                                dismiss()
-                            }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Icon(
-                                Icons.Outlined.ContentCopy, null,
-                                Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Copy link",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    link.url,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-
-                    // Share square
-                    OptionsSquareButton(
-                        icon = Icons.Outlined.Share,
-                        onClick = { onShare(); dismiss() }
-                    )
-
-                    // Delete square
-                    OptionsSquareButton(
-                        icon = Icons.Outlined.Delete,
-                        iconTint = MaterialTheme.colorScheme.error,
-                        onClick = { onDelete(); dismiss() }
-                    )
-                }
-
-                // ── Edit bookmark ─────────────────────────────────
-                OptionsFullRow(
-                    icon = Icons.Outlined.Edit,
-                    title = "Edit bookmark",
-                    onClick = { onEdit(); dismiss() }
-                )
-
-                // ── Move to folder ────────────────────────────────
-                OptionsFullRow(
-                    icon = Icons.Outlined.Folder,
-                    title = "Move to folder",
-                    onClick = { onMoveToFolder(); dismiss() }
-                )
-
-                // ── Set note ──────────────────────────────────────
-                OptionsFullRow(
-                    icon = Icons.Outlined.Notes,
-                    title = "Set note",
-                    subtitle = link.note.ifBlank { null },
-                    onClick = { showNoteSheet = true }
-                )
-
-                // ── Set reminder ──────────────────────────────────
-                OptionsFullRow(
-                    icon = Icons.Outlined.Notifications,
-                    title = "Set reminder",
-                    subtitle = link.reminderAt?.let {
-                        SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(it))
-                    },
-                    iconTint = if (link.reminderAt != null) MaterialTheme.colorScheme.primary else null,
-                    onClick = { showReminderSheet = true }
-                )
-
-                // ── Set expiration ────────────────────────────────
-                OptionsFullRow(
-                    icon = Icons.Outlined.Timer,
-                    title = "Set expiration",
-                    subtitle = link.expiresAt?.let {
-                        "Expires ${
-                            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(
-                                Date(
-                                    it
-                                )
-                            )
-                        }"
-                    } ?: "Auto-delete after selected time",
-                    onClick = { showExpirySheet = true }
-                )
-
-                // ── Manage Tags ───────────────────────────────────
-                OptionsFullRow(
-                    icon = Icons.Outlined.Tag,
-                    title = "Manage Tags",
-                    subtitle = if (link.tags.isNotEmpty())
-                        link.tags.joinToString(" · ") { "#$it" }
-                    else
-                        "Add tags for easy search",
-                    onClick = { showTagSheet = true }
-                )
-
-                // ── Pin to Top ────────────────────────────────────
-                OptionsFullRow(
-                    icon = if (link.isPinned) Icons.Outlined.PushPin else Icons.Outlined.PushPin,
-                    title = if (link.isPinned) "Unpin link" else "Pin to top",
-                    subtitle = if (!link.isPinned) "Keep this link at the top (max 3)" else null,
-                    iconTint = if (link.isPinned) MaterialTheme.colorScheme.primary else null,
-                    onClick = { onPin(); dismiss() }
-                )
-
-                Spacer(Modifier.height(4.dp))
+                Icon(Icons.Outlined.OpenInNew, contentDescription = "Open Link")
             }
         }
     }
@@ -979,6 +1040,7 @@ fun LinkOptionsSheet(
     if (showTagSheet) {
         TagManagerSheet(
             currentTags = link.tags,
+            allExistingTags = allTags,
             onSave = { tags -> onSetTags(tags); showTagSheet = false; dismiss() },
             onDismiss = { showTagSheet = false }
         )
@@ -1693,13 +1755,44 @@ fun SheetOption(
 @Composable
 fun TagManagerSheet(
     currentTags: List<String>,
+    allExistingTags: List<String>,  // all tags from all links
     onSave: (List<String>) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var tags by remember { mutableStateOf(currentTags.toMutableList()) }
+    var selectedTags by remember { mutableStateOf(currentTags.toSet()) }
     var input by remember { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+
+    // Filter existing tags by search input
+    val filteredExisting = remember(input, allExistingTags, selectedTags) {
+        allExistingTags
+            .filter { tag ->
+                input.isBlank() || tag.contains(input.trim(), ignoreCase = true)
+            }
+            .sortedBy { it }
+    }
+
+    // Can add new tag if input is not blank and not already in existing
+    val canAddNew = input.trim().isNotBlank() &&
+            !allExistingTags.contains(input.trim().lowercase().replace(" ", "-")) &&
+            !selectedTags.contains(input.trim().lowercase().replace(" ", "-"))
+
+    fun addTag(tag: String) {
+        val clean = tag.trim().lowercase().replace(" ", "-")
+        if (clean.isNotBlank()) {
+            selectedTags = selectedTags + clean
+            input = ""
+        }
+    }
+
+    fun toggleTag(tag: String) {
+        selectedTags = if (selectedTags.contains(tag)) {
+            selectedTags - tag
+        } else {
+            selectedTags + tag
+        }
+    }
 
     fun dismiss() {
         scope.launch { sheetState.hide(); onDismiss() }
@@ -1742,70 +1835,169 @@ fun TagManagerSheet(
                 fontWeight = FontWeight.Bold
             )
 
-            // Tag input
+            // Search / add input
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it.lowercase().replace(" ", "-") },
-                placeholder = { Text("Add a tag…") },
-                leadingIcon = { Icon(Icons.Outlined.Tag, null) },
+                placeholder = { Text("Search or add tag…") },
+                leadingIcon = {
+                    Icon(
+                        if (input.isBlank()) Icons.Outlined.Tag else Icons.Outlined.Search,
+                        null
+                    )
+                },
                 trailingIcon = {
-                    if (input.isNotBlank()) {
-                        IconButton(onClick = {
-                            val tag = input.trim()
-                            if (tag.isNotBlank() && !tags.contains(tag)) {
-                                tags = (tags + tag).toMutableList()
-                            }
-                            input = ""
-                        }) {
-                            Icon(Icons.Filled.Add, null)
+                    if (canAddNew) {
+                        IconButton(onClick = { addTag(input) }) {
+                            Icon(
+                                Icons.Filled.Add, null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    } else if (input.isNotBlank()) {
+                        IconButton(onClick = { input = "" }) {
+                            Icon(Icons.Filled.Clear, null)
                         }
                     }
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
-                    val tag = input.trim()
-                    if (tag.isNotBlank() && !tags.contains(tag)) {
-                        tags = (tags + tag).toMutableList()
-                    }
-                    input = ""
+                    if (canAddNew) addTag(input)
+                    else if (filteredExisting.size == 1) toggleTag(filteredExisting.first())
                 }),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Current tags
-            if (tags.isNotEmpty()) {
+            // Tags section
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                // Show "currently selected" section at top if any selected
+                if (selectedTags.isNotEmpty()) {
+                    Text(
+                        "Selected",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        selectedTags.sorted().forEach { tag ->
+                            // GREEN selected chip
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = Color(0xFF22C55E).copy(alpha = 0.15f),
+                                border = BorderStroke(1.dp, Color(0xFF22C55E)),
+                                modifier = Modifier.clickable { toggleTag(tag) }
+                            ) {
+                                Text(
+                                    "#$tag",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color(0xFF22C55E),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider()
+                }
+
+                // All / filtered existing tags
+                val unselectedFiltered = filteredExisting.filter { !selectedTags.contains(it) }
+
+                if (unselectedFiltered.isNotEmpty() || canAddNew) {
+                    Text(
+                        if (input.isBlank()) "All tags" else "Results",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    tags.forEach { tag ->
-                        InputChip(
-                            selected = false,
-                            onClick = { tags = (tags - tag).toMutableList() },
-                            label = { Text("#$tag") },
-                            trailingIcon = {
-                                Icon(Icons.Filled.Close, null, Modifier.size(14.dp))
+                    // "Add new" chip at top of results if input is new
+                    if (canAddNew) {
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.clickable { addTag(input) }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(
+                                    horizontal = 10.dp, vertical = 6.dp
+                                ),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.Add, null,
+                                    Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    "Create \"#$input\"",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                             }
+                        }
+                    }
+
+                    // Unselected existing tags — grey, tap to select
+                    unselectedFiltered.forEach { tag ->
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.clickable { toggleTag(tag) }
+                        ) {
+                            Text(
+                                "#$tag",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(
+                                    horizontal = 10.dp, vertical = 6.dp
+                                )
+                            )
+                        }
+                    }
+
+                    if (unselectedFiltered.isEmpty() && !canAddNew && input.isNotBlank()) {
+                        Text(
+                            "No tags found",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (allExistingTags.isEmpty() && input.isBlank()) {
+                        Text(
+                            "No tags yet — type above to create one",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-            } else {
-                Text(
-                    "No tags yet — add some above",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
 
+            Spacer(Modifier.weight(1f, fill = false))
+
             Button(
-                onClick = { onSave(tags) },
+                onClick = { onSave(selectedTags.toList()) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(14.dp)
-            ) { Text("Save tags", style = MaterialTheme.typography.titleMedium) }
+            ) {
+                Text(
+                    "Save",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
         }
     }
 }

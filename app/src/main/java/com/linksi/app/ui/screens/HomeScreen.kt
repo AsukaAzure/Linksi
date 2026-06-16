@@ -471,7 +471,8 @@ fun HomeScreen(
                             onSetNote = { link, note -> viewModel.setNote(link, note) },
                             onSetReminder = { link, time -> viewModel.setReminder(link, time) },
                             onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
-                            onSetTags = { link, tags -> viewModel.setTags(link, tags) }
+                            onSetTags = { link, tags -> viewModel.setTags(link, tags) },
+                            allTags = state.allTags
                         )
 
                         ViewMode.GRID -> LinksGrid(
@@ -836,7 +837,8 @@ fun LinksList(
     onSetNote: (Link, String) -> Unit = { _, _ -> },
     onSetReminder: (Link, Long?) -> Unit = { _, _ -> },
     onSetExpiry: (Link, Long?) -> Unit = { _, _ -> },
-    onSetTags: (Link, List<String>) -> Unit = { _, _ -> }
+    onSetTags: (Link, List<String>) -> Unit = { _, _ -> },
+    allTags: List<String> = emptyList()
 ) {
     LazyColumn(
         state = listState,
@@ -861,6 +863,7 @@ fun LinksList(
                 onSetReminder = { time -> onSetReminder(link, time) },
                 onSetExpiry = { time -> onSetExpiry(link, time) },
                 onSetTags = { tags -> onSetTags(link, tags) },
+                allTags = allTags,
                 modifier = if (index == 0) Modifier.onGloballyPositioned { onFirstLinkPosition(it) }
                 else Modifier
             )
