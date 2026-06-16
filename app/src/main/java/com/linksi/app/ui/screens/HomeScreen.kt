@@ -856,7 +856,7 @@ fun LinksList(
                 onFavoriteToggle = { onFavoriteToggle(link) },
                 onDelete = { onDelete(link) },
                 onMoveToFolder = { folderId -> onMoveToFolder(link, folderId) },
-                onEdit = { onEdit(link) },
+                onEdit = { updatedLink -> onEdit(updatedLink) },
                 onFolderClick = onFolderClick,
                 onPin = { onPin(link) },
                 onSetNote = { note -> onSetNote(link, note) },

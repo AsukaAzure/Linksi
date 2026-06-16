@@ -63,7 +63,7 @@ fun LinkCard(
     onFavoriteToggle: () -> Unit,
     onDelete: () -> Unit,
     onMoveToFolder: (Long?) -> Unit,
-    onEdit: () -> Unit,
+    onEdit: (Link) -> Unit,
     onMarkRead: () -> Unit = {},
     onFolderClick: (Folder) -> Unit = {},
     onPin: () -> Unit = {},
@@ -76,6 +76,7 @@ fun LinkCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showFolderPicker by remember { mutableStateOf(false) }
+    var showEditSheet by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
@@ -294,17 +295,17 @@ fun LinkCard(
                                     link.tags.forEach { tag ->
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = Color(0xFF22C55E).copy(alpha = 0.12f),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
                                             border = BorderStroke(
                                                 0.5.dp,
-                                                Color(0xFF22C55E).copy(alpha = 0.4f)
+                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                                             )
                                         ) {
                                             Text(
                                                 "#$tag",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontSize = 9.sp,
-                                                color = Color(0xFF22C55E),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.padding(
                                                     horizontal = 6.dp,
                                                     vertical = 2.dp
@@ -329,8 +330,9 @@ fun LinkCard(
                                 LinkOptionsSheet(
                                     link = link,
                                     folder = folders.find { it.id == link.folderId },
+                                    folders = folders,
                                     onDismiss = { showMenu = false },
-                                    onEdit = { showMenu = false; onEdit() },
+                                    onEdit = { showMenu = false; showEditSheet = true },
                                     onDelete = { showMenu = false; onDelete() },
                                     onMoveToFolder = { showMenu = false; showFolderPicker = true },
                                     onShare = {
@@ -493,6 +495,18 @@ fun LinkCard(
                 onDismiss = { showFolderPicker = false }
             )
         }
+
+        if (showEditSheet) {
+            LinkEditSheet(
+                link = link,
+                folders = folders,
+                onDismiss = { showEditSheet = false },
+                onSave = { updatedLink ->
+                    onEdit(updatedLink)
+                    showEditSheet = false
+                }
+            )
+        }
     }
 }
 
@@ -509,7 +523,7 @@ fun LinkGridCard(
     onFavoriteToggle: () -> Unit,
     onDelete: () -> Unit,
     onMoveToFolder: (Long?) -> Unit,
-    onEdit: () -> Unit,
+    onEdit: (Link) -> Unit,
     onMarkRead: () -> Unit = {},
     onFolderClick: (Folder) -> Unit = {},
     onPin: () -> Unit = {},
@@ -522,6 +536,7 @@ fun LinkGridCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showFolderPicker by remember { mutableStateOf(false) }
+    var showEditSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     ElevatedCard(
@@ -619,8 +634,9 @@ fun LinkGridCard(
                                 LinkOptionsSheet(
                                     link = link,
                                     folder = folders.find { it.id == link.folderId },
+                                    folders = folders,
                                     onDismiss = { showMenu = false },
-                                    onEdit = { showMenu = false; onEdit() },
+                                    onEdit = { showMenu = false; showEditSheet = true },
                                     onDelete = { showMenu = false; onDelete() },
                                     onMoveToFolder = { showMenu = false; showFolderPicker = true },
                                     onShare = {
@@ -707,6 +723,18 @@ fun LinkGridCard(
             onDismiss = { showFolderPicker = false }
         )
     }
+
+    if (showEditSheet) {
+        LinkEditSheet(
+            link = link,
+            folders = folders,
+            onDismiss = { showEditSheet = false },
+            onSave = { updatedLink ->
+                onEdit(updatedLink)
+                showEditSheet = false
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -714,6 +742,7 @@ fun LinkGridCard(
 fun LinkOptionsSheet(
     link: Link,
     folder: Folder?,
+    folders: List<Folder> = emptyList(),
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -924,7 +953,7 @@ fun LinkOptionsSheet(
                     // ── Edit bookmark ─────────────────────────────────
                     OptionsFullRow(
                         icon = Icons.Outlined.Edit,
-                        title = "Edit bookmark",
+                        title = "Edit link",
                         onClick = { onEdit(); dismiss() }
                     )
 
@@ -1045,6 +1074,7 @@ fun LinkOptionsSheet(
             onDismiss = { showTagSheet = false }
         )
     }
+}
 
 //    if (showFolderPicker) {
 //        FolderPickerDialog(
@@ -1056,7 +1086,7 @@ fun LinkOptionsSheet(
 //            onDismiss = { showFolderPicker = false }
 //        )
 //    }
-}
+//}
 
 // ── Square icon button ────────────────────────────────────────
 @Composable
