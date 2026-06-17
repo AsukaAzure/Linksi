@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
 import kotlinx.coroutines.launch
@@ -41,10 +42,17 @@ fun LinkEditSheet(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
-        uri?.let { previewImageUrl = it.toString() }
+        uri?.let {
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            previewImageUrl = it.toString()
+        }
     }
 
     fun dismiss() {
@@ -90,7 +98,10 @@ fun LinkEditSheet(
             ) {
                 if (previewImageUrl.isNotBlank()) {
                     AsyncImage(
-                        model = previewImageUrl,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(previewImageUrl)
+                            .crossfade(true)
+                            .build(),
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop

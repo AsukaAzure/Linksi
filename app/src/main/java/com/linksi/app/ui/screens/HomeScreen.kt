@@ -462,7 +462,7 @@ fun HomeScreen(
                             onMoveToFolder = { link, folderId ->
                                 viewModel.moveToFolder(link, folderId)
                             },
-                            onEdit = viewModel::setEditingLink,
+                            onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
                             onFolderClick = { folder ->
                                 viewModel.selectFolder(folder.id)
                             },
@@ -472,7 +472,8 @@ fun HomeScreen(
                             onSetReminder = { link, time -> viewModel.setReminder(link, time) },
                             onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
                             onSetTags = { link, tags -> viewModel.setTags(link, tags) },
-                            allTags = state.allTags
+                            allTags = state.allTags,
+                            onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) }
                         )
 
                         ViewMode.GRID -> LinksGrid(
@@ -507,7 +508,8 @@ fun HomeScreen(
                             onSetNote = { link, note -> viewModel.setNote(link, note) },
                             onSetReminder = { link, time -> viewModel.setReminder(link, time) },
                             onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
-                            onSetTags = { link, tags -> viewModel.setTags(link, tags) }
+                            onSetTags = { link, tags -> viewModel.setTags(link, tags) },
+                            onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) }
                         )
                     }
                 }
@@ -652,17 +654,17 @@ fun HomeScreen(
         }
     }
 
-    state.editingLink?.let { link ->
-        EditLinkDialog(
-            link = link,
-            folders = state.folders,
-            onDismiss = { viewModel.setEditingLink(null) },
-            onConfirm = { updated ->
-                viewModel.updateLink(updated)
-                viewModel.setEditingLink(null)
-            }
-        )
-    }
+//    state.editingLink?.let { link ->
+//        EditLinkDialog(
+//            link = link,
+//            folders = state.folders,
+//            onDismiss = { viewModel.setEditingLink(null) },
+//            onConfirm = { updated ->
+//                viewModel.updateLink(updated)
+//                viewModel.setEditingLink(null)
+//            }
+//        )
+//    }
 
     if (state.showAddLinkDialog) {
         AddLinkDialog(
@@ -838,7 +840,8 @@ fun LinksList(
     onSetReminder: (Link, Long?) -> Unit = { _, _ -> },
     onSetExpiry: (Link, Long?) -> Unit = { _, _ -> },
     onSetTags: (Link, List<String>) -> Unit = { _, _ -> },
-    allTags: List<String> = emptyList()
+    allTags: List<String> = emptyList(),
+    onRefreshMetadata: (Link) -> Unit = {}
 ) {
     LazyColumn(
         state = listState,
@@ -864,6 +867,7 @@ fun LinksList(
                 onSetExpiry = { time -> onSetExpiry(link, time) },
                 onSetTags = { tags -> onSetTags(link, tags) },
                 allTags = allTags,
+                onRefreshMetadata = { onRefreshMetadata(link) },
                 modifier = if (index == 0) Modifier.onGloballyPositioned { onFirstLinkPosition(it) }
                 else Modifier
             )
@@ -889,7 +893,8 @@ fun LinksGrid(
     onSetNote: (Link, String) -> Unit = { _, _ -> },
     onSetReminder: (Link, Long?) -> Unit = { _, _ -> },
     onSetExpiry: (Link, Long?) -> Unit = { _, _ -> },
-    onSetTags: (Link, List<String>) -> Unit = { _, _ -> }
+    onSetTags: (Link, List<String>) -> Unit = { _, _ -> },
+    onRefreshMetadata: (Link) -> Unit = {}
 ) {
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Fixed(2),
@@ -909,6 +914,7 @@ fun LinksGrid(
                 onDelete = { onDelete(link) },
                 onMoveToFolder = { folderId -> onMoveToFolder(link, folderId) },
                 onEdit = { onEdit(link) },
+                onRefreshMetadata = {onRefreshMetadata(link)},
 //                onFolderClick = onFolderClick,
 //                onPin = { onPin(link) },
 //                onSetNote = { note -> onSetNote(link, note) },

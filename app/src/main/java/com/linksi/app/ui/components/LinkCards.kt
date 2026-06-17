@@ -72,6 +72,7 @@ fun LinkCard(
     onSetExpiry: (Long?) -> Unit = {},
     onSetTags: (List<String>) -> Unit = {},
     allTags: List<String> = emptyList(),
+    onRefreshMetadata: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -295,10 +296,14 @@ fun LinkCard(
                                     link.tags.forEach { tag ->
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                alpha = 0.12f
+                                            ),
                                             border = BorderStroke(
                                                 0.5.dp,
-                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                    alpha = 0.4f
+                                                )
                                             )
                                         ) {
                                             Text(
@@ -354,13 +359,13 @@ fun LinkCard(
                                     },
                                     onToggleFavorite = { showMenu = false; onFavoriteToggle() },
                                     onMarkRead = { },
-                                    onRefreshMetadata = { },
+                                    onRefreshMetadata = { onRefreshMetadata() },
                                     onPin = { onPin() },
                                     onSetNote = { note -> onSetNote(note) },
                                     onSetReminder = { time -> onSetReminder(time) },
                                     onSetExpiry = { time -> onSetExpiry(time) },
                                     onSetTags = { tags -> onSetTags(tags) },
-                                    allTags = allTags
+                                    allTags = allTags,
                                 )
                             }
                         }
@@ -532,6 +537,7 @@ fun LinkGridCard(
     onSetExpiry: (Long?) -> Unit = {},
     onSetTags: (List<String>) -> Unit = {},
     allTags: List<String> = emptyList(),
+    onRefreshMetadata: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -658,7 +664,7 @@ fun LinkGridCard(
                                     },
                                     onToggleFavorite = { showMenu = false; onFavoriteToggle() },
                                     onMarkRead = { },
-                                    onRefreshMetadata = { },
+                                    onRefreshMetadata = { onRefreshMetadata() },
                                     onPin = { onPin() },
                                     onSetNote = { note -> onSetNote(note) },
                                     onSetReminder = { time -> onSetReminder(time) },
@@ -750,13 +756,13 @@ fun LinkOptionsSheet(
     onShare: () -> Unit,
     onToggleFavorite: () -> Unit,
     onMarkRead: () -> Unit,
-    onRefreshMetadata: () -> Unit,
     onPin: () -> Unit,
     onSetNote: (String) -> Unit,
     onSetReminder: (Long?) -> Unit,
     onSetExpiry: (Long?) -> Unit,
     onSetTags: (List<String>) -> Unit = {},
-    allTags: List<String> = emptyList()
+    allTags: List<String> = emptyList(),
+    onRefreshMetadata: (Link) -> Unit = {}
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -948,6 +954,56 @@ fun LinkOptionsSheet(
                             iconTint = MaterialTheme.colorScheme.error,
                             onClick = { onDelete(); dismiss() }
                         )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .clickable { onEdit() }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Edit, null,
+                                    Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    "Edit bookmark",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clickable {
+                                    onRefreshMetadata(link)
+                                    dismiss()
+                                }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Outlined.Refresh, null,
+                                    Modifier.size(22.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
 
                     // ── Edit bookmark ─────────────────────────────────
