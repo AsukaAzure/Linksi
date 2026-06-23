@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import com.linksi.app.utils.LinkMetadata
 import com.linksi.app.utils.cancelReminder
 import com.linksi.app.utils.dataStore
 import com.linksi.app.utils.scheduleReminder
@@ -137,7 +138,17 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun addLink(url: String, folderId: Long? = null, reminderAt: Long? = null) {
+    fun addLink(
+        url: String,
+        folderId: Long? = null,
+        reminderAt: Long? = null,
+        titleOverride: String = "",
+        descriptionOverride: String = "",
+        previewImageOverride: String = "",
+        note: String = "",           // add
+        tags: List<String> = emptyList(),  // add
+        expiresAt: Long? = null      // add
+    ) {
         if (_uiState.value.isAddingLink) return
         val normalized = normalizeUrl(url)
         if (!isValidUrl(normalized)) {
@@ -147,17 +158,24 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isAddingLink = true, isFetchingMetadata = true) }
             if (repository.isUrlAlreadySaved(normalized)) {
-                _uiState.update {
-                    it.copy(
-                        isAddingLink = false,
-                        isFetchingMetadata = false,
-                        snackbarMessage = "Link already saved"
-                    )
-                }
+                _uiState.update { it.copy(
+                    isAddingLink = false,
+                    isFetchingMetadata = false,
+                    snackbarMessage = "Link already saved"
+                )}
                 return@launch
             }
-            // Fetch once on save — never again unless user manually refreshes
-            val meta = MetadataFetcher.fetch(normalized)
+            val meta = if (titleOverride.isNotBlank()) {
+                LinkMetadata(
+                    title = titleOverride,
+                    description = descriptionOverride,
+                    previewImageUrl = previewImageOverride,
+                    domain = extractDomain(normalized),
+                    faviconUrl = "https://www.google.com/s2/favicons?domain=${extractDomain(normalized)}&sz=64"
+                )
+            } else {
+                MetadataFetcher.fetch(normalized)
+            }
             val link = Link(
                 url = normalized,
                 title = meta.title.ifBlank { extractDomain(normalized) },
@@ -166,19 +184,20 @@ class HomeViewModel @Inject constructor(
                 previewImageUrl = meta.previewImageUrl,
                 domain = meta.domain.ifBlank { extractDomain(normalized) },
                 folderId = folderId,
-                reminderAt = reminderAt
+                reminderAt = reminderAt,
+                note = note,           // add
+                tags = tags,           // add
+                expiresAt = expiresAt  // add
             )
             val id = repository.insertLink(link)
             if (reminderAt != null) {
                 scheduleReminder(context, id, link.title, link.url, reminderAt)
             }
-            _uiState.update {
-                it.copy(
-                    isAddingLink = false,
-                    isFetchingMetadata = false,
-                    snackbarMessage = "Link saved"
-                )
-            }
+            _uiState.update { it.copy(
+                isAddingLink = false,
+                isFetchingMetadata = false,
+                snackbarMessage = "Link saved"
+            )}
         }
     }
 
@@ -422,9 +441,20 @@ class HomeViewModel @Inject constructor(
     private fun startExpiryChecker() {
         viewModelScope.launch {
             while (true) {
+                val now = System.currentTimeMillis()
+
+                // Auto-delete expired links
                 val expired = repository.getExpiredLinks()
                 expired.forEach { repository.deleteLink(it) }
-                kotlinx.coroutines.delay(60_000) // check every minute
+
+                // Auto-clear past reminders — set reminderAt to null
+                val allLinks = repository.getAllLinks().first()
+                allLinks.filter { it.reminderAt != null && it.reminderAt < now }
+                    .forEach { link ->
+                        repository.updateLink(link.copy(reminderAt = null))
+                    }
+
+                kotlinx.coroutines.delay(60_000)
             }
         }
     }

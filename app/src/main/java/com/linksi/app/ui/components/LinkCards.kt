@@ -45,6 +45,8 @@ import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import com.android.volley.toolbox.ImageRequest
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
 import kotlinx.coroutines.launch
@@ -225,7 +227,14 @@ fun LinkCard(
                     ) {
                         // Favicon
                         AsyncImage(
-                            model = link.faviconUrl,
+                            model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                .data(link.faviconUrl)
+                                .diskCacheKey(link.faviconUrl)        // cache by URL
+                                .memoryCacheKey(link.faviconUrl)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .crossfade(true)
+                                .build(),
                             contentDescription = "Favicon",
                             modifier = Modifier
                                 .size(36.dp)
@@ -569,11 +578,16 @@ fun LinkGridCard(
                     var imageLoadFailed by remember { mutableStateOf(false) }
                     if (!imageLoadFailed) {
                         AsyncImage(
-                            model = link.previewImageUrl,
+                            model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                .data(link.previewImageUrl)
+                                .diskCacheKey(link.previewImageUrl)
+                                .memoryCacheKey(link.previewImageUrl)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .crossfade(true)
+                                .build(),
                             contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp),
+                            modifier = Modifier.fillMaxWidth().height(120.dp),
                             contentScale = ContentScale.Crop,
                             onError = { imageLoadFailed = true }
                         )
@@ -767,6 +781,9 @@ fun LinkOptionsSheet(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    val now = System.currentTimeMillis()
+    val reminderPast = link.reminderAt != null && link.reminderAt < now
+
     var showReminderSheet by remember { mutableStateOf(false) }
     var showExpirySheet by remember { mutableStateOf(false) }
     var showNoteSheet by remember { mutableStateOf(false) }
@@ -1032,10 +1049,17 @@ fun LinkOptionsSheet(
                     OptionsFullRow(
                         icon = Icons.Outlined.Notifications,
                         title = "Set reminder",
-                        subtitle = link.reminderAt?.let {
-                            SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(it))
+                        subtitle = when {
+                            link.reminderAt == null -> null
+                            reminderPast -> null  // past reminder — show nothing
+                            else -> SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(
+                                Date(link.reminderAt)
+                            )
                         },
-                        iconTint = if (link.reminderAt != null) MaterialTheme.colorScheme.primary else null,
+                        iconTint = if (link.reminderAt != null && !reminderPast)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            null,
                         onClick = { showReminderSheet = true }
                     )
 
