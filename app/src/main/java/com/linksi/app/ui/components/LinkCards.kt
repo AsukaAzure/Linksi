@@ -633,91 +633,140 @@ fun LinkGridCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = link.domain.ifBlank { "link" },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
+                        // Pin indicator + domain
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.weight(1f)
-                        )
-
-                        // Menu button in Grid
-                        Box {
-                            IconButton(
-                                onClick = { showMenu = true },
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(Icons.Filled.MoreVert, "More", Modifier.size(16.dp))
+                        ) {
+                            if (link.isPinned) {
+                                Icon(Icons.Filled.PushPin, null,
+                                    Modifier.size(10.dp),
+                                    tint = MaterialTheme.colorScheme.primary)
                             }
-
-                            if (showMenu) {
-                                LinkOptionsSheet(
-                                    link = link,
-                                    folder = folders.find { it.id == link.folderId },
-                                    folders = folders,
-                                    onDismiss = { showMenu = false },
-                                    onEdit = { showMenu = false; showEditSheet = true },
-                                    onDelete = { showMenu = false; onDelete() },
-                                    onMoveToFolder = { showMenu = false; showFolderPicker = true },
-                                    onShare = {
-                                        showMenu = false
-                                        val sendIntent = Intent().apply {
-                                            action = Intent.ACTION_SEND
-                                            putExtra(
-                                                Intent.EXTRA_TEXT,
-                                                "${link.title}\n${link.url}"
-                                            )
-                                            type = "text/plain"
-                                        }
-                                        context.startActivity(
-                                            Intent.createChooser(
-                                                sendIntent,
-                                                "Share link via"
-                                            )
-                                        )
-                                    },
-                                    onToggleFavorite = { showMenu = false; onFavoriteToggle() },
-                                    onMarkRead = { },
-                                    onRefreshMetadata = { onRefreshMetadata() },
-                                    onPin = { onPin() },
-                                    onSetNote = { note -> onSetNote(note) },
-                                    onSetReminder = { time -> onSetReminder(time) },
-                                    onSetExpiry = { time -> onSetExpiry(time) },
-                                    onSetTags = { tags -> onSetTags(tags) },
-                                    allTags = allTags
+                            if (!link.isRead) {
+                                Box(
+                                    Modifier.size(5.dp).clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
                                 )
                             }
+                            Text(
+                                text = link.domain.ifBlank { "link" },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { showMenu = true },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(Icons.Filled.MoreVert, "More", Modifier.size(16.dp))
                         }
                     }
+
                     Text(
                         text = link.title.ifBlank { link.url },
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(Modifier.height(4.dp))
+
+                    // Tags
+                    if (link.tags.isNotEmpty()) {
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.horizontalScroll(rememberScrollState())
+                        ) {
+                            link.tags.take(2).forEach { tag ->
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
+                                    border = BorderStroke(
+                                        0.5.dp,
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                    )
+                                ) {
+                                    Text("#$tag",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 9.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(6.dp))
+
+                    // Bottom row — reminder + expiry + date + favorite
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Reminder pill
+                        if (link.reminderAt != null && link.reminderAt > System.currentTimeMillis()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Outlined.Notifications, null,
+                                    Modifier.size(8.dp),
+                                    tint = MaterialTheme.colorScheme.primary)
+                                Text(formatTimeLeft(link.reminderAt),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 8.sp,
+                                    color = MaterialTheme.colorScheme.primary)
+                            }
+                            Spacer(Modifier.width(3.dp))
+                        }
+
+                        // Expiry pill
+                        if (link.expiresAt != null && link.expiresAt > System.currentTimeMillis()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f))
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Outlined.Timer, null,
+                                    Modifier.size(8.dp),
+                                    tint = MaterialTheme.colorScheme.error)
+                                Text(formatTimeLeft(link.expiresAt),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 8.sp,
+                                    color = MaterialTheme.colorScheme.error)
+                            }
+                            Spacer(Modifier.width(3.dp))
+                        }
+
                         Text(
                             text = formatDate(link.createdAt),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
                         )
+
                         IconButton(
                             onClick = onFavoriteToggle,
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
-                                if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = if (link.isFavorite)
-                                    MaterialTheme.colorScheme.error
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                if (link.isFavorite) Icons.Filled.Favorite
+                                else Icons.Outlined.FavoriteBorder,
+                                null,
+                                Modifier.size(14.dp),
+                                tint = if (link.isFavorite) MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -753,6 +802,44 @@ fun LinkGridCard(
                 onEdit(updatedLink)
                 showEditSheet = false
             }
+        )
+    }
+    
+    if (showMenu) {
+        LinkOptionsSheet(
+            link = link,
+            folder = folders.find { it.id == link.folderId },
+            folders = folders,
+            onDismiss = { showMenu = false },
+            onEdit = { showMenu = false; showEditSheet = true },
+            onDelete = { showMenu = false; onDelete() },
+            onMoveToFolder = { showMenu = false; showFolderPicker = true },
+            onShare = {
+                showMenu = false
+                val sendIntent = Intent().apply {
+                    action = Intent.ACTION_SEND
+                    putExtra(
+                        Intent.EXTRA_TEXT,
+                        "${link.title}\n${link.url}"
+                    )
+                    type = "text/plain"
+                }
+                context.startActivity(
+                    Intent.createChooser(
+                        sendIntent,
+                        "Share link via"
+                    )
+                )
+            },
+            onToggleFavorite = { showMenu = false; onFavoriteToggle() },
+            onMarkRead = { },
+            onRefreshMetadata = { onRefreshMetadata() },
+            onPin = { onPin() },
+            onSetNote = { note -> onSetNote(note) },
+            onSetReminder = { time -> onSetReminder(time) },
+            onSetExpiry = { time -> onSetExpiry(time) },
+            onSetTags = { tags -> onSetTags(tags) },
+            allTags = allTags,
         )
     }
 }
@@ -1022,13 +1109,6 @@ fun LinkOptionsSheet(
                             }
                         }
                     }
-
-                    // ── Edit bookmark ─────────────────────────────────
-                    OptionsFullRow(
-                        icon = Icons.Outlined.Edit,
-                        title = "Edit link",
-                        onClick = { onEdit(); dismiss() }
-                    )
 
                     // ── Move to folder ────────────────────────────────
                     OptionsFullRow(

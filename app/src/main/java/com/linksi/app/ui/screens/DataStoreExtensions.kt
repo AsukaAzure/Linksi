@@ -8,6 +8,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "linksi_settings")
+val FOLDER_VIEW_MODE = stringPreferencesKey("folder_view_mode")
+val FOLDER_SORT_OPTION = stringPreferencesKey("folder_sort_option")
+val HOME_VIEW_MODE = stringPreferencesKey("home_view_mode")
+val HOME_SORT_OPTION = stringPreferencesKey("home_sort_option")
 val AI_ENABLED = booleanPreferencesKey("ai_enabled")
 val AI_SELECTED_MODEL = stringPreferencesKey("ai_selected_model")
 // Store API keys per provider

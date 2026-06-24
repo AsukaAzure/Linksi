@@ -9,6 +9,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -39,8 +40,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,8 +55,8 @@ fun FoldersScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFolder by remember { mutableStateOf<Folder?>(null) }
     // Keep track of the folder even when selectedFolder becomes null to allow exit animation
-    val activeFolder = remember(selectedFolder) { 
-        if (selectedFolder != null) selectedFolder else null 
+    val activeFolder = remember(selectedFolder) {
+        if (selectedFolder != null) selectedFolder else null
     }
     // We actually need to keep the last non-null folder for the exit animation
     var lastFolder by remember { mutableStateOf<Folder?>(null) }
@@ -171,7 +175,6 @@ fun FoldersScreen(
     }
 }
 
-// ── Folders List ──────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FolderListScreen(
@@ -186,32 +189,36 @@ fun FolderListScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var editingFolder by remember { mutableStateOf<Folder?>(null) }
+    var viewMode = state.folderViewMode
+    var showSortMenu by remember { mutableStateOf(false) }
+    var sortOption = state.folderSortOption
 
-    // Handle folder snackbars locally — not in HomeScreen
-    LaunchedEffect(state.folderSnackbarMessage) {
-        state.folderSnackbarMessage?.let { message ->
-            when (message) {
-                "UNDO_FOLDER_DELETE" -> {
-                    val folderName = state.lastDeletedFolder?.name ?: "Folder"
-                    val linkCount = state.lastDeletedFolderLinks.size
-                    val result = snackbarHostState.showSnackbar(
-                        message = "\"$folderName\" and $linkCount links deleted",
-                        actionLabel = "Undo",
-                        duration = SnackbarDuration.Long
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.undoFolderDelete()
-                    }
-                    viewModel.dismissFolderSnackbar()
-                }
-
-                "Folder already exists", "Folder restored" -> {
-                    snackbarHostState.showSnackbar(message)
-                    viewModel.dismissFolderSnackbar()
-                }
-            }
+    val sortedFolders = remember(folders, sortOption) {
+        when (sortOption) {
+            FolderSortOption.NAME_AZ -> folders.sortedBy { it.name.lowercase() }
+            FolderSortOption.NAME_ZA -> folders.sortedByDescending { it.name.lowercase() }
+            FolderSortOption.NEWEST -> folders.sortedByDescending { it.createdAt }
+            FolderSortOption.OLDEST -> folders.sortedBy { it.createdAt }
+            FolderSortOption.MOST_LINKS -> folders.sortedByDescending { it.linkCount }
         }
     }
+
+    LaunchedEffect(state.snackbarMessage) {
+        if (state.snackbarMessage == "UNDO_FOLDER_DELETE") {
+            val folderName = state.lastDeletedFolder?.name ?: "Folder"
+            val linkCount = state.lastDeletedFolderLinks.size
+            val result = snackbarHostState.showSnackbar(
+                message = "\"$folderName\" and $linkCount links deleted",
+                actionLabel = "Undo",
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.undoFolderDelete()
+            }
+            viewModel.dismissSnackbar()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -222,6 +229,24 @@ fun FolderListScreen(
                     }
                 },
                 actions = {
+                    // Sort button
+                    IconButton(onClick = { showSortMenu = true }) {
+                        Icon(Icons.Outlined.Sort, "Sort")
+                    }
+                    // Toggle view
+                    IconButton(onClick = {
+                        viewModel.setFolderViewMode(
+                            if (viewMode == FolderViewMode.LIST) FolderViewMode.GRID else FolderViewMode.LIST
+                        )
+                    }) {
+                        Icon(
+                            if (viewMode == FolderViewMode.LIST)
+                                Icons.Outlined.GridView
+                            else Icons.Outlined.ViewList,
+                            "Toggle view"
+                        )
+                    }
+                    // Add folder
                     IconButton(onClick = onAddFolder) {
                         Icon(Icons.Filled.Add, "Add folder")
                     }
@@ -236,24 +261,18 @@ fun FolderListScreen(
     ) { padding ->
         if (folders.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        Icons.Outlined.FolderOpen, null,
+                    Icon(Icons.Outlined.FolderOpen, null,
                         Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "No folders yet",
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("No folders yet",
+                        style = MaterialTheme.typography.titleMedium)
                     Button(onClick = onAddFolder) {
                         Icon(Icons.Filled.Add, null, Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
@@ -262,123 +281,333 @@ fun FolderListScreen(
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                // AFTER
-                items(folders, key = { it.id }) { folder ->
-                    var swipeConfirmed by remember { mutableStateOf(false) }
-
-                    val dismissState = rememberSwipeToDismissBoxState(
-                        positionalThreshold = { totalDistance -> totalDistance * 0.4f },
-                        confirmValueChange = { value ->
-                            when (value) {
-                                SwipeToDismissBoxValue.StartToEnd -> {
-                                    if (swipeConfirmed) {
-                                        editingFolder = folder
-                                        swipeConfirmed = false
-                                    }
-                                    false  // spring back after edit
-                                }
-
-                                SwipeToDismissBoxValue.EndToStart -> {
-                                    if (swipeConfirmed) {
-                                        swipeConfirmed = false
-                                        onDeleteFolder(folder)
-                                        true
-                                    } else false
-                                }
-
-                                else -> false
-                            }
-                        }
-                    )
-
-                    LaunchedEffect(dismissState.progress) {
-                        swipeConfirmed = dismissState.progress >= 0.4f
-                    }
-
-                    SwipeToDismissBox(
-                        state = dismissState,
-                        backgroundContent = {
-                            val direction = dismissState.dismissDirection
-                            val isDelete = direction == SwipeToDismissBoxValue.EndToStart
-                            val isEdit = direction == SwipeToDismissBoxValue.StartToEnd
-
-                            val bgColor by animateColorAsState(
-                                targetValue = when {
-                                    isDelete && swipeConfirmed -> MaterialTheme.colorScheme.errorContainer
-                                    isDelete -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                                    isEdit && swipeConfirmed -> MaterialTheme.colorScheme.primaryContainer
-                                    isEdit -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                    else -> MaterialTheme.colorScheme.surface
-                                },
-                                label = "folder_swipe_bg"
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(bgColor)
-                                    .padding(horizontal = 24.dp),
-                                contentAlignment = if (isDelete) Alignment.CenterEnd else Alignment.CenterStart
-                            ) {
-                                if (isEdit) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(
-                                            Icons.Outlined.Edit, null,
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                        Text(
-                                            if (swipeConfirmed) "Release to edit" else "Keep swiping…",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                    }
-                                } else if (isDelete) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(
-                                            if (swipeConfirmed) Icons.Outlined.Delete else Icons.Outlined.Lock,
-                                            null,
-                                            tint = MaterialTheme.colorScheme.onErrorContainer
-                                        )
-                                        Text(
-                                            if (swipeConfirmed) "Release to delete" else "Keep swiping…",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onErrorContainer
-                                        )
-                                    }
-                                }
-                            }
-                        }
+            when (viewMode) {
+                FolderViewMode.LIST -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                        contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        FolderListItem(
-                            folder = folder,
-                            onClick = { onFolderClick(folder) },
-                            onDelete = { onDeleteFolder(folder) },
-                            onEdit = { editingFolder = it }
-                        )
+                        items(sortedFolders, key = { it.id }) { folder ->
+                            var swipeConfirmed by remember { mutableStateOf(false) }
+                            val dismissState = rememberSwipeToDismissBoxState(
+                                positionalThreshold = { it * 0.4f },
+                                confirmValueChange = { value ->
+                                    when (value) {
+                                        SwipeToDismissBoxValue.StartToEnd -> {
+                                            if (swipeConfirmed) {
+                                                editingFolder = folder
+                                                swipeConfirmed = false
+                                            }
+                                            false
+                                        }
+                                        SwipeToDismissBoxValue.EndToStart -> {
+                                            if (swipeConfirmed) {
+                                                swipeConfirmed = false
+                                                onDeleteFolder(folder)
+                                                true
+                                            } else false
+                                        }
+                                        else -> false
+                                    }
+                                }
+                            )
+                            LaunchedEffect(dismissState.progress) {
+                                swipeConfirmed = dismissState.progress >= 0.4f
+                            }
+                            SwipeToDismissBox(
+                                state = dismissState,
+                                backgroundContent = {
+                                    val direction = dismissState.dismissDirection
+                                    val isDelete = direction == SwipeToDismissBoxValue.EndToStart
+                                    val isEdit = direction == SwipeToDismissBoxValue.StartToEnd
+                                    val bgColor by animateColorAsState(
+                                        targetValue = when {
+                                            isDelete && swipeConfirmed ->
+                                                MaterialTheme.colorScheme.errorContainer
+                                            isDelete ->
+                                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                            isEdit && swipeConfirmed ->
+                                                MaterialTheme.colorScheme.primaryContainer
+                                            isEdit ->
+                                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                            else -> MaterialTheme.colorScheme.surface
+                                        }, label = "folder_swipe_bg"
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(bgColor)
+                                            .padding(horizontal = 24.dp),
+                                        contentAlignment = if (isDelete)
+                                            Alignment.CenterEnd else Alignment.CenterStart
+                                    ) {
+                                        if (isEdit) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Icon(Icons.Outlined.Edit, null,
+                                                    tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                                                Text(
+                                                    if (swipeConfirmed) "Release to edit" else "Edit",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                )
+                                            }
+                                        } else if (isDelete) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Icon(
+                                                    if (swipeConfirmed) Icons.Outlined.Delete
+                                                    else Icons.Outlined.Lock,
+                                                    null,
+                                                    tint = MaterialTheme.colorScheme.onErrorContainer
+                                                )
+                                                Text(
+                                                    if (swipeConfirmed) "Release to delete"
+                                                    else "Keep swiping…",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            ) {
+                                FolderListItem(
+                                    folder = folder,
+                                    onClick = { onFolderClick(folder) },
+                                    onDelete = { onDeleteFolder(folder) },
+                                    onEdit = { editingFolder = it }
+                                )
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 24.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+                        }
                     }
+                }
 
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 24.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                FolderViewMode.GRID -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                        contentPadding = PaddingValues(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(sortedFolders, key = { it.id }) { folder ->
+                            FolderGridCard(
+                                folder = folder,
+                                onClick = { onFolderClick(folder) },
+                                onEdit = { editingFolder = folder },
+                                onDelete = { onDeleteFolder(folder) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Sort bottom sheet
+    if (showSortMenu) {
+        ModalBottomSheet(
+            onDismissRequest = { showSortMenu = false },
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(bottom = 24.dp)
+            ) {
+                Text("Sort folders",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp))
+                HorizontalDivider()
+                FolderSortOption.values().forEach { option ->
+                    ListItem(
+                        headlineContent = { Text(option.label) },
+                        leadingContent = { Icon(option.icon, null) },
+                        trailingContent = {
+                            if (option == sortOption)
+                                Icon(Icons.Filled.Check, null,
+                                    tint = MaterialTheme.colorScheme.primary)
+                        },
+                        modifier = Modifier.clickable {
+                            viewModel.setFolderSortOption(option)
+                            showSortMenu = false
+                        }
                     )
                 }
             }
         }
-        editingFolder?.let { folder ->
-            EditFolderDialog(
-                folder = folder,
-                onDismiss = { editingFolder = null },
-                onConfirm = { name, icon, color ->
-                    viewModel.updateFolder(folder.copy(name = name, icon = icon, color = color))
-                    editingFolder = null
+    }
+
+    editingFolder?.let { folder ->
+        EditFolderDialog(
+            folder = folder,
+            onDismiss = { editingFolder = null },
+            onConfirm = { name, icon, color ->
+                viewModel.updateFolder(folder.copy(name = name, icon = icon, color = color))
+                editingFolder = null
+            }
+        )
+    }
+}
+
+// ── Enums ─────────────────────────────────────────────────────
+enum class FolderViewMode { LIST, GRID }
+
+enum class FolderSortOption(val label: String,
+                            val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    NAME_AZ("Name A → Z", Icons.Outlined.SortByAlpha),
+    NAME_ZA("Name Z → A", Icons.Outlined.SortByAlpha),
+    NEWEST("Newest first", Icons.Outlined.Schedule),
+    OLDEST("Oldest first", Icons.Outlined.Schedule),
+    MOST_LINKS("Most links", Icons.Outlined.Link)
+}
+
+// ── Grid card ─────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+fun FolderGridCard(
+    folder: Folder,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { showMenu = true }
+            ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Folder icon with color background
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(android.graphics.Color.parseColor(folder.color))
+                        .copy(alpha = 0.15f),
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            iconFromName(folder.icon), null,
+                            Modifier.size(24.dp),
+                            tint = Color(android.graphics.Color.parseColor(folder.color))
+                        )
+                    }
                 }
+
+                Spacer(Modifier.weight(1f))
+
+                // 3-dot menu
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(Icons.Filled.MoreVert, null, Modifier.size(16.dp))
+                }
+            }
+
+            Text(
+                folder.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+
+            Text(
+                "${folder.linkCount} links",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+
+    // Options sheet on long press or 3-dot
+    if (showMenu) {
+        ModalBottomSheet(
+            onDismissRequest = { showMenu = false },
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            dragHandle = null
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Handle
+                Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp),
+                    contentAlignment = Alignment.Center) {
+                    Surface(Modifier.width(40.dp).height(4.dp), RoundedCornerShape(2.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)) {}
+                }
+
+                // Folder header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(android.graphics.Color.parseColor(folder.color))
+                            .copy(alpha = 0.15f),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(iconFromName(folder.icon), null,
+                                Modifier.size(22.dp),
+                                tint = Color(android.graphics.Color.parseColor(folder.color)))
+                        }
+                    }
+                    Column {
+                        Text(folder.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold)
+                        Text("${folder.linkCount} links",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+
+                HorizontalDivider()
+                Spacer(Modifier.height(4.dp))
+
+                OptionsFullRow(
+                    icon = Icons.Outlined.Edit,
+                    title = "Edit folder",
+                    onClick = { showMenu = false; onEdit() }
+                )
+
+                OptionsFullRow(
+                    icon = Icons.Outlined.Delete,
+                    title = "Delete folder",
+                    iconTint = MaterialTheme.colorScheme.error,
+                    onClick = { showMenu = false; onDelete() }
+                )
+
+                Spacer(Modifier.height(8.dp))
+            }
         }
     }
 }

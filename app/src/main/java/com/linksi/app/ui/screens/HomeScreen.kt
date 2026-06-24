@@ -54,6 +54,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 
@@ -64,7 +65,7 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var viewMode by remember { mutableStateOf(ViewMode.LIST) }
+    val viewMode = state.homeViewMode
     var showSortMenu by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
@@ -215,7 +216,9 @@ fun HomeScreen(
                     folders = state.folders,
                     viewMode = viewMode,
                     onViewModeToggle = {
-                        viewMode = if (viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST
+                        viewModel.setHomeViewMode(
+                            if (viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST
+                        )
                     },
                     onSortClick = { showSortMenu = true },
 //                    onAddFolder = viewModel::showAddFolderDialog,
@@ -225,14 +228,25 @@ fun HomeScreen(
                 )
             },
             floatingActionButton = {
-                ExtendedFloatingActionButton(
+                FloatingActionButton(
                     onClick = viewModel::showAddLinkDialog,
-                    icon = { Icon(Icons.Filled.Add, "Add Link") },
-                    text = { Text("Save Link") },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.onGloballyPositioned { fabCoords = it }
-                )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Filled.Add, null, Modifier.size(20.dp))
+                        Text(
+                            "Save Link", style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
             containerColor = MaterialTheme.colorScheme.background
@@ -497,18 +511,15 @@ fun HomeScreen(
                             },
                             onFavoriteToggle = viewModel::toggleFavorite,
                             onDelete = viewModel::deleteLink,
-                            onMoveToFolder = { link, folderId ->
-                                viewModel.moveToFolder(link, folderId)
-                            },
-                            onEdit = viewModel::setEditingLink,
-                            onFolderClick = { folder ->
-                                viewModel.selectFolder(folder.id)
-                            },
+                            onMoveToFolder = { link, folderId -> viewModel.moveToFolder(link, folderId) },
+                            onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
+                            onFolderClick = { folder -> viewModel.selectFolder(folder.id) },
                             onPin = viewModel::setPinned,
                             onSetNote = { link, note -> viewModel.setNote(link, note) },
                             onSetReminder = { link, time -> viewModel.setReminder(link, time) },
                             onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
                             onSetTags = { link, tags -> viewModel.setTags(link, tags) },
+                            allTags = state.allTags,
                             onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) }
                         )
                     }
@@ -667,18 +678,29 @@ fun HomeScreen(
 //    }
 
     if (state.showAddLinkDialog) {
-        AddLinkDialog(
+        AddLinkSheet(
             folders = state.folders,
+            allTags = state.allTags,
             isFetchingMetadata = state.isFetchingMetadata,
             isInTour = isInTour,
             tourStep = tourStep,
             onTourNext = { nextStep() },
+            snackbarMessage = state.snackbarMessage,
             onDismiss = viewModel::hideAddLinkDialog,
-            onCreateFolder = { name, icon, color ->
-                viewModel.addFolder(name, icon, color)
-            },
-            onConfirm = { url, folderId, reminderAt ->
-                viewModel.addLink(url, folderId, reminderAt)
+            onCreateFolder = { name, icon, color -> viewModel.addFolder(name, icon, color) },
+            onConfirm = { url, folderId, reminderAt, note, tags, expiresAt,
+                          titleOverride, descriptionOverride, previewImageOverride ->
+                viewModel.addLink(
+                    url = url,
+                    folderId = folderId,
+                    reminderAt = reminderAt,
+                    note = note,
+                    tags = tags,
+                    expiresAt = expiresAt,
+                    titleOverride = titleOverride,
+                    descriptionOverride = descriptionOverride,
+                    previewImageOverride = previewImageOverride
+                )
                 viewModel.hideAddLinkDialog()
             }
         )
@@ -894,6 +916,7 @@ fun LinksGrid(
     onSetReminder: (Link, Long?) -> Unit = { _, _ -> },
     onSetExpiry: (Link, Long?) -> Unit = { _, _ -> },
     onSetTags: (Link, List<String>) -> Unit = { _, _ -> },
+    allTags: List<String> = emptyList(),
     onRefreshMetadata: (Link) -> Unit = {}
 ) {
     LazyVerticalStaggeredGrid(
@@ -913,14 +936,15 @@ fun LinksGrid(
                 onFavoriteToggle = { onFavoriteToggle(link) },
                 onDelete = { onDelete(link) },
                 onMoveToFolder = { folderId -> onMoveToFolder(link, folderId) },
-                onEdit = { onEdit(link) },
-                onRefreshMetadata = {onRefreshMetadata(link)},
-//                onFolderClick = onFolderClick,
-//                onPin = { onPin(link) },
-//                onSetNote = { note -> onSetNote(link, note) },
-//                onSetReminder = { time -> onSetReminder(link, time) },
-//                onSetExpiry = { time -> onSetExpiry(link, time) },
-//                onSetTags = { tags -> onSetTags(link, tags) }
+                onEdit = { updatedLink -> onEdit(updatedLink) },
+                onFolderClick = onFolderClick,
+                onPin = { onPin(link) },
+                onSetNote = { note -> onSetNote(link, note) },
+                onSetReminder = { time -> onSetReminder(link, time) },
+                onSetExpiry = { time -> onSetExpiry(link, time) },
+                onSetTags = { tags -> onSetTags(link, tags) },
+                allTags = allTags,
+                onRefreshMetadata = { onRefreshMetadata(link) }
             )
         }
         item { Spacer(Modifier.height(80.dp)) }

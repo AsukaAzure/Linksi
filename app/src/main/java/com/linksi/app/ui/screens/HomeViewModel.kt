@@ -15,6 +15,11 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import com.linksi.app.utils.FOLDER_SORT_OPTION
+import com.linksi.app.utils.FOLDER_VIEW_MODE
+import com.linksi.app.utils.HOME_SORT_OPTION
+import com.linksi.app.utils.HOME_VIEW_MODE
 import com.linksi.app.utils.LinkMetadata
 import com.linksi.app.utils.cancelReminder
 import com.linksi.app.utils.dataStore
@@ -47,6 +52,9 @@ data class HomeUiState(
     val useInAppBrowser: Boolean = true,
     val scrollToTop: Boolean = false,
     val allTags: List<String> = emptyList(),
+    val folderViewMode: FolderViewMode = FolderViewMode.LIST,
+    val folderSortOption: FolderSortOption = FolderSortOption.NAME_AZ,
+    val homeViewMode : ViewMode = ViewMode.LIST
 )
 
 @HiltViewModel
@@ -71,7 +79,19 @@ class HomeViewModel @Inject constructor(
             context.dataStore.data.collect { prefs ->
                 _uiState.update {
                     it.copy(
-                        useInAppBrowser = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true
+                        useInAppBrowser = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true,
+                        sortOption = prefs[HOME_SORT_OPTION]?.let {
+                            runCatching { SortOption.valueOf(it) }.getOrNull()
+                        } ?: SortOption.DATE_NEWEST,
+                        homeViewMode = prefs[HOME_VIEW_MODE]?.let {
+                            runCatching { ViewMode.valueOf(it) }.getOrNull()
+                        } ?: ViewMode.LIST,
+                        folderViewMode = prefs[FOLDER_VIEW_MODE]?.let {
+                            FolderViewMode.valueOf(it)
+                        } ?: FolderViewMode.LIST,
+                        folderSortOption = prefs[FOLDER_SORT_OPTION]?.let {
+                            FolderSortOption.valueOf(it)
+                        } ?: FolderSortOption.NAME_AZ
                     )
                 }
             }
@@ -130,11 +150,14 @@ class HomeViewModel @Inject constructor(
     }
 
     fun setSort(sort: SortOption) {
-        _uiState.update { state ->
-            state.copy(
-                sortOption = sort,
-                links = sortLinks(state.links, sort)
-            )
+        viewModelScope.launch {
+            context.dataStore.edit { it[HOME_SORT_OPTION] = sort.name }
+            _uiState.update { state ->
+                state.copy(
+                    sortOption = sort,
+                    links = sortLinks(state.links, sort)
+                )
+            }
         }
     }
 
@@ -542,6 +565,27 @@ class HomeViewModel @Inject constructor(
     fun restoreLink(link: Link) {
         viewModelScope.launch {
             repository.insertLink(link)
+        }
+    }
+
+    fun setFolderViewMode(mode: FolderViewMode) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[FOLDER_VIEW_MODE] = mode.name }
+            _uiState.update { it.copy(folderViewMode = mode) }
+        }
+    }
+
+    fun setFolderSortOption(option: FolderSortOption) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[FOLDER_SORT_OPTION] = option.name }
+            _uiState.update { it.copy(folderSortOption = option) }
+        }
+    }
+
+    fun setHomeViewMode(mode: ViewMode) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[HOME_VIEW_MODE] = mode.name }
+            _uiState.update { it.copy(homeViewMode = mode) }
         }
     }
 }
