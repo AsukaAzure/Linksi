@@ -155,7 +155,7 @@ class MainActivity : ComponentActivity() {
                                 Button(onClick = {
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
-                                        Uri.parse("https://github.com/YOUR_USERNAME/YOUR_REPO/releases/latest")
+                                        Uri.parse("https://github.com/AsukaAzure/Linksi/releases/latest")
                                     )
                                     context.startActivity(intent)
                                     showUpdateDialog = false
