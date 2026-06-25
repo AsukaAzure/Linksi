@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,16 +35,26 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.scale
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddLinkSheet(
     folders: List<Folder>,
     allTags: List<String> = emptyList(),
     isFetchingMetadata: Boolean = false,
-    isInTour: Boolean = false,
-    tourStep: Any? = null,
-    onTourNext: () -> Unit = {},
-    snackbarMessage: String? = null,
     onDismiss: () -> Unit,
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
     onConfirm: (
@@ -61,6 +72,7 @@ fun AddLinkSheet(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
 
     var url by remember { mutableStateOf("") }
     var selectedFolderId by remember { mutableStateOf<Long?>(null) }
@@ -178,32 +190,123 @@ fun AddLinkSheet(
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    OutlinedTextField(
-                        value = url,
-                        onValueChange = { url = it },
-                        placeholder = { Text("Paste URL here…") },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Link, null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        },
-                        trailingIcon = {
-                            if (url.isNotBlank()) {
-                                IconButton(onClick = { url = "" }) {
-                                    Icon(Icons.Filled.Clear, null)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = url,
+                            onValueChange = { url = it },
+                            placeholder = { Text("Paste URL here…") },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.Link, null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Animated paste/clear button
+                        val isTextEmpty = url.isBlank()
+
+                        val rotation by animateFloatAsState(
+                            targetValue = if (isTextEmpty) 0f else 45f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            ),
+                            label = "icon_rotation"
+                        )
+
+                        val buttonColor by animateColorAsState(
+                            targetValue = if (isTextEmpty)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.error,
+                            animationSpec = tween(300),
+                            label = "button_color"
+                        )
+
+                        val scale by animateFloatAsState(
+                            targetValue = 1f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            ),
+                            label = "button_scale"
+                        )
+
+                        Surface(
+                            shape = CircleShape,
+                            color = buttonColor.copy(alpha = 0.15f),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .scale(scale)
+                                .clip(CircleShape)
+                                .clickable {
+                                    if (isTextEmpty) {
+                                        // Paste from clipboard
+                                        val clipText = clipboardManager.getText()?.text ?: ""
+                                        if (clipText.isNotBlank()) {
+                                            url = clipText
+                                        }
+                                    } else {
+                                        // Clear
+                                        url = ""
+                                        editTitle = ""
+                                        editDescription = ""
+                                        previewImageUrl = ""
+                                    }
+                                }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                AnimatedContent(
+                                    targetState = isTextEmpty,
+                                    transitionSpec = {
+                                        (scaleIn(
+                                            initialScale = 0.5f,
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessMedium
+                                            )
+                                        ) + fadeIn(tween(200))) togetherWith
+                                                (scaleOut(
+                                                    targetScale = 0.5f,
+                                                    animationSpec = tween(150)
+                                                ) + fadeOut(tween(150)))
+                                    },
+                                    label = "paste_clear_icon"
+                                ) { empty ->
+                                    if (empty) {
+                                        Icon(
+                                            Icons.Outlined.ContentPaste,
+                                            contentDescription = "Paste",
+                                            Modifier.size(18.dp),
+                                            tint = buttonColor
+                                        )
+                                    } else {
+                                        Icon(
+                                            Icons.Outlined.Close,
+                                            contentDescription = "Clear",
+                                            Modifier.size(18.dp),
+                                            tint = buttonColor
+                                        )
+                                    }
                                 }
                             }
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        }
+                    }
                 }
+
 
                 // ── Save to folder ────────────────────────────
                 val selectedFolder = folders.find { it.id == selectedFolderId }
@@ -212,6 +315,7 @@ fun AddLinkSheet(
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable { showFolderPicker = true }
                 ) {
                     Row(
@@ -251,6 +355,7 @@ fun AddLinkSheet(
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { if (url.isNotBlank()) showEditSheet = true }
                     ) {
                         Row(
@@ -290,6 +395,7 @@ fun AddLinkSheet(
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .size(56.dp)
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable {
                                 if (url.isNotBlank()) {
                                     scope.launch {
@@ -340,7 +446,7 @@ fun AddLinkSheet(
                         color = if (reminderAt != null)
                             MaterialTheme.colorScheme.primaryContainer
                         else MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.weight(1f).clickable { showReminderSheet = true }
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { showReminderSheet = true }
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
@@ -373,7 +479,7 @@ fun AddLinkSheet(
                         color = if (expiresAt != null)
                             MaterialTheme.colorScheme.errorContainer
                         else MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.weight(1f).clickable { showExpirySheet = true }
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { showExpirySheet = true }
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
@@ -414,7 +520,7 @@ fun AddLinkSheet(
                         color = if (note.isNotBlank())
                             MaterialTheme.colorScheme.secondaryContainer
                         else MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.weight(1f).clickable { showNoteSheet = true }
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { showNoteSheet = true }
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
@@ -446,7 +552,7 @@ fun AddLinkSheet(
                         color = if (tags.isNotEmpty())
                             Color(0xFF22C55E).copy(alpha = 0.15f)
                         else MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.weight(1f).clickable { showTagSheet = true }
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { showTagSheet = true }
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),

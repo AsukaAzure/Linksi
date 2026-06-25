@@ -38,7 +38,6 @@ import com.linksi.app.domain.model.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.linksi.app.ui.screens.TourStep
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.activity.compose.BackHandler
@@ -132,9 +131,6 @@ fun AddLinkDialog(
     onDismiss: () -> Unit,
     onConfirm: (url: String, folderId: Long?, reminderAt: Long?) -> Unit,
     onCreateFolder: (name: String, icon: String, color: String) -> Unit = { _, _, _ -> },
-    isInTour: Boolean = false,
-    tourStep: TourStep = TourStep.DONE,
-    onTourNext: () -> Unit = {}
 ) {
     var url by remember { mutableStateOf("") }
     var selectedFolderId by remember { mutableStateOf<Long?>(null) }
@@ -153,95 +149,6 @@ fun AddLinkDialog(
         title = { Text("Save Link") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // After URL field — tour step 2
-                if (isInTour && tourStep == TourStep.ADD_LINK_DIALOG) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("\uD83D\uDC47", fontSize = 20.sp)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Step 2 of 6", style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    "Paste any URL here to save it",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                            TextButton(onClick = onTourNext) { Text("Next") }
-                        }
-                    }
-                }
-
-// After reminder picker — tour step 3
-                if (isInTour && tourStep == TourStep.REMINDER_IN_DIALOG) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("🔔", fontSize = 20.sp)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Step 3 of 6", style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
-                                Text(
-                                    "Set a reminder to read this link later",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                            TextButton(onClick = onTourNext) { Text("Next") }
-                        }
-                    }
-                }
-
-// After folder row — tour step 4
-                if (isInTour && tourStep == TourStep.FOLDER_IN_DIALOG) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("📁", fontSize = 20.sp)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Step 4 of 6", style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.tertiary
-                                )
-                                Text(
-                                    "Organize links into folders",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                            }
-                            TextButton(onClick = onTourNext) { Text("Next") }
-                        }
-                    }
-                }
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },

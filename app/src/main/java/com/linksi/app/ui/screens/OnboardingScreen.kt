@@ -54,10 +54,10 @@ val onboardingPages = listOf(
     ),
     OnboardingPage(
         icon = Icons.Outlined.Notifications,
-        title = "Never Forget to Read",
-        description = "Set reminders on any link. Get notified tonight, tomorrow or whenever you choose.",
+        title = "A Smarter Way To Save",
+        description = "Add context to every link with notes, tags, reminders, and custom organization.",
         gradientColors = listOf(Color(0xFFEC4899), Color(0xFFF59E0B)),
-        imageRes = R.drawable.onboarding_reminder
+        imageRes = R.drawable.onboarding_saver
     )
 )
 

@@ -260,6 +260,7 @@ fun ShareReceiverSheet(
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable { showFolderPicker = true }
                 ) {
                     Row(
@@ -301,6 +302,7 @@ fun ShareReceiverSheet(
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable { showEditSheet = true }
                 ) {
                     Row(
@@ -348,6 +350,7 @@ fun ShareReceiverSheet(
                             MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { showReminderSheet = true }
                     ) {
                         Column(
@@ -393,6 +396,7 @@ fun ShareReceiverSheet(
                             MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { showExpirySheet = true }
                     ) {
                         Column(
@@ -446,6 +450,7 @@ fun ShareReceiverSheet(
                             MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { showNoteSheet = true }
                     ) {
                         Column(
@@ -493,6 +498,7 @@ fun ShareReceiverSheet(
                             MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { showTagSheet = true }
                     ) {
                         Column(
@@ -536,7 +542,7 @@ fun ShareReceiverSheet(
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.errorContainer,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),

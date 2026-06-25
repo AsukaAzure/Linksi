@@ -135,6 +135,7 @@ fun LinkEditSheet(
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
                         .height(52.dp)
                         .clickable { previewImageUrl = "" }
                 ) {
@@ -159,6 +160,7 @@ fun LinkEditSheet(
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
                         .height(52.dp)
                         .clickable { imagePickerLauncher.launch("image/*") }  // opens gallery
                 ) {
@@ -186,6 +188,7 @@ fun LinkEditSheet(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp)
                     .clickable {
                         imageUrlInput = ""
@@ -220,6 +223,7 @@ fun LinkEditSheet(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp)
             ) {
                 OutlinedTextField(
@@ -248,6 +252,7 @@ fun LinkEditSheet(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp)
             ) {
                 OutlinedTextField(
@@ -305,7 +310,7 @@ fun LinkEditSheet(
                     placeholder = { Text("https://example.com/image.jpg") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).fillMaxWidth()
                 )
             },
             confirmButton = {

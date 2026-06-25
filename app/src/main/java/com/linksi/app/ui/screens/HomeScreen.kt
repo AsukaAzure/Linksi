@@ -78,22 +78,6 @@ fun HomeScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-// Tour state
-    val tourComplete by isTourComplete(context).collectAsState(initial = null)
-    var tourStep by remember { mutableStateOf(TourStep.SAVE_BUTTON) }
-    var showTourDialog by remember { mutableStateOf(false) }
-
-// Coordinates for each target
-    var fabCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    var foldersIconCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    var firstLinkCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
-
-    LaunchedEffect(tourComplete) {
-        if (tourComplete == false) {
-            tourStep = TourStep.SAVE_BUTTON
-        }
-    }
-
     LaunchedEffect(state.links.size) {
         if (state.links.isNotEmpty()) {
             scope.launch {
@@ -115,37 +99,6 @@ fun HomeScreen(
         if (state.scrollToTop) {
             listState.animateScrollToItem(0)
             viewModel.consumeScrollToTop()
-        }
-    }
-
-    val isInTour = tourComplete == false
-
-    fun nextStep() {
-        tourStep = when (tourStep) {
-            TourStep.SAVE_BUTTON -> {
-                // Auto-open the add link dialog with prefilled URL
-                viewModel.showAddLinkDialog()
-                TourStep.ADD_LINK_DIALOG
-            }
-
-            TourStep.ADD_LINK_DIALOG -> TourStep.REMINDER_IN_DIALOG
-            TourStep.REMINDER_IN_DIALOG -> TourStep.FOLDER_IN_DIALOG
-            TourStep.FOLDER_IN_DIALOG -> {
-                // Save the prefilled link
-                viewModel.addLink("https://google.com", null)
-                viewModel.hideAddLinkDialog()
-                TourStep.FOLDERS_ICON
-            }
-
-            TourStep.FOLDERS_ICON -> TourStep.SAVED_LINK_CARD
-            TourStep.SAVED_LINK_CARD -> TourStep.SWIPE_LEFT
-            TourStep.SWIPE_LEFT -> TourStep.SWIPE_RIGHT
-            TourStep.SWIPE_RIGHT -> {
-                scope.launch { setTourComplete(context) }
-                TourStep.DONE
-            }
-
-            TourStep.DONE -> TourStep.DONE
         }
     }
 
@@ -224,7 +177,6 @@ fun HomeScreen(
 //                    onAddFolder = viewModel::showAddFolderDialog,
                     onFoldersClick = { showFolders = true },
                     onSettingsClick = { showSettings = true },
-                    onFoldersCoordsChanged = { foldersIconCoords = it }
                 )
             },
             floatingActionButton = {
@@ -233,7 +185,7 @@ fun HomeScreen(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                     shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.onGloballyPositioned { fabCoords = it }
+                    modifier = Modifier
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 20.dp),
@@ -431,13 +383,13 @@ fun HomeScreen(
                 )
 
                 // Stats bar
-                if (state.links.isNotEmpty()) {
-                    StatsBar(
-                        count = state.links.size,
-                        unread = state.links.count { !it.isRead },
-                        favorites = state.links.count { it.isFavorite }
-                    )
-                }
+//                if (state.links.isNotEmpty()) {
+//                    StatsBar(
+//                        count = state.links.size,
+//                        unread = state.links.count { !it.isRead },
+//                        favorites = state.links.count { it.isFavorite }
+//                    )
+//                }
 
                 // Content
                 if (state.isLoading) {
@@ -480,7 +432,6 @@ fun HomeScreen(
                             onFolderClick = { folder ->
                                 viewModel.selectFolder(folder.id)
                             },
-                            onFirstLinkPosition = { firstLinkCoords = it },
                             onPin = viewModel::setPinned,
                             onSetNote = { link, note -> viewModel.setNote(link, note) },
                             onSetReminder = { link, time -> viewModel.setReminder(link, time) },
@@ -603,66 +554,6 @@ fun HomeScreen(
                 }
             }
         }
-        if (isInTour && tourStep != TourStep.DONE && tourStep != TourStep.ADD_LINK_DIALOG
-            && tourStep != TourStep.REMINDER_IN_DIALOG && tourStep != TourStep.FOLDER_IN_DIALOG
-        ) {
-
-            val target = when (tourStep) {
-                TourStep.SAVE_BUTTON -> CoachMarkTarget(
-                    coords = fabCoords,
-                    title = "Save a Link",
-                    description = "Tap here to save your first link!",
-                    tooltipBelow = false
-                )
-
-                TourStep.FOLDERS_ICON -> CoachMarkTarget(
-                    coords = foldersIconCoords,
-                    title = "Your Folders",
-                    description = "Tap here to view and manage your folders.",
-                    tooltipBelow = true
-                )
-
-                TourStep.SAVED_LINK_CARD -> CoachMarkTarget(
-                    coords = firstLinkCoords,
-                    title = "Open a Link",
-                    description = "Tap any link to open it in the built-in browser!",
-                    tooltipBelow = true
-                )
-
-                TourStep.SWIPE_LEFT -> CoachMarkTarget(
-                    coords = firstLinkCoords,
-                    title = "Swipe Left to Delete",
-                    description = "Swipe left to Delete a Link.",
-                    tooltipBelow = true
-                )
-
-                TourStep.SWIPE_RIGHT -> CoachMarkTarget(
-                    coords = firstLinkCoords,
-                    title = "Swipe Right to Move",
-                    description = "Swipe right to Share a Link.",
-                    tooltipBelow = true
-                )
-
-                else -> null
-            }
-
-            target?.let {
-                SpotlightOverlay(
-                    target = it,
-                    onNext = { nextStep() },
-                    isLastStep = tourStep == TourStep.SWIPE_RIGHT,
-                    stepNumber = when (tourStep) {
-                        TourStep.SAVE_BUTTON -> 1
-                        TourStep.FOLDERS_ICON -> 5
-                        TourStep.SAVED_LINK_CARD -> 6
-                        TourStep.SWIPE_LEFT -> 7
-                        TourStep.SWIPE_RIGHT -> 8
-                        else -> 0
-                    },
-                    totalSteps = 8
-                )
-            }
-        }
     }
 
 //    state.editingLink?.let { link ->
@@ -682,10 +573,10 @@ fun HomeScreen(
             folders = state.folders,
             allTags = state.allTags,
             isFetchingMetadata = state.isFetchingMetadata,
-            isInTour = isInTour,
-            tourStep = tourStep,
-            onTourNext = { nextStep() },
-            snackbarMessage = state.snackbarMessage,
+//            isInTour = isInTour,
+//            tourStep = tourStep,
+//            onTourNext = { nextStep() },
+//            snackbarMessage = state.snackbarMessage,
             onDismiss = viewModel::hideAddLinkDialog,
             onCreateFolder = { name, icon, color -> viewModel.addFolder(name, icon, color) },
             onConfirm = { url, folderId, reminderAt, note, tags, expiresAt,
@@ -890,8 +781,7 @@ fun LinksList(
                 onSetTags = { tags -> onSetTags(link, tags) },
                 allTags = allTags,
                 onRefreshMetadata = { onRefreshMetadata(link) },
-                modifier = if (index == 0) Modifier.onGloballyPositioned { onFirstLinkPosition(it) }
-                else Modifier
+                modifier = Modifier
             )
         }
         item { Spacer(Modifier.height(80.dp)) }

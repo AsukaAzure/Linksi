@@ -1286,6 +1286,7 @@ fun OptionsFullRow(
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() }
     ) {
         Row(
@@ -1624,6 +1625,7 @@ fun ReminderOptionCard(
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = modifier
             .height(90.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() }
     ) {
         Row(
@@ -2080,7 +2082,7 @@ fun TagManagerSheet(
                                 shape = RoundedCornerShape(20.dp),
                                 color = Color(0xFF22C55E).copy(alpha = 0.15f),
                                 border = BorderStroke(1.dp, Color(0xFF22C55E)),
-                                modifier = Modifier.clickable { toggleTag(tag) }
+                                modifier = Modifier.clip(RoundedCornerShape(20.dp)).clickable { toggleTag(tag) }
                             ) {
                                 Text(
                                     "#$tag",
@@ -2115,7 +2117,7 @@ fun TagManagerSheet(
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.clickable { addTag(input) }
+                            modifier = Modifier.clip(RoundedCornerShape(20.dp)).clickable { addTag(input) }
                         ) {
                             Row(
                                 modifier = Modifier.padding(
@@ -2143,7 +2145,7 @@ fun TagManagerSheet(
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.clickable { toggleTag(tag) }
+                            modifier = Modifier.clip(RoundedCornerShape(20.dp)).clickable { toggleTag(tag) }
                         ) {
                             Text(
                                 "#$tag",

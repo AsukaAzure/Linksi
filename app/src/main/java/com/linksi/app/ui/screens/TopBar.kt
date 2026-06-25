@@ -32,7 +32,6 @@ fun LinksTopBar(
     onSortClick: () -> Unit,
     onFoldersClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onFoldersCoordsChanged: (androidx.compose.ui.layout.LayoutCoordinates) -> Unit = {}
 ) {
     val startingShape =
         RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
@@ -97,7 +96,6 @@ fun LinksTopBar(
                 onClick = onFoldersClick,
                 shape = middleShape,
                 modifier = Modifier
-                    .onGloballyPositioned { onFoldersCoordsChanged(it) }
                     .widthIn(min = 1.dp)
                     .padding(end = 2.dp),
                 contentPadding = PaddingValues(12.dp),
