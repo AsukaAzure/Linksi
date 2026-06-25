@@ -692,7 +692,8 @@ fun ShareReceiverSheet(
             currentTags = tags,
             allExistingTags = state.allTags,
             onSave = { t -> tags = t; showTagSheet = false },
-            onDismiss = { showTagSheet = false }
+            onDismiss = { showTagSheet = false },
+            onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) }
         )
     }
 }

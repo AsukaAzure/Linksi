@@ -137,7 +137,20 @@ class HomeViewModel @Inject constructor(
     fun setTags(link: Link, tags: List<String>) {
         viewModelScope.launch {
             repository.updateLink(link.copy(tags = tags))
-            _uiState.update { it.copy(snackbarMessage = "Tags saved ✓") }
+            _uiState.update { it.copy(snackbarMessage = "Tags saved") }
+        }
+    }
+
+    fun deleteTagGlobally(tag: String) {
+        viewModelScope.launch {
+            val allLinks = repository.getAllLinks().first()
+            allLinks.filter { it.tags.contains(tag) }.forEach { link ->
+                repository.updateLink(link.copy(tags = link.tags - tag))
+            }
+            _uiState.update { it.copy(
+                allTags = _uiState.value.allTags - tag,
+                snackbarMessage = "Tag \"#$tag\" deleted from all links"
+            )}
         }
     }
 

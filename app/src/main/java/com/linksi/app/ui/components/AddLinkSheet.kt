@@ -684,7 +684,10 @@ fun AddLinkSheet(
         TagManagerSheet(
             currentTags = tags,
             allExistingTags = allTags,
-            onSave = { t -> tags = t; showTagSheet = false },
+            onSave = { t -> 
+                tags = t
+                showTagSheet = false 
+            },
             onDismiss = { showTagSheet = false }
         )
     }

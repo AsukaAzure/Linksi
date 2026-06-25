@@ -438,7 +438,8 @@ fun HomeScreen(
                             onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
                             onSetTags = { link, tags -> viewModel.setTags(link, tags) },
                             allTags = state.allTags,
-                            onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) }
+                            onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
+                            onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) }
                         )
 
                         ViewMode.GRID -> LinksGrid(
@@ -471,7 +472,8 @@ fun HomeScreen(
                             onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
                             onSetTags = { link, tags -> viewModel.setTags(link, tags) },
                             allTags = state.allTags,
-                            onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) }
+                            onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
+                            onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) }
                         )
                     }
                 }
@@ -754,7 +756,8 @@ fun LinksList(
     onSetExpiry: (Link, Long?) -> Unit = { _, _ -> },
     onSetTags: (Link, List<String>) -> Unit = { _, _ -> },
     allTags: List<String> = emptyList(),
-    onRefreshMetadata: (Link) -> Unit = {}
+    onRefreshMetadata: (Link) -> Unit = {},
+    onDeleteTagGlobally: (String) -> Unit = {},
 ) {
     LazyColumn(
         state = listState,
@@ -781,6 +784,7 @@ fun LinksList(
                 onSetTags = { tags -> onSetTags(link, tags) },
                 allTags = allTags,
                 onRefreshMetadata = { onRefreshMetadata(link) },
+                onDeleteTagGlobally = { tag -> onDeleteTagGlobally(tag) },
                 modifier = Modifier
             )
         }
@@ -807,8 +811,9 @@ fun LinksGrid(
     onSetExpiry: (Link, Long?) -> Unit = { _, _ -> },
     onSetTags: (Link, List<String>) -> Unit = { _, _ -> },
     allTags: List<String> = emptyList(),
-    onRefreshMetadata: (Link) -> Unit = {}
-) {
+    onRefreshMetadata: (Link) -> Unit = {},
+    onDeleteTagGlobally: (String) -> Unit = {},
+    ) {
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Fixed(2),
         contentPadding = PaddingValues(16.dp),

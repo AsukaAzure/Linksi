@@ -75,6 +75,7 @@ fun LinkCard(
     onSetTags: (List<String>) -> Unit = {},
     allTags: List<String> = emptyList(),
     onRefreshMetadata: () -> Unit = {},
+    onDeleteTagGlobally: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -375,6 +376,7 @@ fun LinkCard(
                                     onSetExpiry = { time -> onSetExpiry(time) },
                                     onSetTags = { tags -> onSetTags(tags) },
                                     allTags = allTags,
+                                    onDeleteTagGlobally = onDeleteTagGlobally,
                                 )
                             }
                         }
@@ -863,7 +865,8 @@ fun LinkOptionsSheet(
     onSetExpiry: (Long?) -> Unit,
     onSetTags: (List<String>) -> Unit = {},
     allTags: List<String> = emptyList(),
-    onRefreshMetadata: (Link) -> Unit = {}
+    onRefreshMetadata: (Link) -> Unit = {},
+    onDeleteTagGlobally: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -1231,7 +1234,8 @@ fun LinkOptionsSheet(
             currentTags = link.tags,
             allExistingTags = allTags,
             onSave = { tags -> onSetTags(tags); showTagSheet = false; dismiss() },
-            onDismiss = { showTagSheet = false }
+            onDismiss = { showTagSheet = false },
+            onDeleteTagGlobally = onDeleteTagGlobally
         )
     }
 }
@@ -1947,252 +1951,364 @@ fun SheetOption(
 @Composable
 fun TagManagerSheet(
     currentTags: List<String>,
-    allExistingTags: List<String>,  // all tags from all links
+    allExistingTags: List<String>,
     onSave: (List<String>) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onDeleteTagGlobally: ((String) -> Unit)? = null  // add this
 ) {
     var selectedTags by remember { mutableStateOf(currentTags.toSet()) }
+    var sessionAddedTags by remember { mutableStateOf(setOf<String>()) }
     var input by remember { mutableStateOf("") }
+    var isDeleteMode by remember { mutableStateOf(false) }  // add this
+    var tagToConfirmDelete by remember { mutableStateOf<String?>(null) }  // add this
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
-    // Filter existing tags by search input
-    val filteredExisting = remember(input, allExistingTags, selectedTags) {
-        allExistingTags
-            .filter { tag ->
-                input.isBlank() || tag.contains(input.trim(), ignoreCase = true)
-            }
-            .sortedBy { it }
+    val allKnownTags = remember(allExistingTags, sessionAddedTags, currentTags) {
+        (allExistingTags.toSet() + sessionAddedTags + currentTags.toSet())
+            .filter { it.isNotBlank() }
+            .sorted()
     }
 
-    // Can add new tag if input is not blank and not already in existing
+    val filteredTags = remember(input, allKnownTags) {
+        if (input.isBlank()) allKnownTags
+        else allKnownTags.filter { it.contains(input.trim(), ignoreCase = true) }
+    }
+
     val canAddNew = input.trim().isNotBlank() &&
-            !allExistingTags.contains(input.trim().lowercase().replace(" ", "-")) &&
-            !selectedTags.contains(input.trim().lowercase().replace(" ", "-"))
+            !allKnownTags.any { it.equals(input.trim(), ignoreCase = true) }
 
     fun addTag(tag: String) {
         val clean = tag.trim().lowercase().replace(" ", "-")
         if (clean.isNotBlank()) {
+            sessionAddedTags = sessionAddedTags + clean
             selectedTags = selectedTags + clean
             input = ""
         }
     }
 
     fun toggleTag(tag: String) {
-        selectedTags = if (selectedTags.contains(tag)) {
-            selectedTags - tag
-        } else {
-            selectedTags + tag
-        }
-    }
-
-    fun dismiss() {
-        scope.launch { sheetState.hide(); onDismiss() }
+        selectedTags = if (selectedTags.contains(tag)) selectedTags - tag
+        else selectedTags + tag
     }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = null,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        windowInsets = WindowInsets.ime
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .imePadding()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Handle
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp, bottom = 4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Surface(
-                    Modifier
-                        .width(40.dp)
-                        .height(4.dp),
-                    CircleShape,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                ) {}
-            }
-
-            Text(
-                "Manage Tags",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            // Search / add input
-            OutlinedTextField(
-                value = input,
-                onValueChange = { input = it.lowercase().replace(" ", "-") },
-                placeholder = { Text("Search or add tag…") },
-                leadingIcon = {
-                    Icon(
-                        if (input.isBlank()) Icons.Outlined.Tag else Icons.Outlined.Search,
-                        null
-                    )
-                },
-                trailingIcon = {
-                    if (canAddNew) {
-                        IconButton(onClick = { addTag(input) }) {
-                            Icon(
-                                Icons.Filled.Add, null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    } else if (input.isNotBlank()) {
-                        IconButton(onClick = { input = "" }) {
-                            Icon(Icons.Filled.Clear, null)
-                        }
-                    }
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = {
-                    if (canAddNew) addTag(input)
-                    else if (filteredExisting.size == 1) toggleTag(filteredExisting.first())
-                }),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Tags section
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-
-                // Show "currently selected" section at top if any selected
-                if (selectedTags.isNotEmpty()) {
-                    Text(
-                        "Selected",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        selectedTags.sorted().forEach { tag ->
-                            // GREEN selected chip
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = Color(0xFF22C55E).copy(alpha = 0.15f),
-                                border = BorderStroke(1.dp, Color(0xFF22C55E)),
-                                modifier = Modifier.clip(RoundedCornerShape(20.dp)).clickable { toggleTag(tag) }
-                            ) {
-                                Text(
-                                    "#$tag",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color(0xFF22C55E),
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    HorizontalDivider()
-                }
-
-                // All / filtered existing tags
-                val unselectedFiltered = filteredExisting.filter { !selectedTags.contains(it) }
-
-                if (unselectedFiltered.isNotEmpty() || canAddNew) {
-                    Text(
-                        if (input.isBlank()) "All tags" else "Results",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // "Add new" chip at top of results if input is new
-                    if (canAddNew) {
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.clip(RoundedCornerShape(20.dp)).clickable { addTag(input) }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(
-                                    horizontal = 10.dp, vertical = 6.dp
-                                ),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    Icons.Filled.Add, null,
-                                    Modifier.size(14.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    "Create \"#$input\"",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                    }
-
-                    // Unselected existing tags — grey, tap to select
-                    unselectedFiltered.forEach { tag ->
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.clip(RoundedCornerShape(20.dp)).clickable { toggleTag(tag) }
-                        ) {
-                            Text(
-                                "#$tag",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(
-                                    horizontal = 10.dp, vertical = 6.dp
-                                )
-                            )
-                        }
-                    }
-
-                    if (unselectedFiltered.isEmpty() && !canAddNew && input.isNotBlank()) {
-                        Text(
-                            "No tags found",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    if (allExistingTags.isEmpty() && input.isBlank()) {
-                        Text(
-                            "No tags yet — type above to create one",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.weight(1f, fill = false))
-
-            Button(
-                onClick = { onSave(selectedTags.toList()) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp)
+            // ── Header with delete mode toggle ────────────────
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Save",
-                    style = MaterialTheme.typography.titleMedium
+                    "Manage Tags",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
+                // Delete mode toggle
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isDeleteMode)
+                        MaterialTheme.colorScheme.errorContainer
+                    else
+                        MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { isDeleteMode = !isDeleteMode }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            if (isDeleteMode) Icons.Outlined.Close else Icons.Outlined.DeleteSweep,
+                            null,
+                            Modifier.size(16.dp),
+                            tint = if (isDeleteMode)
+                                MaterialTheme.colorScheme.onErrorContainer
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            if (isDeleteMode) "Done" else "Delete tags",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isDeleteMode)
+                                MaterialTheme.colorScheme.onErrorContainer
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Delete mode banner
+            AnimatedVisibility(visible = isDeleteMode) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Outlined.Warning, null,
+                            Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onErrorContainer)
+                        Text(
+                            "Tap a tag to permanently delete it from all links",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+
+            // ── Search input — hide in delete mode ────────────
+            AnimatedVisibility(visible = !isDeleteMode) {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it.lowercase().replace(" ", "-") },
+                    placeholder = { Text("Search or add tag…") },
+                    leadingIcon = {
+                        Icon(
+                            if (input.isBlank()) Icons.Outlined.Tag
+                            else Icons.Outlined.Search, null
+                        )
+                    },
+                    trailingIcon = {
+                        if (canAddNew) {
+                            IconButton(onClick = { addTag(input) }) {
+                                Icon(Icons.Filled.Add, null,
+                                    tint = MaterialTheme.colorScheme.primary)
+                            }
+                        } else if (input.isNotBlank()) {
+                            IconButton(onClick = { input = "" }) {
+                                Icon(Icons.Filled.Clear, null)
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (canAddNew) addTag(input)
+                        else {
+                            val match = filteredTags.find {
+                                it.equals(input.trim(), ignoreCase = true)
+                            }
+                            if (match != null) {
+                                if (!selectedTags.contains(match)) toggleTag(match)
+                                input = ""
+                            }
+                        }
+                    }),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // ── Tags section ──────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (isDeleteMode) {
+                    // ── Delete mode — show ALL tags with delete X ──
+                    if (allKnownTags.isEmpty()) {
+                        Text("No tags to delete",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Text("All tags — tap to delete permanently",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error)
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            allKnownTags.forEach { tag ->
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable {
+                                        tagToConfirmDelete = tag
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(
+                                            start = 10.dp, end = 6.dp,
+                                            top = 6.dp, bottom = 6.dp
+                                        ),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            "#$tag",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                        Icon(
+                                            Icons.Outlined.Close, null,
+                                            Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // ── Normal mode ───────────────────────────────
+                    if (selectedTags.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Selected",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold)
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                selectedTags.sorted().forEach { tag ->
+                                    InputChip(
+                                        selected = true,
+                                        onClick = { toggleTag(tag) },
+                                        label = { Text("#$tag") },
+                                        trailingIcon = {
+                                            Icon(Icons.Default.Close, null,
+                                                Modifier.size(16.dp))
+                                        },
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                }
+                            }
+                        }
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                    }
+
+                    val suggestions = filteredTags.filter { !selectedTags.contains(it) }
+                    if (suggestions.isNotEmpty() || canAddNew) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                if (input.isBlank()) "All Tags" else "Suggestions",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (canAddNew) {
+                                    AssistChip(
+                                        onClick = { addTag(input) },
+                                        label = { Text("Create \"$input\"") },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Add, null, Modifier.size(16.dp))
+                                        },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = AssistChipDefaults.assistChipColors(
+                                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                            labelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    )
+                                }
+                                suggestions.forEach { tag ->
+                                    FilterChip(
+                                        selected = false,
+                                        onClick = { toggleTag(tag) },
+                                        label = { Text("#$tag") },
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else if (input.isNotBlank()) {
+                        Text("No tags found matching \"$input\"",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 8.dp))
+                    } else if (allKnownTags.isEmpty()) {
+                        Text("No tags yet — type above to create one",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 8.dp))
+                    }
+                }
+            }
+
+            // Save button — hide in delete mode
+            AnimatedVisibility(visible = !isDeleteMode) {
+                Button(
+                    onClick = {
+                        val finalTags = selectedTags.toMutableSet()
+                        if (input.isNotBlank()) {
+                            val clean = input.trim().lowercase().replace(" ", "-")
+                            if (clean.isNotBlank()) finalTags.add(clean)
+                        }
+                        onSave(finalTags.toList())
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Save Tags", style = MaterialTheme.typography.titleMedium)
+                }
             }
         }
     }
+
+    // ── Confirm delete dialog ─────────────────────────────────
+    tagToConfirmDelete?.let { tag ->
+        AlertDialog(
+            onDismissRequest = { tagToConfirmDelete = null },
+            icon = {
+                Icon(Icons.Outlined.DeleteForever, null,
+                    tint = MaterialTheme.colorScheme.error)
+            },
+            title = { Text("Delete \"#$tag\"?") },
+            text = {
+                Text("This will remove the tag from all links permanently. This cannot be undone.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Remove from selected
+                        selectedTags = selectedTags - tag
+                        sessionAddedTags = sessionAddedTags - tag
+                        // Call global delete
+                        onDeleteTagGlobally?.invoke(tag)
+                        tagToConfirmDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { tagToConfirmDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
 }
+
 
 private fun formatDate(timestamp: Long): String {
     val now = System.currentTimeMillis()
