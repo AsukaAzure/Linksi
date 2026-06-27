@@ -15,7 +15,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.datastore.core.DataStore
+import com.linksi.app.domain.model.AI_MODELS
 import com.linksi.app.domain.model.AiProvider
+import com.linksi.app.domain.model.Link
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -39,7 +41,9 @@ data class SettingsUiState(
     val importTotal: Int = 0,
     val isImporting: Boolean = false,
     val importPhase: String = "",
-    val apiKeys: Map<AiProvider, String> = emptyMap()
+    val apiKeys: Map<AiProvider, String> = emptyMap(),
+    val modelStatus: SettingsViewModel.ModelStatus = SettingsViewModel.ModelStatus.UNKNOWN,
+    val isTestingModel: Boolean = false
 )
 
 @HiltViewModel
@@ -47,7 +51,7 @@ class SettingsViewModel @Inject constructor(
     private val repository: LinkRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
-
+    enum class ModelStatus { UNKNOWN, ACTIVE, ERROR }
     private val _uiState = MutableStateFlow(SettingsUiState())
     private val USE_IN_APP_BROWSER = booleanPreferencesKey("use_in_app_browser")
     val uiState = _uiState.asStateFlow()
@@ -315,6 +319,67 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             context.dataStore.edit { it[AI_SELECTED_MODEL] = modelId }
             _uiState.update { it.copy(selectedModelId = modelId) }
+        }
+    }
+
+    fun testSelectedModel() {
+        viewModelScope.launch {
+            val model = AI_MODELS.find { it.id == _uiState.value.selectedModelId } ?: return@launch
+            val apiKey = _uiState.value.apiKeys[model.provider] ?: ""
+
+            if (apiKey.isBlank()) {
+                _uiState.update { it.copy(modelStatus = ModelStatus.ERROR) }
+                return@launch
+            }
+
+            _uiState.update { it.copy(isTestingModel = true, modelStatus = ModelStatus.UNKNOWN) }
+
+            try {
+                val service = AiOrganizerService()
+                val result = service.generateOrganizePlan(
+                    links = listOf(
+                        Link(
+                            id = 1, url = "https://google.com",
+                            title = "Google", domain = "google.com"
+                        )
+                    ),
+                    existingFolders = emptyList(),
+                    model = model,
+                    apiKey = apiKey
+                )
+                result.fold(
+                    onSuccess = {
+                        _uiState.update { it.copy(
+                            isTestingModel = false,
+                            modelStatus = ModelStatus.ACTIVE
+                        )}
+                    },
+                    onFailure = { e ->
+                        val isQuotaError = e.message?.contains("429") == true ||
+                                e.message?.contains("quota", ignoreCase = true) == true ||
+                                e.message?.contains("rate limit", ignoreCase = true) == true ||
+                                e.message?.contains("insufficient", ignoreCase = true) == true
+
+                        _uiState.update { it.copy(
+                            isTestingModel = false,
+                            modelStatus = ModelStatus.ERROR,
+                            // Show specific error in supporting text
+                            updateCheckError = when {
+                                isQuotaError -> "Quota exceeded or rate limited"
+                                e.message?.contains("401") == true -> "Invalid API key"
+                                e.message?.contains("403") == true -> "API key unauthorized"
+                                else -> "Error: ${e.message?.take(60)}"
+                            }
+                        )}
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.update { it.copy(
+                    isTestingModel = false,
+                    modelStatus = ModelStatus.ERROR,
+                    updateCheckError = e.message?.take(60)
+                )}
+            }
         }
     }
 

@@ -157,10 +157,17 @@ fun SettingsScreen(
                         ListItem(
                             headlineContent = { Text("AI Model") },
                             supportingContent = {
-                                Text(
-                                    selectedModel?.name ?: "Select a model",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+                                when (state.modelStatus) {
+                                    SettingsViewModel.ModelStatus.ACTIVE -> Text("Active — ${selectedModel?.name}",
+                                        color = Color(0xFF22C55E),
+                                        style = MaterialTheme.typography.bodySmall)
+                                    SettingsViewModel.ModelStatus.ERROR -> Text(
+                                        state.updateCheckError ?: "Error — check API key",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall)
+                                    SettingsViewModel.ModelStatus.UNKNOWN -> Text(selectedModel?.name ?: "Select a model",
+                                        style = MaterialTheme.typography.bodySmall)
+                                }
                             },
                             leadingContent = {
                                 Icon(

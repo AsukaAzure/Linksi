@@ -2,6 +2,7 @@ package com.linksi.app.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,8 +21,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,11 +34,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.linksi.app.domain.model.*
 import com.linksi.app.ui.components.iconFromName
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +70,9 @@ fun AiOrganizerScreen(
                 state = state,
                 onBack = onBack,
                 onStartOrganize = viewModel::startOrganize,
-                onRevert = viewModel::revertLastSession
+                onRevert = viewModel::revertLastSession,
+                onSetBatchSize = viewModel::setBatchSize,
+                onTestModel = viewModel::testModel
             )
 
             AiOrganizerStep.SELECT_SCOPE -> AiScopeSelector(
@@ -110,11 +119,29 @@ fun AiOrganizerIdle(
     state: AiOrganizerUiState,
     onBack: () -> Unit,
     onStartOrganize: () -> Unit,
-    onRevert: () -> Unit
+    onRevert: () -> Unit,
+    onSetBatchSize: (Int) -> Unit,
+    onTestModel: () -> Unit
 ) {
     val selectedModel = AI_MODELS.find { it.id == state.selectedModelId }
     val apiKey = state.apiKeys[selectedModel?.provider] ?: ""
     val isReady = apiKey.isNotBlank()
+
+    val modelStatus = state.modelStatus
+    val isTestingModel = state.isTestingModel
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // Show snackbar when test fails
+    LaunchedEffect(state.testErrorMessage) {
+        state.testErrorMessage?.let {
+            snackbarHostState.showSnackbar(
+                message = it,
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -130,6 +157,7 @@ fun AiOrganizerIdle(
                 )
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
@@ -141,23 +169,7 @@ fun AiOrganizerIdle(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Hero section
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0xFF6366F1), Color(0xFF8B5CF6))
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Outlined.AutoAwesome, null,
-                    Modifier.size(52.dp),
-                    tint = Color.White
-                )
-            }
+            AiHeroArt(Modifier.size(100.dp))
 
             Text(
                 "AI Link Organizer",
@@ -201,21 +213,118 @@ fun AiOrganizerIdle(
                         )
                     }
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isReady)
-                            MaterialTheme.colorScheme.primaryContainer
-                        else
-                            MaterialTheme.colorScheme.errorContainer
+                        shape = RoundedCornerShape(10.dp),
+                        color = when {
+                            !isReady -> MaterialTheme.colorScheme.errorContainer
+                            modelStatus == SettingsViewModel.ModelStatus.ACTIVE -> Color(0xFF22C55E).copy(alpha = 0.2f)
+                            modelStatus == SettingsViewModel.ModelStatus.ERROR -> MaterialTheme.colorScheme.errorContainer
+                            else -> MaterialTheme.colorScheme.primaryContainer
+                        },
+                        modifier = Modifier.clickable {
+                            if (isReady && !isTestingModel) onTestModel()
+                        }
                     ) {
-                        Text(
-                            if (isReady) "Ready" else "No API Key",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isReady)
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            else
-                                MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isTestingModel) {
+                                CircularProgressIndicator(
+                                    Modifier.size(12.dp),
+                                    strokeWidth = 1.5.dp,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text("Testing…",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            } else {
+                                when {
+                                    !isReady -> Text("No API Key",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer)
+                                    modelStatus == SettingsViewModel.ModelStatus.ACTIVE -> {
+                                        Icon(Icons.Outlined.CheckCircle, null,
+                                            Modifier.size(12.dp),
+                                            tint = Color(0xFF22C55E))
+                                        Text("Active",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color(0xFF22C55E))
+                                    }
+                                    modelStatus == SettingsViewModel.ModelStatus.ERROR -> {
+                                        Icon(Icons.Outlined.Error, null,
+                                            Modifier.size(12.dp),
+                                            tint = MaterialTheme.colorScheme.error)
+                                        Text("Failed",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.error)
+                                    }
+                                    else -> Text("Check",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Outlined.Layers, null,
+                            tint = MaterialTheme.colorScheme.primary)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Links per batch",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium)
+                            Text(
+                                "Smaller batches use less API quota",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(4, 8, 16, 32).forEach { size ->
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (state.batchSize == size)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else
+                                    MaterialTheme.colorScheme.surface,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { onSetBatchSize(size) }
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.padding(vertical = 10.dp)
+                                ) {
+                                    Text(
+                                        "$size",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (state.batchSize == size)
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        else
+                                            MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -423,26 +532,7 @@ fun AiGeneratingScreen(onCancel: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(24.dp),
             modifier = Modifier.padding(32.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            listOf(
-                                Color(0xFF6366F1).copy(alpha = alpha),
-                                Color(0xFF8B5CF6).copy(alpha = alpha * 0.5f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Outlined.AutoAwesome, null,
-                    Modifier.size(48.dp),
-                    tint = Color.White
-                )
-            }
+            AiHeroArt(Modifier.size(100.dp))
 
             Text(
                 "AI is analyzing your links…",
@@ -834,7 +924,7 @@ fun AnimatedCheckmark(modifier: Modifier = Modifier) {
             .background(containerColor, CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        androidx.compose.foundation.Canvas(modifier = Modifier.size(48.dp)) {
+        Canvas(modifier = Modifier.size(48.dp)) {
             val width = size.width
             val height = size.height
 
@@ -852,10 +942,10 @@ fun AnimatedCheckmark(modifier: Modifier = Modifier) {
             drawPath(
                 path = segmentPath,
                 color = primaryColor,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                style = Stroke(
                     width = 6.dp.toPx(),
-                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
                 )
             )
         }
@@ -1076,7 +1166,7 @@ fun AnimatedCross(modifier: Modifier = Modifier) {
             .background(containerColor, CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        androidx.compose.foundation.Canvas(modifier = Modifier.size(48.dp)) {
+        Canvas(modifier = Modifier.size(48.dp)) {
             val width = size.width
             val height = size.height
             val strokeWidth = 6.dp.toPx()
@@ -1103,9 +1193,9 @@ fun AnimatedCross(modifier: Modifier = Modifier) {
             drawPath(
                 path = segmentPath1,
                 color = errorColor,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                style = Stroke(
                     width = strokeWidth,
-                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                    cap = StrokeCap.Round
                 )
             )
 
@@ -1118,9 +1208,9 @@ fun AnimatedCross(modifier: Modifier = Modifier) {
                 drawPath(
                     path = segmentPath2,
                     color = errorColor,
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    style = Stroke(
                         width = strokeWidth,
-                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        cap = StrokeCap.Round
                     )
                 )
             }
@@ -1204,6 +1294,58 @@ fun AiErrorScreen(
                 ) {
                     Text("Go Back")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun AiHeroArt(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "ai_art")
+    val duration = 1350
+
+    val time by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(duration, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "time"
+    )
+
+    // Patterns based on slot index (0 to 8) derived from the SVG's keyframes
+    val patterns = listOf(
+        listOf(1, 1, 1, 0, 0, 0, 0, 0, 0), // d=0: f111000000
+        listOf(0, 1, 0, 1, 0, 0, 0, 0, 0), // d=1: f010100000
+        listOf(0, 0, 1, 0, 1, 0, 0, 0, 0), // d=2: f001010000
+        listOf(0, 0, 0, 1, 0, 1, 0, 0, 0), // d=3: f000101000
+        listOf(0, 0, 0, 1, 1, 0, 1, 0, 0), // d=4: f000110100
+        listOf(0, 0, 0, 0, 1, 1, 0, 1, 0), // d=5: f000011010
+        listOf(0, 0, 0, 0, 0, 1, 1, 1, 0)  // d=6: f000001110
+    )
+
+    val onColor = MaterialTheme.colorScheme.primary
+    val offColor = MaterialTheme.colorScheme.surfaceVariant
+
+    Canvas(modifier = modifier) {
+        val dotRadius = size.width / 42f * 2f
+        val step = size.width / 42f * 6f
+        val startOffset = size.width / 42f * 3f
+
+        val currentSlot = (time * 9).toInt().coerceIn(0, 8)
+
+        for (row in 0 until 7) {
+            for (col in 0 until 7) {
+                // Manhattan distance from center (3,3)
+                val d = abs(row - 3) + abs(col - 3)
+                val isOn = if (d < patterns.size) patterns[d][currentSlot] == 1 else false
+
+                drawCircle(
+                    color = if (isOn) onColor else offColor,
+                    radius = dotRadius,
+                    center = Offset(startOffset + col * step, startOffset + row * step)
+                )
             }
         }
     }

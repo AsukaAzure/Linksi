@@ -39,10 +39,19 @@ data class AiOrganizerUiState(
     val errorMessage: String? = null,
     val applyProgress: Int = 0,
     val applyTotal: Int = 0,
+    val batchSize: Int = 32,
+    val batchProgress: String = "",
 
     // Revert
     val lastSession: AiOrganizerSession? = null,
-    val hasRevertableSession: Boolean = false
+    val hasRevertableSession: Boolean = false,
+
+    val snackbarMessage: String? = null,
+
+    // testing
+    val modelStatus: SettingsViewModel.ModelStatus = SettingsViewModel.ModelStatus.UNKNOWN,
+    val isTestingModel: Boolean = false,
+    val testErrorMessage: String? = null,
 )
 
 @HiltViewModel
@@ -84,6 +93,84 @@ class AiOrganizerViewModel @Inject constructor(
         }
     }
 
+    fun setBatchSize(size: Int) {
+        _uiState.update { it.copy(batchSize = size) }
+    }
+
+    fun testModel() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val model = AI_MODELS.find { it.id == state.selectedModelId } ?: return@launch
+            val apiKey = state.apiKeys[model.provider] ?: ""
+
+            if (apiKey.isBlank()) {
+                _uiState.update { it.copy(
+                    modelStatus = SettingsViewModel.ModelStatus.ERROR,
+                    testErrorMessage = "No API key set for ${model.provider.name}"
+                )}
+                return@launch
+            }
+
+            _uiState.update { it.copy(
+                isTestingModel = true,
+                modelStatus = SettingsViewModel.ModelStatus.UNKNOWN,
+                testErrorMessage = null
+            )}
+
+            try {
+                val result = service.generateOrganizePlan(
+                    links = listOf(
+                        Link(
+                            id = 1,
+                            url = "https://google.com",
+                            title = "Google",
+                            domain = "google.com"
+                        )
+                    ),
+                    existingFolders = emptyList(),
+                    model = model,
+                    apiKey = apiKey
+                )
+                result.fold(
+                    onSuccess = {
+                        _uiState.update { it.copy(
+                            isTestingModel = false,
+                            modelStatus = SettingsViewModel.ModelStatus.ACTIVE,
+                            testErrorMessage = null
+                        )}
+                    },
+                    onFailure = { e ->
+                        _uiState.update { it.copy(
+                            isTestingModel = false,
+                            modelStatus = SettingsViewModel.ModelStatus.ERROR,
+                            testErrorMessage = mapErrorToMessage(e)
+                        )}
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.update { it.copy(
+                    isTestingModel = false,
+                    modelStatus = SettingsViewModel.ModelStatus.ERROR,
+                    testErrorMessage = mapErrorToMessage(e)
+                )}
+            }
+        }
+    }
+
+    private fun mapErrorToMessage(e: Throwable): String {
+        val msg = e.message ?: ""
+        return when {
+            msg.contains("400") -> "Invalid request. Please check your API key."
+            msg.contains("401") -> "Invalid API key. Please check your settings."
+            msg.contains("403") -> "API key unauthorized or insufficient permissions."
+            msg.contains("429") || msg.contains("quota", ignoreCase = true) -> 
+                "API quota exceeded or rate limited."
+            msg.contains("insufficient", ignoreCase = true) -> "Insufficient credits in your AI account."
+            msg.contains("Unable to resolve host") -> "Network error. Please check your internet connection."
+            else -> "Error: ${msg.take(60)}"
+        }
+    }
+
     fun setEnabled(enabled: Boolean) {
         viewModelScope.launch {
             context.dataStore.edit { it[AI_ENABLED] = enabled }
@@ -93,6 +180,7 @@ class AiOrganizerViewModel @Inject constructor(
     fun setSelectedModel(modelId: String) {
         viewModelScope.launch {
             context.dataStore.edit { it[AI_SELECTED_MODEL] = modelId }
+            _uiState.update { it.copy(modelStatus = SettingsViewModel.ModelStatus.UNKNOWN, testErrorMessage = null) }
         }
     }
 
@@ -107,6 +195,7 @@ class AiOrganizerViewModel @Inject constructor(
                     AiProvider.GROK -> prefs[AI_KEY_GROK] = key
                 }
             }
+            _uiState.update { it.copy(modelStatus = SettingsViewModel.ModelStatus.UNKNOWN, testErrorMessage = null) }
         }
     }
 
@@ -133,17 +222,14 @@ class AiOrganizerViewModel @Inject constructor(
     fun generatePlan() {
         viewModelScope.launch {
             val state = _uiState.value
-            val model = AI_MODELS.find { it.id == state.selectedModelId }
-                ?: return@launch
+            val model = AI_MODELS.find { it.id == state.selectedModelId } ?: return@launch
             val apiKey = state.apiKeys[model.provider] ?: ""
 
             if (apiKey.isBlank()) {
-                _uiState.update {
-                    it.copy(
-                        step = AiOrganizerStep.ERROR,
-                        errorMessage = "No API key set for ${model.provider.name}. Add it in AI Settings."
-                    )
-                }
+                _uiState.update { it.copy(
+                    step = AiOrganizerStep.ERROR,
+                    errorMessage = "No API key set for ${model.provider.name}."
+                )}
                 return@launch
             }
 
@@ -151,8 +237,6 @@ class AiOrganizerViewModel @Inject constructor(
 
             val allLinks = repository.getAllLinks().first()
             val folders = repository.getAllFolders().first()
-            
-            _uiState.update { it.copy(folders = folders) }
 
             val linksToOrganize = when (state.selectedScope) {
                 OrganizeScope.UNORGANIZED -> allLinks.filter { it.folderId == null }
@@ -160,50 +244,61 @@ class AiOrganizerViewModel @Inject constructor(
             }
 
             if (linksToOrganize.isEmpty()) {
-                _uiState.update {
-                    it.copy(
-                        step = AiOrganizerStep.ERROR,
-                        errorMessage = "No links to organize."
-                    )
-                }
+                _uiState.update { it.copy(
+                    step = AiOrganizerStep.ERROR,
+                    errorMessage = "No links to organize."
+                )}
                 return@launch
             }
 
-            val result = service.generateOrganizePlan(
-                links = linksToOrganize,
-                existingFolders = folders,
-                model = model,
-                apiKey = apiKey
-            )
+            // ── Batch processing ──────────────────────────────
+            val batches = linksToOrganize.chunked(state.batchSize)
+            val allLinkPlans = mutableListOf<LinkOrganizePlan>()
+            val allNewFolders = mutableListOf<NewFolderPlan>()
+            for ((index, batch) in batches.withIndex()) {
+                _uiState.update { it.copy(
+                    batchProgress = if (batches.size > 1)
+                        "Processing batch ${index + 1} of ${batches.size}…"
+                    else ""
+                )}
 
-            result.fold(
-                onSuccess = { response ->
-                    try {
-                        val plan = service.parseAiResponse(response, linksToOrganize, folders)
-                        _uiState.update {
-                            it.copy(
-                                step = AiOrganizerStep.PREVIEW,
-                                plan = plan
-                            )
-                        }
-                    } catch (e: Exception) {
-                        _uiState.update {
-                            it.copy(
+                val result = service.generateOrganizePlan(
+                    links = batch,
+                    existingFolders = folders,
+                    model = model,
+                    apiKey = apiKey
+                )
+
+                result.fold(
+                    onSuccess = { response ->
+                        try {
+                            val plan = service.parseAiResponse(response, batch, folders)
+                            allLinkPlans.addAll(plan.linkPlans)
+                            allNewFolders.addAll(plan.newFolders)
+                        } catch (e: Exception) {
+                            _uiState.update { it.copy(
                                 step = AiOrganizerStep.ERROR,
                                 errorMessage = "Failed to parse AI response: ${e.message}"
-                            )
+                            )}
+                            return@launch
                         }
-                    }
-                },
-                onFailure = { e ->
-                    _uiState.update {
-                        it.copy(
+                    },
+                    onFailure = { e ->
+                        _uiState.update { it.copy(
                             step = AiOrganizerStep.ERROR,
-                            errorMessage = e.message ?: "Unknown error"
-                        )
+                            errorMessage = mapErrorToMessage(e)
+                        )}
+                        return@launch
                     }
-                }
-            )
+                )
+            }
+
+            _uiState.update { it.copy(
+                step = AiOrganizerStep.PREVIEW,
+                plan = OrganizePlan(
+                    linkPlans = allLinkPlans,
+                    allNewFolders.distinctBy { it.name }                 )
+            )}
         }
     }
 
@@ -320,6 +415,10 @@ class AiOrganizerViewModel @Inject constructor(
     }
 
     // ── Session persistence ───────────────────────────────────
+
+    fun dismissSnackbar() {
+        _uiState.update { it.copy(snackbarMessage = null, testErrorMessage = null) }
+    }
 
     private val SESSION_KEY = stringPreferencesKey("ai_last_session")
 
