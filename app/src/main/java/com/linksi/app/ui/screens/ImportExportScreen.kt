@@ -110,27 +110,6 @@ fun ImportExportScreen(
                 }
             }
 
-            // Browser instructions
-            item { SectionHeader("How to export from browsers", Icons.Outlined.Info) }
-            item {
-                SettingsCard {
-                    BrowserInstructionItem(
-                        browser = "Chrome",
-                        steps = "Menu (⋮) → Bookmarks → Bookmark manager → Menu (⋮) → Export bookmarks"
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    BrowserInstructionItem(
-                        browser = "Firefox",
-                        steps = "Menu → Bookmarks → Manage bookmarks → Import & Backup → Export HTML"
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    BrowserInstructionItem(
-                        browser = "Safari (Mac)",
-                        steps = "File → Export Bookmarks → save as HTML → transfer to phone"
-                    )
-                }
-            }
-
             item { Spacer(Modifier.height(32.dp)) }
         }
         if (state.isImporting) {

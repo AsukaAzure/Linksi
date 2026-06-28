@@ -1103,6 +1103,7 @@ fun LinkOptionsSheet(
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier
                                 .size(56.dp)
+                                .clip(RoundedCornerShape(16.dp))
                                 .clickable {
                                     onRefreshMetadata(link)
                                     dismiss()

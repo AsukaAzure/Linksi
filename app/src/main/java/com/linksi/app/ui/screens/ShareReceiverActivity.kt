@@ -111,6 +111,8 @@ fun ShareReceiverSheet(
     var editDescription by remember { mutableStateOf("") }
     var previewImageUrl by remember { mutableStateOf("") }
     var imageLoadFailed by remember { mutableStateOf(false) }
+    var isFetchingPreview by remember { mutableStateOf(false) }
+
 
     // Sub sheet visibility
     var showFolderPicker by remember { mutableStateOf(false) }
@@ -297,42 +299,94 @@ fun ShareReceiverSheet(
                 }
 
                 // ── Edit link ─────────────────────────────────
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { showEditSheet = true }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    // Edit link — takes most space
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { if (url.isNotBlank()) showEditSheet = true }
                     ) {
-                        Icon(
-                            Icons.Outlined.Edit, null,
-                            Modifier.size(22.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                "Edit link",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Edit, null,
+                                Modifier.size(22.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                editTitle.ifBlank { "Title, description, image" },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Edit link",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    editTitle.ifBlank { "Add title, description, image" },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Icon(
+                                Icons.Outlined.ChevronRight, null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Icon(
-                            Icons.Outlined.ChevronRight, null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    }
+
+                    // Refresh metadata — square button
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .size(60.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable {
+                                if (url.isNotBlank()) {
+                                    scope.launch {
+                                        isFetchingPreview = true
+                                        editTitle = ""
+                                        editDescription = ""
+                                        previewImageUrl = ""
+                                        try {
+                                            val meta = com.linksi.app.utils.MetadataFetcher.fetch(url.trim())
+                                            editTitle = meta.title.ifBlank {
+                                                url.removePrefix("https://")
+                                                    .removePrefix("http://")
+                                                    .removePrefix("www.")
+                                                    .substringBefore("/")
+                                            }
+                                            editDescription = meta.description
+                                            previewImageUrl = meta.previewImageUrl
+                                        } catch (e: Exception) { }
+                                        isFetchingPreview = false
+                                    }
+                                }
+                            }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (isFetchingPreview) {
+                                CircularProgressIndicator(
+                                    Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Outlined.Refresh, null,
+                                    Modifier.size(22.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
 
