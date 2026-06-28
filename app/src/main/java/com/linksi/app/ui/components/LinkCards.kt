@@ -44,6 +44,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import com.android.volley.toolbox.ImageRequest
@@ -76,6 +77,7 @@ fun LinkCard(
     allTags: List<String> = emptyList(),
     onRefreshMetadata: () -> Unit = {},
     onDeleteTagGlobally: (String) -> Unit = {},
+    onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -508,7 +510,8 @@ fun LinkCard(
                 folders = folders,
                 currentFolderId = link.folderId,
                 onSelect = { folderId -> onMoveToFolder(folderId); showFolderPicker = false },
-                onDismiss = { showFolderPicker = false }
+                onDismiss = { showFolderPicker = false },
+                onCreateFolder = onCreateFolder
             )
         }
 
@@ -549,6 +552,7 @@ fun LinkGridCard(
     onSetTags: (List<String>) -> Unit = {},
     allTags: List<String> = emptyList(),
     onRefreshMetadata: () -> Unit = {},
+    onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -791,7 +795,8 @@ fun LinkGridCard(
             folders = folders,
             currentFolderId = link.folderId,
             onSelect = { folderId -> onMoveToFolder(folderId); showFolderPicker = false },
-            onDismiss = { showFolderPicker = false }
+            onDismiss = { showFolderPicker = false },
+            onCreateFolder = onCreateFolder
         )
     }
 

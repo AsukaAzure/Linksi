@@ -48,6 +48,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.scale
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -642,7 +643,8 @@ fun AddLinkSheet(
             folders = folders,
             currentFolderId = selectedFolderId,
             onSelect = { folderId -> selectedFolderId = folderId; showFolderPicker = false },
-            onDismiss = { showFolderPicker = false }
+            onDismiss = { showFolderPicker = false },
+            onCreateFolder = { name, icon, color -> onCreateFolder(name, icon, color) }
         )
     }
 

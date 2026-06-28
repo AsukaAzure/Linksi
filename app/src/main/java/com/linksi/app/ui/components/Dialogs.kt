@@ -367,7 +367,8 @@ fun FolderPickerDialog(
     folders: List<Folder>,
     currentFolderId: Long?,
     onSelect: (Long?) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onCreateFolder: ((String, String, String) -> Unit)? = null
 ) {
     var visible by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -465,27 +466,37 @@ fun FolderPickerDialog(
                                 .verticalScroll(rememberScrollState())
                                 .padding(vertical = 8.dp)
                         ) {
+                            var showCreateFolder by remember { mutableStateOf(false) }
+
                             FolderPickerItem(
                                 icon = {
-                                    Icon(
-                                        Icons.Outlined.FolderOff, null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                Icons.Outlined.CreateNewFolder, null,
+                                                Modifier.size(18.dp),
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        }
+                                    }
                                 },
-                                name = "No folder",
-                                isSelected = currentFolderId == null,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                onClick = { select(null) }
+                                name = "New folder",
+                                isSelected = false,
+                                color = MaterialTheme.colorScheme.primary,
+                                onClick = { showCreateFolder = true }
                             )
 
                             HorizontalDivider(
-                                modifier = Modifier.padding(
-                                    horizontal = 16.dp,
-                                    vertical = 4.dp
-                                )
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                             )
 
+                            // ── Existing folders ──────────────────────────────
                             folders.forEach { folder ->
+                                val isCurrentFolder = folder.id == currentFolderId
                                 FolderPickerItem(
                                     icon = {
                                         Surface(
@@ -499,19 +510,34 @@ fun FolderPickerDialog(
                                                 Icon(
                                                     iconFromName(folder.icon), null,
                                                     Modifier.size(18.dp),
-                                                    tint = Color(
-                                                        android.graphics.Color.parseColor(folder.color)
-                                                    )
+                                                    tint = Color(android.graphics.Color.parseColor(folder.color))
                                                 )
                                             }
                                         }
                                     },
                                     name = folder.name,
-                                    isSelected = folder.id == currentFolderId,
-                                    color = Color(
-                                        android.graphics.Color.parseColor(folder.color)
-                                    ),
-                                    onClick = { select(folder.id) }
+                                    isSelected = isCurrentFolder,
+                                    color = Color(android.graphics.Color.parseColor(folder.color)),
+                                    subtitle = if (isCurrentFolder) "Tap to remove from folder" else null,
+                                    onClick = {
+                                        if (isCurrentFolder) {
+                                            // Tapping current folder removes the link from it
+                                            select(null)
+                                        } else {
+                                            select(folder.id)
+                                        }
+                                    }
+                                )
+                            }
+
+                            // Create folder dialog
+                            if (showCreateFolder) {
+                                AddFolderDialog(
+                                    onDismiss = { showCreateFolder = false },
+                                    onConfirm = { name, icon, color ->
+                                        onCreateFolder?.invoke(name, icon, color)
+                                        showCreateFolder = false
+                                    }
                                 )
                             }
                         }
@@ -528,13 +554,13 @@ fun FolderPickerItem(
     name: String,
     isSelected: Boolean,
     color: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    subtitle: String? = null
 ) {
     Surface(
         color = if (isSelected)
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-        else
-            Color.Transparent,
+        else Color.Transparent,
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
@@ -547,14 +573,20 @@ fun FolderPickerItem(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             icon()
-
-            Text(
-                name,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (subtitle != null) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             if (isSelected) {
                 Icon(
                     Icons.Filled.Check, null,

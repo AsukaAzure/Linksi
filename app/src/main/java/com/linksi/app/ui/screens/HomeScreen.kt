@@ -324,7 +324,10 @@ fun HomeScreen(
                                             viewModel.moveSelectedToFolder(folderId)
                                             showFolderPicker = false
                                         },
-                                        onDismiss = { showFolderPicker = false }
+                                        onDismiss = { showFolderPicker = false },
+                                        onCreateFolder = { name, icon, color ->
+                                            viewModel.addFolder(name, icon, color)
+                                        }
                                     )
                                 }
                             }
@@ -885,7 +888,8 @@ fun BulkActionBar(
     onSelectAll: () -> Unit,
     onDelete: () -> Unit,
     onMove: (Long?) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    onCreateFolder: (String, String, String) -> Unit
 ) {
     var showFolderPicker by remember { mutableStateOf(false) }
 
@@ -928,7 +932,8 @@ fun BulkActionBar(
             folders = folders,
             currentFolderId = null,
             onSelect = { folderId -> onMove(folderId); showFolderPicker = false },
-            onDismiss = { showFolderPicker = false }
+            onDismiss = { showFolderPicker = false },
+            onCreateFolder = onCreateFolder
         )
     }
 }

@@ -649,7 +649,8 @@ fun ShareReceiverSheet(
                 selectedFolderId = folderId
                 showFolderPicker = false
             },
-            onDismiss = { showFolderPicker = false }
+            onDismiss = { showFolderPicker = false },
+            onCreateFolder = { name, icon, color -> viewModel.addFolder(name, icon, color) }
         )
     }
 
