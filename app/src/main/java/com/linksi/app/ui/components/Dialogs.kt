@@ -34,6 +34,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.room.util.TableInfo
+import androidx.compose.ui.res.stringResource
+import com.linksi.app.R
 import com.linksi.app.domain.model.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
@@ -146,13 +148,13 @@ fun AddLinkDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Filled.Link, null) },
-        title = { Text("Save Link") },
+        title = { Text(stringResource(R.string.save_link)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("URL") },
+                    label = { Text(stringResource(R.string.url)) },
                     placeholder = { Text("https://example.com") },
                     leadingIcon = { Icon(Icons.Outlined.Link, null) },
                     singleLine = true,
@@ -165,14 +167,14 @@ fun AddLinkDialog(
 
                 // Folder picker
                 // AFTER
-                Text("Folder", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.folders), style = MaterialTheme.typography.labelMedium)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     item {
                         FilterChip(
                             shape = startingShape,
                             selected = selectedFolderId == null,
                             onClick = { selectedFolderId = null },
-                            label = { Text("📥 Inbox") }
+                            label = { Text("📥 " + stringResource(R.string.inbox)) }
                         )
                     }
                     items(folders) { folder ->
@@ -201,7 +203,7 @@ fun AddLinkDialog(
                             shape = endingShape,
                             selected = false,
                             onClick = { showCreateFolder = true },
-                            label = { Text("New folder") },
+                            label = { Text(stringResource(R.string.new_folder)) },
                             leadingIcon = {
                                 Icon(Icons.Filled.Add, null, Modifier.size(14.dp))
                             }
@@ -230,7 +232,7 @@ fun AddLinkDialog(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                        Text("Fetching preview…", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.fetching_preview), style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -246,11 +248,11 @@ fun AddLinkDialog(
                 },
                 enabled = url.isNotBlank() && !isFetchingMetadata
             ) {
-                Text("Save")
+                Text(stringResource(R.string.save))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }
@@ -280,18 +282,18 @@ fun AddFolderDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Filled.CreateNewFolder, null) },
-        title = { Text("New Folder") },
+        title = { Text(stringResource(R.string.new_folder)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Folder name") },
+                    label = { Text(stringResource(R.string.folder_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Text("Icon", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.icon), style = MaterialTheme.typography.labelMedium)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(FOLDER_ICONS) { option ->
                         Surface(
@@ -318,7 +320,7 @@ fun AddFolderDialog(
                     }
                 }
 
-                Text("Color", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.color), style = MaterialTheme.typography.labelMedium)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(FOLDER_COLORS) { color ->
                         Box(
@@ -352,10 +354,10 @@ fun AddFolderDialog(
                 },
                 enabled = name.isNotBlank()
             ) {
-                Text("Create")
+                Text(stringResource(R.string.create))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
@@ -450,10 +452,10 @@ fun FolderPickerDialog(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             IconButton(onClick = { dismiss() }) {
-                                Icon(Icons.Outlined.ArrowBack, "Close")
+                                Icon(Icons.Outlined.ArrowBack, stringResource(R.string.close))
                             }
                             Text(
-                                "Move to folder",
+                                stringResource(R.string.move_to_folder),
                                 style = MaterialTheme.typography.titleLarge
                             )
                         }
@@ -484,7 +486,7 @@ fun FolderPickerDialog(
                                         }
                                     }
                                 },
-                                name = "New folder",
+                                name = stringResource(R.string.new_folder),
                                 isSelected = false,
                                 color = MaterialTheme.colorScheme.primary,
                                 onClick = { showCreateFolder = true }
@@ -518,7 +520,7 @@ fun FolderPickerDialog(
                                     name = folder.name,
                                     isSelected = isCurrentFolder,
                                     color = Color(android.graphics.Color.parseColor(folder.color)),
-                                    subtitle = if (isCurrentFolder) "Tap to remove from folder" else null,
+                                    subtitle = if (isCurrentFolder) stringResource(R.string.tap_to_remove) else null,
                                     onClick = {
                                         if (isCurrentFolder) {
                                             // Tapping current folder removes the link from it
@@ -611,7 +613,7 @@ fun SortBottomSheet(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(bottom = 32.dp)) {
             Text(
-                "Sort by",
+                stringResource(R.string.sort_by),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
             )
@@ -633,12 +635,13 @@ fun SortBottomSheet(
     }
 }
 
+@Composable
 private fun SortOption.label() = when (this) {
-    SortOption.DATE_NEWEST -> "Newest first"
-    SortOption.DATE_OLDEST -> "Oldest first"
-    SortOption.TITLE_AZ -> "Title A → Z"
-    SortOption.TITLE_ZA -> "Title Z → A"
-    SortOption.DOMAIN -> "By domain"
+    SortOption.DATE_NEWEST -> stringResource(R.string.newest_first)
+    SortOption.DATE_OLDEST -> stringResource(R.string.oldest_first)
+    SortOption.TITLE_AZ -> stringResource(R.string.title_az)
+    SortOption.TITLE_ZA -> stringResource(R.string.title_za)
+    SortOption.DOMAIN -> stringResource(R.string.by_domain)
 }
 
 private fun SortOption.icon() = when (this) {
@@ -680,33 +683,33 @@ fun EditLinkDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Outlined.Edit, null) },
-        title = { Text("Edit Link") },
+        title = { Text(stringResource(R.string.edit_link_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = url, onValueChange = { url = it },
-                    label = { Text("URL") }, singleLine = true,
+                    label = { Text(stringResource(R.string.url)) }, singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = title, onValueChange = { title = it },
-                    label = { Text("Title") }, singleLine = true,
+                    label = { Text(stringResource(R.string.title)) }, singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = description, onValueChange = { description = it },
-                    label = { Text("Description") }, singleLine = true,
+                    label = { Text(stringResource(R.string.description)) }, singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (folders.isNotEmpty()) {
-                    Text("Folder", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.folders), style = MaterialTheme.typography.labelMedium)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         item {
                             FilterChip(
                                 shape = startingShape,
                                 selected = selectedFolderId == null,
                                 onClick = { selectedFolderId = null },
-                                label = { Text("\uD83D\uDCE5 Inbox") })
+                                label = { Text("📥 " + stringResource(R.string.inbox)) })
                         }
                         itemsIndexed(folders) { index, folder ->
                             val currentShape = if (index == folders.lastIndex){
@@ -753,9 +756,9 @@ fun EditLinkDialog(
                         reminderAt = reminderAt
                     )
                 )
-            }, enabled = url.isNotBlank()) { Text("Save") }
+            }, enabled = url.isNotBlank()) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
@@ -831,6 +834,12 @@ fun ReminderPicker(
                 }
             }
         } else {
+            val suggestions = listOf(
+                stringResource(R.string.one_hour) to (System.currentTimeMillis() + 3_600_000L),
+                stringResource(R.string.tonight) to todayAt(21, 0),
+                stringResource(R.string.tomorrow) to tomorrowAt(9, 0),
+                stringResource(R.string.weekend) to nextWeekendAt(9, 0),
+            )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 val startingShape =
                     RoundedCornerShape(
@@ -853,15 +862,9 @@ fun ReminderPicker(
                         bottomStart = 4.dp,
                         bottomEnd = 20.dp
                     )
-                val suggestions = listOf(
-                    "1h" to (System.currentTimeMillis() + 3_600_000L),
-                    "Tonight" to todayAt(21, 0),
-                    "Tomorrow" to tomorrowAt(9, 0),
-                    "Weekend" to nextWeekendAt(9, 0),
-                )
                 items(suggestions) { (label, time) ->
                     SuggestionChip(
-                        shape = if (label == "1h") startingShape else middleShape,
+                        shape = if (label == stringResource(R.string.one_hour)) startingShape else middleShape,
                         onClick = { setReminderWithPermissionCheck(time) },
                         label = { Text(label, style = MaterialTheme.typography.labelSmall) }
                     )
@@ -870,7 +873,7 @@ fun ReminderPicker(
                     SuggestionChip(
                         shape = endingShape,
                         onClick = { showDatePicker = true },
-                        label = { Text("Custom", style = MaterialTheme.typography.labelSmall) }
+                        label = { Text(stringResource(R.string.custom), style = MaterialTheme.typography.labelSmall) }
                     )
                 }
             }
@@ -888,10 +891,10 @@ fun ReminderPicker(
                     selectedDate = datePickerState.selectedDateMillis
                     showDatePicker = false
                     showTimePicker = true
-                }) { Text("Next") }
+                }) { Text(stringResource(R.string.next)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.cancel)) }
             }
         ) { DatePicker(state = datePickerState) }
     }
@@ -900,7 +903,7 @@ fun ReminderPicker(
         val timePickerState = rememberTimePickerState(initialHour = 9, initialMinute = 0)
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
-            title = { Text("Pick a time") },
+            title = { Text(stringResource(R.string.pick_time)) },
             text = { TimePicker(state = timePickerState) },
             confirmButton = {
                 TextButton(onClick = {
@@ -913,10 +916,10 @@ fun ReminderPicker(
                     }
                     setReminderWithPermissionCheck(cal.timeInMillis)
                     showTimePicker = false
-                }) { Text("Set") }
+                }) { Text(stringResource(R.string.set)) }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -970,18 +973,18 @@ fun EditFolderDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Outlined.Edit, null) },
-        title = { Text("Edit Folder") },
+        title = { Text(stringResource(R.string.edit_folder)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Folder name") },
+                    label = { Text(stringResource(R.string.folder_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Text("Icon", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.icon), style = MaterialTheme.typography.labelMedium)
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(5),
@@ -1015,7 +1018,7 @@ fun EditFolderDialog(
                     }
                 }
 
-                Text("Color", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.color), style = MaterialTheme.typography.labelMedium)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(FOLDER_COLORS) { color ->
                         Box(
@@ -1044,9 +1047,9 @@ fun EditFolderDialog(
                     if (name.isNotBlank()) onConfirm(name.trim(), selectedIcon, selectedColor)
                 },
                 enabled = name.isNotBlank()
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 

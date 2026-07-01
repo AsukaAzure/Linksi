@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import androidx.compose.ui.res.stringResource
+import com.linksi.app.R
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
 import kotlinx.coroutines.launch
@@ -148,7 +150,7 @@ fun LinkEditSheet(
                             Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.width(8.dp))
-                        Text("Delete",
+                        Text(stringResource(R.string.delete),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -173,7 +175,7 @@ fun LinkEditSheet(
                             Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.width(8.dp))
-                        Text("Replace",
+                        Text(stringResource(R.string.replace),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -204,11 +206,11 @@ fun LinkEditSheet(
                         Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Column {
-                        Text("Set Image from URL",
+                        Text(stringResource(R.string.set_image_url),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface)
-                        Text("Enter a direct image link to replace the current one",
+                        Text(stringResource(R.string.set_image_url_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -229,8 +231,18 @@ fun LinkEditSheet(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    placeholder = { Text("Title") },
+                    placeholder = { Text(stringResource(R.string.title)) },
                     singleLine = true,
+                    trailingIcon = {
+                        if (title.isNotEmpty()) {
+                            IconButton(onClick = { title = "" }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = stringResource(R.string.clear)
+                                )
+                            }
+                        }
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,
                         unfocusedBorderColor = Color.Transparent,
@@ -258,8 +270,18 @@ fun LinkEditSheet(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    placeholder = { Text("Description") },
+                    placeholder = { Text(stringResource(R.string.description)) },
                     maxLines = 5,
+                    trailingIcon = {
+                        if (description.isNotEmpty()) {
+                            IconButton(onClick = { description = "" }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = stringResource(R.string.clear)
+                                )
+                            }
+                        }
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,
                         unfocusedBorderColor = Color.Transparent,
@@ -290,7 +312,7 @@ fun LinkEditSheet(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Save", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.save), style = MaterialTheme.typography.titleMedium)
             }
 
             Spacer(Modifier.height(16.dp))
@@ -302,12 +324,12 @@ fun LinkEditSheet(
         AlertDialog(
             onDismissRequest = { showImageUrlDialog = false },
             icon = { Icon(Icons.Outlined.Link, null) },
-            title = { Text("Set image from URL") },
+            title = { Text(stringResource(R.string.set_image_url)) },
             text = {
                 OutlinedTextField(
                     value = imageUrlInput,
                     onValueChange = { imageUrlInput = it },
-                    placeholder = { Text("https://example.com/image.jpg") },
+                    placeholder = { Text(stringResource(R.string.image_url_placeholder)) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.clip(RoundedCornerShape(12.dp)).fillMaxWidth()
@@ -317,10 +339,10 @@ fun LinkEditSheet(
                 Button(onClick = {
                     previewImageUrl = imageUrlInput.trim()
                     showImageUrlDialog = false
-                }) { Text("Set") }
+                }) { Text(stringResource(R.string.set)) }
             },
             dismissButton = {
-                TextButton(onClick = { showImageUrlDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showImageUrlDialog = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }

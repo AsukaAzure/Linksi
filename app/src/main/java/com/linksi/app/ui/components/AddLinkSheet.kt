@@ -29,6 +29,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import androidx.compose.ui.res.stringResource
+import com.linksi.app.R
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
 import kotlinx.coroutines.launch
@@ -171,7 +173,7 @@ fun AddLinkSheet(
 
             // Header
             Text(
-                "Save Link",
+                stringResource(R.string.save_link),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -200,7 +202,7 @@ fun AddLinkSheet(
                         OutlinedTextField(
                             value = url,
                             onValueChange = { url = it },
-                            placeholder = { Text("Paste URL here…") },
+                            placeholder = { Text(stringResource(R.string.paste_url_hint)) },
                             leadingIcon = {
                                 Icon(Icons.Outlined.Link, null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -290,14 +292,14 @@ fun AddLinkSheet(
                                     if (empty) {
                                         Icon(
                                             Icons.Outlined.ContentPaste,
-                                            contentDescription = "Paste",
+                                            contentDescription = stringResource(R.string.paste),
                                             Modifier.size(18.dp),
                                             tint = buttonColor
                                         )
                                     } else {
                                         Icon(
                                             Icons.Outlined.Close,
-                                            contentDescription = "Clear",
+                                            contentDescription = stringResource(R.string.clear),
                                             Modifier.size(18.dp),
                                             tint = buttonColor
                                         )
@@ -333,10 +335,10 @@ fun AddLinkSheet(
                             else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Save to folder",
+                            Text(stringResource(R.string.save_to_folder),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium)
-                            Text(selectedFolder?.name ?: "No folder selected",
+                            Text(selectedFolder?.name ?: stringResource(R.string.no_folder_selected),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -371,12 +373,12 @@ fun AddLinkSheet(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "Edit link",
+                                    stringResource(R.string.edit_link),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    editTitle.ifBlank { "Add title, description, image" },
+                                    editTitle.ifBlank { stringResource(R.string.edit_link_hint) },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
@@ -459,14 +461,14 @@ fun AddLinkSheet(
                                     tint = if (reminderAt != null)
                                         MaterialTheme.colorScheme.onPrimaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Reminder", style = MaterialTheme.typography.labelMedium,
+                                Text(stringResource(R.string.reminder), style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = if (reminderAt != null)
                                         MaterialTheme.colorScheme.onPrimaryContainer
                                     else MaterialTheme.colorScheme.onSurface)
                             }
                             Text(
-                                reminderAt?.let { dateFormatter.format(Date(it)) } ?: "Not set",
+                                reminderAt?.let { dateFormatter.format(Date(it)) } ?: stringResource(R.string.not_set),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (reminderAt != null)
                                     MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
@@ -492,7 +494,7 @@ fun AddLinkSheet(
                                     tint = if (expiresAt != null)
                                         MaterialTheme.colorScheme.onErrorContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Expiry", style = MaterialTheme.typography.labelMedium,
+                                Text(stringResource(R.string.expiry), style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = if (expiresAt != null)
                                         MaterialTheme.colorScheme.onErrorContainer
@@ -501,7 +503,7 @@ fun AddLinkSheet(
                             Text(
                                 expiresAt?.let {
                                     SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(it))
-                                } ?: "Not set",
+                                } ?: stringResource(R.string.not_set),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (expiresAt != null)
                                     MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
@@ -533,13 +535,13 @@ fun AddLinkSheet(
                                     tint = if (note.isNotBlank())
                                         MaterialTheme.colorScheme.onSecondaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Note", style = MaterialTheme.typography.labelMedium,
+                                Text(stringResource(R.string.note), style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = if (note.isNotBlank())
                                         MaterialTheme.colorScheme.onSecondaryContainer
                                     else MaterialTheme.colorScheme.onSurface)
                             }
-                            Text(note.ifBlank { "Add a note" },
+                            Text(note.ifBlank { stringResource(R.string.add_note) },
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 color = if (note.isNotBlank())
@@ -564,13 +566,13 @@ fun AddLinkSheet(
                                 Icon(Icons.Outlined.Tag, null, Modifier.size(16.dp),
                                     tint = if (tags.isNotEmpty()) Color(0xFF22C55E)
                                     else MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Tags", style = MaterialTheme.typography.labelMedium,
+                                Text(stringResource(R.string.tags), style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = if (tags.isNotEmpty()) Color(0xFF22C55E)
                                     else MaterialTheme.colorScheme.onSurface)
                             }
                             Text(
-                                if (tags.isEmpty()) "Add tags"
+                                if (tags.isEmpty()) stringResource(R.string.add_tags)
                                 else tags.joinToString(", ") { "#$it" },
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -590,7 +592,7 @@ fun AddLinkSheet(
                         modifier = Modifier.padding(vertical = 4.dp)
                     ) {
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                        Text("Fetching preview…",
+                        Text(stringResource(R.string.fetching_preview),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -615,7 +617,7 @@ fun AddLinkSheet(
                 ) {
                     Icon(Icons.Filled.Bookmark, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Save Link", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.save_link), style = MaterialTheme.typography.titleMedium)
                 }
 
                 Spacer(Modifier.height(8.dp))

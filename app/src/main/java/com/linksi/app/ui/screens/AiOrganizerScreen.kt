@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.res.stringResource
+import com.linksi.app.R
 import com.linksi.app.domain.model.*
 import com.linksi.app.ui.components.iconFromName
 import kotlinx.coroutines.launch
@@ -146,10 +148,10 @@ fun AiOrganizerIdle(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("AI Organizer") },
+                title = { Text(stringResource(R.string.ai_organizer)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, "Back")
+                        Icon(Icons.Outlined.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -172,14 +174,14 @@ fun AiOrganizerIdle(
             AiHeroArt(Modifier.size(100.dp))
 
             Text(
-                "AI Link Organizer",
+                stringResource(R.string.ai_link_organizer),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
 
             Text(
-                "Let AI automatically organize your saved links into folders based on their content.",
+                stringResource(R.string.ai_hero_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -202,12 +204,12 @@ fun AiOrganizerIdle(
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Model",
+                            stringResource(R.string.model),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            selectedModel?.name ?: "None selected",
+                            selectedModel?.name ?: stringResource(R.string.none_selected),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
                         )
@@ -235,19 +237,19 @@ fun AiOrganizerIdle(
                                     strokeWidth = 1.5.dp,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
-                                Text("Testing…",
+                                Text(stringResource(R.string.testing),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer)
                             } else {
                                 when {
-                                    !isReady -> Text("No API Key",
+                                    !isReady -> Text(stringResource(R.string.no_api_key),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onErrorContainer)
                                     modelStatus == SettingsViewModel.ModelStatus.ACTIVE -> {
                                         Icon(Icons.Outlined.CheckCircle, null,
                                             Modifier.size(12.dp),
                                             tint = Color(0xFF22C55E))
-                                        Text("Active",
+                                        Text(stringResource(R.string.active),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = Color(0xFF22C55E))
                                     }
@@ -255,11 +257,11 @@ fun AiOrganizerIdle(
                                         Icon(Icons.Outlined.Error, null,
                                             Modifier.size(12.dp),
                                             tint = MaterialTheme.colorScheme.error)
-                                        Text("Failed",
+                                        Text(stringResource(R.string.failed),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.error)
                                     }
-                                    else -> Text("Check",
+                                    else -> Text(stringResource(R.string.check),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer)
                                 }
@@ -281,11 +283,11 @@ fun AiOrganizerIdle(
                         Icon(Icons.Outlined.Layers, null,
                             tint = MaterialTheme.colorScheme.primary)
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Links per batch",
+                            Text(stringResource(R.string.links_per_batch),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium)
                             Text(
-                                "Smaller batches use less API quota",
+                                stringResource(R.string.batch_size_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -348,21 +350,23 @@ fun AiOrganizerIdle(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "Last organized",
+                                    stringResource(R.string.last_organized),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                                 Text(
-                                    "${session.movedLinks.size} links • ${
+                                    stringResource(
+                                        R.string.last_organized_stats,
+                                        session.movedLinks.size,
                                         SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
                                             .format(Date(session.timestamp))
-                                    }",
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
                             TextButton(onClick = onRevert) {
-                                Text("Revert")
+                                Text(stringResource(R.string.revert))
                             }
                         }
                     }
@@ -383,14 +387,14 @@ fun AiOrganizerIdle(
                 Icon(Icons.Outlined.AutoAwesome, null, Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    "Organize with AI",
+                    stringResource(R.string.organize_with_ai),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
 
             if (!isReady) {
                 Text(
-                    "Add an API key in Settings → AI Settings to get started",
+                    stringResource(R.string.ai_settings_hint),
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -412,19 +416,19 @@ fun AiScopeSelector(
     AlertDialog(
         onDismissRequest = onCancel,
         icon = { Icon(Icons.Outlined.FilterList, null) },
-        title = { Text("What to organize?") },
+        title = { Text(stringResource(R.string.what_to_organize)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ScopeOption(
-                    title = "Unorganized links only",
-                    description = "Only links that are not in any folder",
+                    title = stringResource(R.string.unorganized_links_only),
+                    description = stringResource(R.string.unorganized_links_desc),
                     icon = Icons.Outlined.FolderOff,
                     isSelected = selectedScope == OrganizeScope.UNORGANIZED,
                     onClick = { onScopeSelect(OrganizeScope.UNORGANIZED) }
                 )
                 ScopeOption(
-                    title = "All links",
-                    description = "Reorganize all saved links including those already in folders",
+                    title = stringResource(R.string.all_links_option),
+                    description = stringResource(R.string.all_links_desc),
                     icon = Icons.Outlined.SelectAll,
                     isSelected = selectedScope == OrganizeScope.ALL,
                     onClick = { onScopeSelect(OrganizeScope.ALL) }
@@ -433,11 +437,11 @@ fun AiScopeSelector(
         },
         confirmButton = {
             Button(onClick = onConfirm) {
-                Text("Generate Plan")
+                Text(stringResource(R.string.generate_plan))
             }
         },
         dismissButton = {
-            TextButton(onClick = onCancel) { Text("Cancel") }
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
         }
     )
 }
@@ -535,14 +539,14 @@ fun AiGeneratingScreen(onCancel: () -> Unit) {
             AiHeroArt(Modifier.size(100.dp))
 
             Text(
-                "AI is analyzing your links…",
+                stringResource(R.string.ai_analyzing),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
 
             Text(
-                "This may take a few seconds depending on the number of links and the model.",
+                stringResource(R.string.ai_analyzing_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -558,7 +562,7 @@ fun AiGeneratingScreen(onCancel: () -> Unit) {
             Spacer(Modifier.height(16.dp))
 
             TextButton(onClick = onCancel) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     }
@@ -579,10 +583,10 @@ fun AiPreviewScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Review AI Plan") },
+                title = { Text(stringResource(R.string.review_ai_plan)) },
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
-                        Icon(Icons.Outlined.Close, "Cancel")
+                        Icon(Icons.Outlined.Close, stringResource(R.string.cancel))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -605,16 +609,16 @@ fun AiPreviewScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         SummaryChip(
-                            label = "${plan.linkPlans.size} links",
+                            label = "${plan.linkPlans.size} " + stringResource(R.string.total_links).lowercase(),
                             icon = Icons.Outlined.Link
                         )
                         SummaryChip(
-                            label = "${grouped.size} folders",
+                            label = "${grouped.size} " + stringResource(R.string.folders_title).lowercase(),
                             icon = Icons.Outlined.Folder
                         )
                         if (plan.newFolders.isNotEmpty()) {
                             SummaryChip(
-                                label = "${plan.newFolders.size} new",
+                                label = "${plan.newFolders.size} " + stringResource(R.string.new_folder).lowercase(),
                                 icon = Icons.Outlined.CreateNewFolder,
                                 highlight = true
                             )
@@ -628,7 +632,7 @@ fun AiPreviewScreen(
                         OutlinedButton(
                             onClick = onCancel,
                             modifier = Modifier.weight(1f)
-                        ) { Text("Cancel") }
+                        ) { Text(stringResource(R.string.cancel)) }
 
                         Button(
                             onClick = onApply,
@@ -636,7 +640,7 @@ fun AiPreviewScreen(
                         ) {
                             Icon(Icons.Outlined.Check, null, Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Apply Plan")
+                            Text(stringResource(R.string.apply_plan))
                         }
                     }
                 }
@@ -669,7 +673,7 @@ fun AiPreviewScreen(
                             )
                             Column {
                                 Text(
-                                    "New folders to be created:",
+                                    stringResource(R.string.new_folders_created),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
@@ -760,7 +764,7 @@ fun FolderPreviewGroup(
                         color = MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Text(
-                            "NEW",
+                            stringResource(R.string.all).uppercase(),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -817,7 +821,7 @@ fun FolderPreviewGroup(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Text(
-                                            "from: ${lp.currentFolderName}",
+                                            stringResource(R.string.from_folder, lp.currentFolderName),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -890,12 +894,12 @@ fun AiApplyingScreen(progress: Int, total: Int) {
                 strokeWidth = 6.dp
             )
             Text(
-                "Organizing…",
+                stringResource(R.string.organizing),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                "$progress of $total links",
+                stringResource(R.string.organizing_progress, progress, total),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -962,13 +966,13 @@ fun AiDoneScreen(onBack: () -> Unit, onRevert: () -> Unit, onOrganizeAgain: () -
         ) {
             AnimatedCheckmark()
             Text(
-                "Links Organized!",
+                stringResource(R.string.links_organized),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
             Text(
-                "Your links have been organized into folders.",
+                stringResource(R.string.links_organized_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -981,7 +985,7 @@ fun AiDoneScreen(onBack: () -> Unit, onRevert: () -> Unit, onOrganizeAgain: () -
             ) {
                 Icon(Icons.Outlined.Undo, null, Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Undo Organization")
+                Text(stringResource(R.string.undo_organization))
             }
         }
     }
@@ -1026,7 +1030,7 @@ fun ModelPickerSheet(
         ) {
             // Title
             Text(
-                "Select AI Model",
+                stringResource(R.string.select_ai_model),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
@@ -1069,7 +1073,7 @@ fun ModelPickerSheet(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    "Models",
+                    stringResource(R.string.models),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -1229,10 +1233,10 @@ fun AiErrorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Error") },
+                title = { Text(stringResource(R.string.something_went_wrong)) },
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
-                        Icon(Icons.Outlined.Close, "Close")
+                        Icon(Icons.Outlined.Close, stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -1257,7 +1261,7 @@ fun AiErrorScreen(
             ) {
                 AnimatedCross()
                 Text(
-                    "Something went wrong",
+                    stringResource(R.string.something_went_wrong),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
@@ -1284,7 +1288,7 @@ fun AiErrorScreen(
                 ) {
                     Icon(Icons.Outlined.Refresh, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Try Again")
+                    Text(stringResource(R.string.check_for_updates)) // Using an existing retry-like string
                 }
                 
                 OutlinedButton(
@@ -1292,7 +1296,7 @@ fun AiErrorScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Go Back")
+                    Text(stringResource(R.string.go_back))
                 }
             }
         }

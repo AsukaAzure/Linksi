@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.linksi.app.R
 import com.linksi.app.ui.components.iconFromName
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,7 +59,7 @@ fun LinksTopBar(
                     Text(selectedFolder.name, style = MaterialTheme.typography.titleLarge)
                 }
             } else {
-                Text("Linksi", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
             }
         },
         actions = {
@@ -75,7 +77,7 @@ fun LinksTopBar(
             ) {
                 Icon(
                     if (viewMode == ViewMode.LIST) Icons.Outlined.GridView else Icons.Outlined.ViewList,
-                    "Toggle view"
+                    stringResource(R.string.toggle_view)
                 )
             }
             Button(
@@ -90,7 +92,7 @@ fun LinksTopBar(
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             ) {
-                Icon(Icons.Outlined.Sort, "Sort")
+                Icon(Icons.Outlined.Sort, stringResource(R.string.sort))
             }
             Button(
                 onClick = onFoldersClick,
@@ -104,7 +106,7 @@ fun LinksTopBar(
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             ) {
-                Icon(Icons.Outlined.Folder, "Folders")
+                Icon(Icons.Outlined.Folder, stringResource(R.string.folders))
             }
             Button(
                 onClick = onSettingsClick,
@@ -118,7 +120,7 @@ fun LinksTopBar(
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             ) {
-                Icon(Icons.Outlined.Settings, "Settings")
+                Icon(Icons.Outlined.Settings, stringResource(R.string.settings))
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

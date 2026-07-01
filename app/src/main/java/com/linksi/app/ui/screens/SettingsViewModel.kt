@@ -1,5 +1,6 @@
 package com.linksi.app.ui.screens
 
+import com.linksi.app.R
 import android.content.Context
 import android.net.Uri
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -43,7 +44,8 @@ data class SettingsUiState(
     val importPhase: String = "",
     val apiKeys: Map<AiProvider, String> = emptyMap(),
     val modelStatus: SettingsViewModel.ModelStatus = SettingsViewModel.ModelStatus.UNKNOWN,
-    val isTestingModel: Boolean = false
+    val isTestingModel: Boolean = false,
+    val selectedLanguage: String = ""
 )
 
 @HiltViewModel
@@ -85,7 +87,8 @@ class SettingsViewModel @Inject constructor(
                         useInAppBrowser  = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true,
                         aiEnabled        = prefs[AI_ENABLED]        ?: false,
                         selectedModelId  = prefs[AI_SELECTED_MODEL] ?: "claude35sonnet",
-                        apiKeys          = keys
+                        apiKeys          = keys,
+                        selectedLanguage = prefs[APP_LANGUAGE] ?: ""
                     )
                 }
             }
@@ -132,7 +135,7 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isCheckingUpdate = false,
-                        updateCheckError = "Could not check for updates: ${e.message}"
+                        updateCheckError = context.getString(R.string.update_check_error, e.message)
                     )
                 }
             }
@@ -174,9 +177,9 @@ class SettingsViewModel @Inject constructor(
                 context.contentResolver.openOutputStream(uri)?.use {
                     it.write(json.toByteArray())
                 }
-                _uiState.update { it.copy(message = "Exported ${links.size} links") }
+                _uiState.update { it.copy(message = context.getString(R.string.exported_links, links.size)) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(message = "Export failed: ${e.message}") }
+                _uiState.update { it.copy(message = context.getString(R.string.export_failed, e.message)) }
             }
         }
     }
@@ -189,9 +192,9 @@ class SettingsViewModel @Inject constructor(
                 context.contentResolver.openOutputStream(uri)?.use {
                     it.write(csv.toByteArray())
                 }
-                _uiState.update { it.copy(message = "Exported ${links.size} links as CSV") }
+                _uiState.update { it.copy(message = context.getString(R.string.exported_links_csv, links.size)) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(message = "Export failed: ${e.message}") }
+                _uiState.update { it.copy(message = context.getString(R.string.export_failed, e.message)) }
             }
         }
     }
@@ -199,7 +202,7 @@ class SettingsViewModel @Inject constructor(
     fun importFile(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
-                _uiState.update { it.copy(isImporting = true, importPhase = "Reading file…") }
+                _uiState.update { it.copy(isImporting = true, importPhase = context.getString(R.string.reading_file_phase)) }
 
                 val fileName = uri.path?.lowercase() ?: ""
                 val result = when {
@@ -220,7 +223,7 @@ class SettingsViewModel @Inject constructor(
                 val insertedLinks = mutableListOf<Pair<Long, String>>() // id + url
 
                 _uiState.update { it.copy(
-                    importPhase = "Importing links…",
+                    importPhase = context.getString(R.string.importing_links_phase),
                     importTotal = result.links.size,
                     importProgress = 0
                 )}
@@ -240,7 +243,7 @@ class SettingsViewModel @Inject constructor(
 
                 // ── Fetch metadata for all imported links ─────────
                 _uiState.update { it.copy(
-                    importPhase = "Fetching metadata…",
+                    importPhase = context.getString(R.string.fetching_metadata_phase),
                     importTotal = insertedLinks.size,
                     importProgress = 0
                 )}
@@ -269,9 +272,10 @@ class SettingsViewModel @Inject constructor(
                     _uiState.update { it.copy(importProgress = index + 1) }
                 }
 
-                val message = buildString {
-                    append("Imported $importedCount links")
-                    if (duplicateCount > 0) append(" • $duplicateCount duplicates skipped")
+                val message = if (duplicateCount > 0) {
+                    context.getString(R.string.import_message_with_duplicates, importedCount, duplicateCount)
+                } else {
+                    context.getString(R.string.import_message_success, importedCount)
                 }
 
                 _uiState.update { it.copy(
@@ -288,7 +292,7 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(
                     isImporting = false,
                     importPhase = "",
-                    message = "Import failed: ${e.message}"
+                    message = context.getString(R.string.import_failed_msg, e.message)
                 )}
             }
         }
@@ -319,6 +323,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             context.dataStore.edit { it[AI_SELECTED_MODEL] = modelId }
             _uiState.update { it.copy(selectedModelId = modelId) }
+        }
+    }
+
+    fun setLanguage(languageCode: String) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[APP_LANGUAGE] = languageCode }
+            _uiState.update { it.copy(selectedLanguage = languageCode) }
         }
     }
 
@@ -365,10 +376,10 @@ class SettingsViewModel @Inject constructor(
                             modelStatus = ModelStatus.ERROR,
                             // Show specific error in supporting text
                             updateCheckError = when {
-                                isQuotaError -> "Quota exceeded or rate limited"
-                                e.message?.contains("401") == true -> "Invalid API key"
-                                e.message?.contains("403") == true -> "API key unauthorized"
-                                else -> "Error: ${e.message?.take(60)}"
+                                isQuotaError -> context.getString(R.string.quota_exceeded_error)
+                                e.message?.contains("401") == true -> context.getString(R.string.invalid_api_key_error)
+                                e.message?.contains("403") == true -> context.getString(R.string.unauthorized_api_key_error)
+                                else -> context.getString(R.string.generic_error_prefix, e.message?.take(60))
                             }
                         )}
                     }
@@ -377,7 +388,7 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(
                     isTestingModel = false,
                     modelStatus = ModelStatus.ERROR,
-                    updateCheckError = e.message?.take(60)
+                    updateCheckError = context.getString(R.string.generic_error_prefix, e.message?.take(60))
                 )}
             }
         }

@@ -42,12 +42,14 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import com.android.volley.toolbox.ImageRequest
+import com.linksi.app.R
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
 import kotlinx.coroutines.launch
@@ -118,7 +120,7 @@ fun LinkCard(
                             putExtra(Intent.EXTRA_TEXT, "${link.title}\n${link.url}")
                             type = "text/plain"
                         }
-                        context.startActivity(Intent.createChooser(sendIntent, "Share link via"))
+                        context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.share_link_via)))
                     }
                     false
                 }
@@ -165,7 +167,7 @@ fun LinkCard(
                             tint = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Text(
-                            if (swipeConfirmed) "Release to delete" else "Keep swiping…",
+                            if (swipeConfirmed) stringResource(R.string.release_to_delete) else stringResource(R.string.keep_swiping),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -178,7 +180,7 @@ fun LinkCard(
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            if (swipeConfirmed) "Release to share" else "Keep swiping…",
+                            if (swipeConfirmed) stringResource(R.string.release_to_share) else stringResource(R.string.keep_swiping),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -238,7 +240,7 @@ fun LinkCard(
                                 .memoryCachePolicy(CachePolicy.ENABLED)
                                 .crossfade(true)
                                 .build(),
-                            contentDescription = "Favicon",
+                            contentDescription = null,
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
@@ -271,7 +273,7 @@ fun LinkCard(
                                     Spacer(Modifier.width(4.dp))
                                 }
                                 Text(
-                                    text = link.domain.ifBlank { "link" },
+                                    text = link.domain.ifBlank { stringResource(R.string.link_placeholder) },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary,
                                     maxLines = 1
@@ -340,7 +342,7 @@ fun LinkCard(
                                 onClick = { showMenu = true },
                                 modifier = Modifier.size(32.dp)
                             ) {
-                                Icon(Icons.Filled.MoreVert, "More", Modifier.size(18.dp))
+                                Icon(Icons.Filled.MoreVert, stringResource(R.string.more), Modifier.size(18.dp))
                             }
 
                             if (showMenu) {
@@ -365,7 +367,7 @@ fun LinkCard(
                                         context.startActivity(
                                             Intent.createChooser(
                                                 sendIntent,
-                                                "Share link via"
+                                                context.getString(R.string.share_link_via)
                                             )
                                         )
                                     },
@@ -438,7 +440,7 @@ fun LinkCard(
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    formatTimeLeft(link.reminderAt),
+                                    formatTimeLeft(link.reminderAt, context),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 9.sp,
                                     color = MaterialTheme.colorScheme.primary
@@ -467,7 +469,7 @@ fun LinkCard(
                                     tint = MaterialTheme.colorScheme.error
                                 )
                                 Text(
-                                    formatTimeLeft(link.expiresAt),
+                                    formatTimeLeft(link.expiresAt, context),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 9.sp,
                                     color = MaterialTheme.colorScheme.error
@@ -478,7 +480,7 @@ fun LinkCard(
 
                         // Date
                         Text(
-                            text = formatDate(link.createdAt),
+                            text = formatDate(link.createdAt, context),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -492,7 +494,7 @@ fun LinkCard(
                         ) {
                             Icon(
                                 if (link.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = "Favorite",
+                                contentDescription = stringResource(R.string.favorites),
                                 modifier = Modifier.size(18.dp),
                                 tint = if (link.isFavorite)
                                     MaterialTheme.colorScheme.error
@@ -657,7 +659,7 @@ fun LinkGridCard(
                                 )
                             }
                             Text(
-                                text = link.domain.ifBlank { "link" },
+                                text = link.domain.ifBlank { stringResource(R.string.link_placeholder) },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,
@@ -669,7 +671,7 @@ fun LinkGridCard(
                             onClick = { showMenu = true },
                             modifier = Modifier.size(24.dp)
                         ) {
-                            Icon(Icons.Filled.MoreVert, "More", Modifier.size(16.dp))
+                            Icon(Icons.Filled.MoreVert, stringResource(R.string.more), Modifier.size(16.dp))
                         }
                     }
 
@@ -726,7 +728,7 @@ fun LinkGridCard(
                                 Icon(Icons.Outlined.Notifications, null,
                                     Modifier.size(8.dp),
                                     tint = MaterialTheme.colorScheme.primary)
-                                Text(formatTimeLeft(link.reminderAt),
+                                Text(formatTimeLeft(link.reminderAt, context),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 8.sp,
                                     color = MaterialTheme.colorScheme.primary)
@@ -747,7 +749,7 @@ fun LinkGridCard(
                                 Icon(Icons.Outlined.Timer, null,
                                     Modifier.size(8.dp),
                                     tint = MaterialTheme.colorScheme.error)
-                                Text(formatTimeLeft(link.expiresAt),
+                                Text(formatTimeLeft(link.expiresAt, context),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 8.sp,
                                     color = MaterialTheme.colorScheme.error)
@@ -756,7 +758,7 @@ fun LinkGridCard(
                         }
 
                         Text(
-                            text = formatDate(link.createdAt),
+                            text = formatDate(link.createdAt, context),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
@@ -769,7 +771,7 @@ fun LinkGridCard(
                             Icon(
                                 if (link.isFavorite) Icons.Filled.Favorite
                                 else Icons.Outlined.FavoriteBorder,
-                                null,
+                                stringResource(R.string.favorites),
                                 Modifier.size(14.dp),
                                 tint = if (link.isFavorite) MaterialTheme.colorScheme.error
                                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -834,7 +836,7 @@ fun LinkGridCard(
                 context.startActivity(
                     Intent.createChooser(
                         sendIntent,
-                        "Share link via"
+                        context.getString(R.string.share_link_via)
                     )
                 )
             },
@@ -992,7 +994,7 @@ fun LinkOptionsSheet(
                                     .clip(CircleShape)
                             )
                             Text(
-                                link.domain.ifBlank { "link" },
+                                link.domain.ifBlank { stringResource(R.string.link_placeholder) },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.White.copy(alpha = 0.8f)
                             )
@@ -1039,7 +1041,7 @@ fun LinkOptionsSheet(
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        "Copy link",
+                                        stringResource(R.string.copy_link),
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -1092,7 +1094,7 @@ fun LinkOptionsSheet(
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    "Edit bookmark",
+                                    stringResource(R.string.edit_bookmark),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
@@ -1122,14 +1124,14 @@ fun LinkOptionsSheet(
                     // ── Move to folder ────────────────────────────────
                     OptionsFullRow(
                         icon = Icons.Outlined.Folder,
-                        title = "Move to folder",
+                        title = stringResource(R.string.move_to_folder),
                         onClick = { onMoveToFolder(); dismiss() }
                     )
 
                     // ── Set note ──────────────────────────────────────
                     OptionsFullRow(
                         icon = Icons.Outlined.Notes,
-                        title = "Set note",
+                        title = stringResource(R.string.set_note),
                         subtitle = link.note.ifBlank { null },
                         onClick = { showNoteSheet = true }
                     )
@@ -1137,7 +1139,7 @@ fun LinkOptionsSheet(
                     // ── Set reminder ──────────────────────────────────
                     OptionsFullRow(
                         icon = Icons.Outlined.Notifications,
-                        title = "Set reminder",
+                        title = stringResource(R.string.set_reminder),
                         subtitle = when {
                             link.reminderAt == null -> null
                             reminderPast -> null  // past reminder — show nothing
@@ -1155,35 +1157,32 @@ fun LinkOptionsSheet(
                     // ── Set expiration ────────────────────────────────
                     OptionsFullRow(
                         icon = Icons.Outlined.Timer,
-                        title = "Set expiration",
+                        title = stringResource(R.string.set_expiration),
                         subtitle = link.expiresAt?.let {
-                            "Expires ${
-                                SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(
-                                    Date(
-                                        it
-                                    )
-                                )
-                            }"
-                        } ?: "Auto-delete after selected time",
+                            stringResource(
+                                R.string.expires_at_label,
+                                SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(it))
+                            )
+                        } ?: stringResource(R.string.auto_delete_desc),
                         onClick = { showExpirySheet = true }
                     )
 
                     // ── Manage Tags ───────────────────────────────────
                     OptionsFullRow(
                         icon = Icons.Outlined.Tag,
-                        title = "Manage Tags",
+                        title = stringResource(R.string.manage_tags),
                         subtitle = if (link.tags.isNotEmpty())
                             link.tags.joinToString(" · ") { "#$it" }
                         else
-                            "Add tags for easy search",
+                            stringResource(R.string.add_tags_desc),
                         onClick = { showTagSheet = true }
                     )
 
                     // ── Pin to Top ────────────────────────────────────
                     OptionsFullRow(
                         icon = if (link.isPinned) Icons.Outlined.PushPin else Icons.Outlined.PushPin,
-                        title = if (link.isPinned) "Unpin link" else "Pin to top",
-                        subtitle = if (!link.isPinned) "Keep this link at the top (max 3)" else null,
+                        title = if (link.isPinned) stringResource(R.string.unpin_link) else stringResource(R.string.pin_to_top),
+                        subtitle = if (!link.isPinned) stringResource(R.string.keep_pinned_desc) else null,
                         iconTint = if (link.isPinned) MaterialTheme.colorScheme.primary else null,
                         onClick = { onPin(); dismiss() }
                     )
@@ -1206,7 +1205,7 @@ fun LinkOptionsSheet(
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = CircleShape
             ) {
-                Icon(Icons.Outlined.OpenInNew, contentDescription = "Open Link")
+                Icon(Icons.Outlined.OpenInNew, contentDescription = stringResource(R.string.open_link))
             }
         }
     }
@@ -1487,7 +1486,7 @@ fun ReminderBottomSheet(
             }
 
             Text(
-                "Set reminder",
+                stringResource(R.string.set_reminder),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 20.dp)
@@ -1501,7 +1500,7 @@ fun ReminderBottomSheet(
                 // Later today
                 ReminderOptionCard(
                     icon = Icons.Outlined.WbTwilight,
-                    title = "Later today",
+                    title = stringResource(R.string.later_today),
                     subtitle = timeFormatter.format(Date(tonightTime)),
                     modifier = Modifier.weight(1f),
                     onClick = { onSet(tonightTime); dismiss() }
@@ -1509,7 +1508,7 @@ fun ReminderBottomSheet(
                 // Tomorrow
                 ReminderOptionCard(
                     icon = Icons.Outlined.LightMode,
-                    title = "Tomorrow",
+                    title = stringResource(R.string.tomorrow),
                     subtitle = timeFormatter.format(Date(tomorrowTime)),
                     modifier = Modifier.weight(1f),
                     onClick = { onSet(tomorrowTime); dismiss() }
@@ -1525,7 +1524,7 @@ fun ReminderBottomSheet(
                 // Next week
                 ReminderOptionCard(
                     icon = Icons.Outlined.CalendarMonth,
-                    title = "Next week",
+                    title = stringResource(R.string.next_week),
                     subtitle = dateFormatter.format(Date(nextWeekTime)),
                     modifier = Modifier.weight(1f),
                     onClick = { onSet(nextWeekTime); dismiss() }
@@ -1533,7 +1532,7 @@ fun ReminderBottomSheet(
                 // Pick custom
                 ReminderOptionCard(
                     icon = Icons.Outlined.EditCalendar,
-                    title = "Pick date & time",
+                    title = stringResource(R.string.pick_date_time),
                     subtitle = fullFormatter.format(Date(now)),
                     modifier = Modifier.weight(1f),
                     onClick = { showDatePicker = true }
@@ -1552,7 +1551,7 @@ fun ReminderBottomSheet(
                 ) {
                     Icon(Icons.Outlined.NotificationsOff, null, Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Remove reminder")
+                    Text(stringResource(R.string.remove_reminder))
                 }
             }
 
@@ -1570,7 +1569,7 @@ fun ReminderBottomSheet(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
-                Text("Cancel", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.cancel), style = MaterialTheme.typography.titleMedium)
             }
         }
     }
@@ -1587,10 +1586,10 @@ fun ReminderBottomSheet(
                     selectedDate = datePickerState.selectedDateMillis
                     showDatePicker = false
                     showTimePicker = true
-                }) { Text("Next") }
+                }) { Text(stringResource(R.string.next)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.cancel)) }
             }
         ) { DatePicker(state = datePickerState) }
     }
@@ -1600,7 +1599,7 @@ fun ReminderBottomSheet(
         val timePickerState = rememberTimePickerState(initialHour = 20, initialMinute = 30)
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
-            title = { Text("Pick a time") },
+            title = { Text(stringResource(R.string.pick_time)) },
             text = { TimePicker(state = timePickerState) },
             confirmButton = {
                 TextButton(onClick = {
@@ -1613,10 +1612,10 @@ fun ReminderBottomSheet(
                     }.timeInMillis
                     onSet(finalTime)
                     showTimePicker = false
-                }) { Text("Set") }
+                }) { Text(stringResource(R.string.set)) }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -1710,14 +1709,14 @@ fun NoteBottomSheet(
             }
 
             Text(
-                "Set note", style = MaterialTheme.typography.headlineMedium,
+                stringResource(R.string.set_note), style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
 
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                placeholder = { Text("Write a note about this link…") },
+                placeholder = { Text(stringResource(R.string.write_note_hint)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(140.dp),
@@ -1731,7 +1730,7 @@ fun NoteBottomSheet(
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(14.dp)
-            ) { Text("Save note", style = MaterialTheme.typography.titleMedium) }
+            ) { Text(stringResource(R.string.save_note), style = MaterialTheme.typography.titleMedium) }
         }
     }
 }
@@ -1808,7 +1807,7 @@ fun ExpiryBottomSheet(
             }
 
             Text(
-                "Set expiration",
+                stringResource(R.string.set_expiration),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -1821,14 +1820,14 @@ fun ExpiryBottomSheet(
             ) {
                 ReminderOptionCard(
                     icon = Icons.Outlined.WbTwilight,
-                    title = "Later today",
+                    title = stringResource(R.string.later_today),
                     subtitle = timeFormatter.format(Date(laterToday)),
                     modifier = Modifier.weight(1f),
                     onClick = { onSet(laterToday); dismiss() }
                 )
                 ReminderOptionCard(
                     icon = Icons.Outlined.LightMode,
-                    title = "Tomorrow",
+                    title = stringResource(R.string.tomorrow),
                     subtitle = timeFormatter.format(Date(tomorrow)),
                     modifier = Modifier.weight(1f),
                     onClick = { onSet(tomorrow); dismiss() }
@@ -1841,14 +1840,14 @@ fun ExpiryBottomSheet(
             ) {
                 ReminderOptionCard(
                     icon = Icons.Outlined.CalendarMonth,
-                    title = "Next week",
+                    title = stringResource(R.string.next_week),
                     subtitle = dateFormatter.format(Date(nextWeek)),
                     modifier = Modifier.weight(1f),
                     onClick = { onSet(nextWeek); dismiss() }
                 )
                 ReminderOptionCard(
                     icon = Icons.Outlined.EditCalendar,
-                    title = "Pick date & time",
+                    title = stringResource(R.string.pick_date_time),
                     subtitle = fullFormatter.format(Date(now)),
                     modifier = Modifier.weight(1f),
                     onClick = { showDatePicker = true }
@@ -1866,7 +1865,7 @@ fun ExpiryBottomSheet(
                 ) {
                     Icon(Icons.Outlined.Clear, null, Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Remove expiration")
+                    Text(stringResource(R.string.remove_expiration))
                 }
             }
 
@@ -1881,7 +1880,7 @@ fun ExpiryBottomSheet(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            ) { Text("Cancel", style = MaterialTheme.typography.titleMedium) }
+            ) { Text(stringResource(R.string.cancel), style = MaterialTheme.typography.titleMedium) }
         }
     }
 
@@ -1894,10 +1893,10 @@ fun ExpiryBottomSheet(
                     selectedDate = datePickerState.selectedDateMillis
                     showDatePicker = false
                     showTimePicker = true
-                }) { Text("Next") }
+                }) { Text(stringResource(R.string.next)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.cancel)) }
             }
         ) { DatePicker(state = datePickerState) }
     }
@@ -1906,7 +1905,7 @@ fun ExpiryBottomSheet(
         val timePickerState = rememberTimePickerState(initialHour = 8, initialMinute = 0)
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
-            title = { Text("Pick expiry time") },
+            title = { Text(stringResource(R.string.pick_expiry_time)) },
             text = { TimePicker(state = timePickerState) },
             confirmButton = {
                 TextButton(onClick = {
@@ -1919,10 +1918,10 @@ fun ExpiryBottomSheet(
                     onSet(final)
                     showTimePicker = false
                     dismiss()
-                }) { Text("Set") }
+                }) { Text(stringResource(R.string.set)) }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -2020,7 +2019,7 @@ fun TagManagerSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Manage Tags",
+                    stringResource(R.string.manage_tags),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -2049,7 +2048,7 @@ fun TagManagerSheet(
                                 MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            if (isDeleteMode) "Done" else "Delete tags",
+                            if (isDeleteMode) stringResource(R.string.done) else stringResource(R.string.delete_tags),
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isDeleteMode)
                                 MaterialTheme.colorScheme.onErrorContainer
@@ -2075,7 +2074,7 @@ fun TagManagerSheet(
                             Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.onErrorContainer)
                         Text(
-                            "Tap a tag to permanently delete it from all links",
+                            stringResource(R.string.delete_tags_banner),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -2088,7 +2087,7 @@ fun TagManagerSheet(
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it.lowercase().replace(" ", "-") },
-                    placeholder = { Text("Search or add tag…") },
+                    placeholder = { Text(stringResource(R.string.search_or_add_tag)) },
                     leadingIcon = {
                         Icon(
                             if (input.isBlank()) Icons.Outlined.Tag
@@ -2136,11 +2135,11 @@ fun TagManagerSheet(
                 if (isDeleteMode) {
                     // ── Delete mode — show ALL tags with delete X ──
                     if (allKnownTags.isEmpty()) {
-                        Text("No tags to delete",
+                        Text(stringResource(R.string.no_tags_to_delete),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        Text("All tags — tap to delete permanently",
+                        Text(stringResource(R.string.all_tags_delete_warning),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.error)
                         FlowRow(
@@ -2182,7 +2181,7 @@ fun TagManagerSheet(
                     // ── Normal mode ───────────────────────────────
                     if (selectedTags.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Selected",
+                            Text(stringResource(R.string.selected_tags),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold)
@@ -2215,7 +2214,7 @@ fun TagManagerSheet(
                     if (suggestions.isNotEmpty() || canAddNew) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                if (input.isBlank()) "All Tags" else "Suggestions",
+                                if (input.isBlank()) stringResource(R.string.all_tags_option) else stringResource(R.string.suggestions),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -2226,7 +2225,7 @@ fun TagManagerSheet(
                                 if (canAddNew) {
                                     AssistChip(
                                         onClick = { addTag(input) },
-                                        label = { Text("Create \"$input\"") },
+                                        label = { Text(stringResource(R.string.create_tag, input)) },
                                         leadingIcon = {
                                             Icon(Icons.Default.Add, null, Modifier.size(16.dp))
                                         },
@@ -2248,12 +2247,12 @@ fun TagManagerSheet(
                             }
                         }
                     } else if (input.isNotBlank()) {
-                        Text("No tags found matching \"$input\"",
+                        Text(stringResource(R.string.no_tags_match, input),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 8.dp))
                     } else if (allKnownTags.isEmpty()) {
-                        Text("No tags yet — type above to create one",
+                        Text(stringResource(R.string.no_tags_yet),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 8.dp))
@@ -2275,7 +2274,7 @@ fun TagManagerSheet(
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Save Tags", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.save_tags), style = MaterialTheme.typography.titleMedium)
                 }
             }
         }
@@ -2289,9 +2288,9 @@ fun TagManagerSheet(
                 Icon(Icons.Outlined.DeleteForever, null,
                     tint = MaterialTheme.colorScheme.error)
             },
-            title = { Text("Delete \"#$tag\"?") },
+            title = { Text(stringResource(R.string.delete_tag_confirm_title, tag)) },
             text = {
-                Text("This will remove the tag from all links permanently. This cannot be undone.")
+                Text(stringResource(R.string.delete_tag_confirm_desc))
             },
             confirmButton = {
                 Button(
@@ -2306,35 +2305,35 @@ fun TagManagerSheet(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     )
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { tagToConfirmDelete = null }) { Text("Cancel") }
+                TextButton(onClick = { tagToConfirmDelete = null }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
 }
 
 
-private fun formatDate(timestamp: Long): String {
+private fun formatDate(timestamp: Long, context: android.content.Context): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
     return when {
-        diff < 60_000 -> "Just now"
-        diff < 3_600_000 -> "${diff / 60_000}m ago"
-        diff < 86_400_000 -> "${diff / 3_600_000}h ago"
-        diff < 604_800_000 -> "${diff / 86_400_000}d ago"
+        diff < 60_000 -> context.getString(R.string.just_now)
+        diff < 3_600_000 -> context.getString(R.string.m_ago, diff / 60_000)
+        diff < 86_400_000 -> context.getString(R.string.h_ago, diff / 3_600_000)
+        diff < 604_800_000 -> context.getString(R.string.d_ago, diff / 86_400_000)
         else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
     }
 }
 
-private fun formatTimeLeft(timestamp: Long): String {
+private fun formatTimeLeft(timestamp: Long, context: android.content.Context): String {
     val diff = timestamp - System.currentTimeMillis()
     return when {
-        diff < 0 -> "expired"
-        diff < 3_600_000 -> "${diff / 60_000}m"
-        diff < 86_400_000 -> "${diff / 3_600_000}h"
-        diff < 604_800_000 -> "${diff / 86_400_000}d"
+        diff < 0 -> context.getString(R.string.expired)
+        diff < 3_600_000 -> context.getString(R.string.m_left, diff / 60_000)
+        diff < 86_400_000 -> context.getString(R.string.h_left, diff / 3_600_000)
+        diff < 604_800_000 -> context.getString(R.string.d_left, diff / 86_400_000)
         else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
     }
 }

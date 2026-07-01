@@ -137,7 +137,7 @@ class HomeViewModel @Inject constructor(
     fun setTags(link: Link, tags: List<String>) {
         viewModelScope.launch {
             repository.updateLink(link.copy(tags = tags))
-            _uiState.update { it.copy(snackbarMessage = "Tags saved") }
+            _uiState.update { it.copy(snackbarMessage = context.getString(com.linksi.app.R.string.tags_saved)) }
         }
     }
 
@@ -149,7 +149,7 @@ class HomeViewModel @Inject constructor(
             }
             _uiState.update { it.copy(
                 allTags = _uiState.value.allTags - tag,
-                snackbarMessage = "Tag \"#$tag\" deleted from all links"
+                snackbarMessage = context.getString(com.linksi.app.R.string.tag_deleted_globally, tag)
             )}
         }
     }
@@ -188,7 +188,7 @@ class HomeViewModel @Inject constructor(
         if (_uiState.value.isAddingLink) return
         val normalized = normalizeUrl(url)
         if (!isValidUrl(normalized)) {
-            _uiState.update { it.copy(snackbarMessage = "Invalid URL") }
+            _uiState.update { it.copy(snackbarMessage = context.getString(com.linksi.app.R.string.invalid_url)) }
             return
         }
         viewModelScope.launch {
@@ -197,7 +197,7 @@ class HomeViewModel @Inject constructor(
                 _uiState.update { it.copy(
                     isAddingLink = false,
                     isFetchingMetadata = false,
-                    snackbarMessage = "Link already saved"
+                    snackbarMessage = context.getString(com.linksi.app.R.string.link_already_saved)
                 )}
                 return@launch
             }
@@ -232,7 +232,7 @@ class HomeViewModel @Inject constructor(
             _uiState.update { it.copy(
                 isAddingLink = false,
                 isFetchingMetadata = false,
-                snackbarMessage = "Link saved"
+                snackbarMessage = context.getString(com.linksi.app.R.string.link_saved)
             )}
         }
     }
@@ -244,7 +244,7 @@ class HomeViewModel @Inject constructor(
             if (link.reminderAt != null && link.reminderAt > System.currentTimeMillis()) {
                 scheduleReminder(context, link.id, link.title, link.url, link.reminderAt)
             }
-            _uiState.update { it.copy(snackbarMessage = "Link updated") }
+            _uiState.update { it.copy(snackbarMessage = context.getString(com.linksi.app.R.string.link_updated)) }
         }
     }
 
@@ -262,11 +262,12 @@ class HomeViewModel @Inject constructor(
 
     fun undoDeleted() {
         viewModelScope.launch {
+            val count = _uiState.value.lastDeletedLinks.size
             _uiState.value.lastDeletedLinks.forEach { repository.insertLink(it) }
             _uiState.update {
                 it.copy(
                     lastDeletedLinks = emptyList(),
-                    snackbarMessage = "Restored ${it.lastDeletedLinks.size} links "
+                    snackbarMessage = context.getString(com.linksi.app.R.string.links_restored, count)
                 )
             }
         }
@@ -282,7 +283,7 @@ class HomeViewModel @Inject constructor(
                 it.copy(
                     lastMovedLinks = emptyList(),
                     lastMovedToFolderId = null,
-                    snackbarMessage = "Moved back"
+                    snackbarMessage = context.getString(com.linksi.app.R.string.moved_back)
                 )
             }
         }
@@ -303,7 +304,7 @@ class HomeViewModel @Inject constructor(
     fun moveToFolder(link: Link, folderId: Long?) {
         viewModelScope.launch {
             repository.moveToFolder(link.id, folderId)
-            _uiState.update { it.copy(snackbarMessage = "Moved to folder") }
+            _uiState.update { it.copy(snackbarMessage = context.getString(com.linksi.app.R.string.moved_to_folder)) }
         }
     }
 
@@ -313,7 +314,7 @@ class HomeViewModel @Inject constructor(
                 it.name.trim().equals(name.trim(), ignoreCase = true)
             }
             if (exists) {
-                _uiState.update { it.copy(folderSnackbarMessage = "Folder already exists") }
+                _uiState.update { it.copy(folderSnackbarMessage = context.getString(com.linksi.app.R.string.folder_exists)) }
                 return@launch
             }
             repository.insertFolder(Folder(name = name, icon = icon, color = color))
@@ -354,9 +355,9 @@ class HomeViewModel @Inject constructor(
                         previewImageUrl = meta.previewImageUrl  // always update
                     )
                 )
-                _uiState.update { it.copy(snackbarMessage = "Metadata refreshed") }
+                _uiState.update { it.copy(snackbarMessage = context.getString(com.linksi.app.R.string.metadata_refreshed)) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(snackbarMessage = "Could not refresh metadata") }
+                _uiState.update { it.copy(snackbarMessage = context.getString(com.linksi.app.R.string.metadata_refresh_failed)) }
             }
         }
     }
@@ -376,7 +377,7 @@ class HomeViewModel @Inject constructor(
                 it.copy(
                     lastDeletedFolder = null,
                     lastDeletedFolderLinks = emptyList(),
-                    folderSnackbarMessage = "Folder restored"
+                    folderSnackbarMessage = context.getString(com.linksi.app.R.string.folder_restored)
                 )
             }
         }
@@ -388,7 +389,7 @@ class HomeViewModel @Inject constructor(
                 it.id != folder.id && it.name.trim().equals(folder.name.trim(), ignoreCase = true)
             }
             if (exists) {
-                _uiState.update { it.copy(folderSnackbarMessage = "Folder already exists") }
+                _uiState.update { it.copy(folderSnackbarMessage = context.getString(com.linksi.app.R.string.folder_exists)) }
                 return@launch
             }
             repository.updateFolder(folder)
@@ -399,13 +400,13 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val currentPinnedCount = _uiState.value.links.count { it.isPinned }
             if (!link.isPinned && currentPinnedCount >= 5) {
-                _uiState.update { it.copy(snackbarMessage = "Max 5 links can be pinned") }
+                _uiState.update { it.copy(snackbarMessage = context.getString(com.linksi.app.R.string.max_pinned_reached)) }
                 return@launch
             }
             repository.setPinned(link.id, !link.isPinned)
             _uiState.update {
                 it.copy(
-                    snackbarMessage = if (!link.isPinned) "Link pinned" else "Link unpinned",
+                    snackbarMessage = if (!link.isPinned) context.getString(com.linksi.app.R.string.link_pinned) else context.getString(com.linksi.app.R.string.link_unpinned),
                     scrollToTop = true
                 )
             }
@@ -436,7 +437,7 @@ class HomeViewModel @Inject constructor(
     fun setNote(link: Link, note: String) {
         viewModelScope.launch {
             repository.setNote(link.id, note)
-            _uiState.update { it.copy(snackbarMessage = "Note saved") }
+            _uiState.update { it.copy(snackbarMessage = context.getString(com.linksi.app.R.string.note_saved)) }
         }
     }
 
@@ -445,7 +446,7 @@ class HomeViewModel @Inject constructor(
             repository.setExpiry(link.id, expiresAt)
             _uiState.update {
                 it.copy(
-                    snackbarMessage = if (expiresAt != null) "Expiration set" else "Expiration removed"
+                    snackbarMessage = if (expiresAt != null) context.getString(com.linksi.app.R.string.expiration_set) else context.getString(com.linksi.app.R.string.expiration_removed)
                 )
             }
         }
@@ -466,9 +467,9 @@ class HomeViewModel @Inject constructor(
                     link.url,
                     reminderAt
                 )
-                _uiState.update { it.copy(snackbarMessage = "Reminder set") }
+                _uiState.update { it.copy(snackbarMessage = context.getString(com.linksi.app.R.string.reminder_set)) }
             } else {
-                _uiState.update { it.copy(snackbarMessage = "Reminder removed") }
+                _uiState.update { it.copy(snackbarMessage = context.getString(com.linksi.app.R.string.reminder_removed)) }
             }
         }
     }

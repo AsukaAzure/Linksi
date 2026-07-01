@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
 import com.linksi.app.R
 
 data class OnboardingPage(
@@ -37,7 +38,7 @@ data class OnboardingPage(
     val imageRes: Int? = null
 )
 
-val onboardingPages = listOf(
+val onboardingPagesFallback = listOf(
     OnboardingPage(
         icon = Icons.Outlined.Bookmark,
         title = "Save Any Link",
@@ -61,9 +62,32 @@ val onboardingPages = listOf(
     )
 )
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(onFinish: () -> Unit) {
+    val onboardingPages = listOf(
+        OnboardingPage(
+            icon = Icons.Outlined.Bookmark,
+            title = stringResource(R.string.save_any_link),
+            description = stringResource(R.string.onboarding_save_desc),
+            gradientColors = listOf(Color(0xFF6366F1), Color(0xFF8B5CF6)),
+            imageRes = R.drawable.onboarding_save
+        ),
+        OnboardingPage(
+            icon = Icons.Outlined.Folder,
+            title = stringResource(R.string.organize_your_way),
+            description = stringResource(R.string.onboarding_folders_desc),
+            gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFFEC4899)),
+            imageRes = R.drawable.onboarding_folders
+        ),
+        OnboardingPage(
+            icon = Icons.Outlined.Notifications,
+            title = stringResource(R.string.smarter_way_to_save),
+            description = stringResource(R.string.onboarding_saver_desc),
+            gradientColors = listOf(Color(0xFFEC4899), Color(0xFFF59E0B)),
+            imageRes = R.drawable.onboarding_saver
+        )
+    )
     val pagerState = rememberPagerState(pageCount = { onboardingPages.size })
     val scope = rememberCoroutineScope()
     val isLastPage = pagerState.currentPage == onboardingPages.size - 1
@@ -121,7 +145,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                         onClick = onFinish,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Skip", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.skip), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
@@ -139,7 +163,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                     modifier = Modifier.weight(if (isLastPage) 1f else 1f),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text(if (isLastPage) "Get Started 🚀" else "Next")
+                    Text(if (isLastPage) stringResource(R.string.get_started) else stringResource(R.string.next))
                     if (!isLastPage) {
                         Spacer(Modifier.width(4.dp))
                         Icon(Icons.Outlined.ArrowForward, null, Modifier.size(16.dp))

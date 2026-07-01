@@ -38,6 +38,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.linksi.app.R
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.linksi.app.ui.components.*
@@ -201,7 +203,7 @@ fun ShareReceiverSheet(
                             ) {
                                 CircularProgressIndicator(Modifier.size(32.dp), strokeWidth = 3.dp)
                                 Text(
-                                    "Fetching preview…",
+                                    stringResource(R.string.fetching_preview),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -281,12 +283,12 @@ fun ShareReceiverSheet(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                "Save to folder",
+                                stringResource(R.string.save_to_folder),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                selectedFolder?.name ?: "No folder selected",
+                                selectedFolder?.name ?: stringResource(R.string.no_folder_selected),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -324,12 +326,12 @@ fun ShareReceiverSheet(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "Edit link",
+                                    stringResource(R.string.edit_link),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    editTitle.ifBlank { "Add title, description, image" },
+                                    editTitle.ifBlank { stringResource(R.string.edit_link_hint) },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
@@ -423,7 +425,7 @@ fun ShareReceiverSheet(
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    "Reminder",
+                                    stringResource(R.string.reminder),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = if (reminderAt != null)
@@ -432,7 +434,7 @@ fun ShareReceiverSheet(
                                 )
                             }
                             Text(
-                                reminderAt?.let { dateFormatter.format(Date(it)) } ?: "Not set",
+                                reminderAt?.let { dateFormatter.format(Date(it)) } ?: stringResource(R.string.not_set),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (reminderAt != null)
                                     MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
@@ -469,7 +471,7 @@ fun ShareReceiverSheet(
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    "Expiry",
+                                    stringResource(R.string.expiry),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = if (expiresAt != null)
@@ -480,7 +482,7 @@ fun ShareReceiverSheet(
                             Text(
                                 expiresAt?.let {
                                     SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(it))
-                                } ?: "Not set",
+                                } ?: stringResource(R.string.not_set),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (expiresAt != null)
                                     MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
@@ -523,7 +525,7 @@ fun ShareReceiverSheet(
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    "Note",
+                                    stringResource(R.string.note),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = if (note.isNotBlank())
@@ -532,7 +534,7 @@ fun ShareReceiverSheet(
                                 )
                             }
                             Text(
-                                note.ifBlank { "Add a note" },
+                                note.ifBlank { stringResource(R.string.add_note) },
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -570,7 +572,7 @@ fun ShareReceiverSheet(
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    "Tags",
+                                    stringResource(R.string.tags),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = if (tags.isNotEmpty()) Color(0xFF22C55E)
@@ -578,7 +580,7 @@ fun ShareReceiverSheet(
                                 )
                             }
                             Text(
-                                if (tags.isEmpty()) "Add tags"
+                                if (tags.isEmpty()) stringResource(R.string.add_tags)
                                 else tags.joinToString(", ") { "#$it" },
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1,
@@ -609,7 +611,7 @@ fun ShareReceiverSheet(
                                 tint = MaterialTheme.colorScheme.onErrorContainer
                             )
                             Text(
-                                "This link is already saved in Linksi",
+                                stringResource(R.string.link_already_saved),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -666,11 +668,11 @@ fun ShareReceiverSheet(
                     } else if (state.snackbarMessage == "Link already saved") {
                         Icon(Icons.Outlined.Warning, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Already Saved")
+                        Text(stringResource(R.string.link_already_saved))
                     } else {
                         Icon(Icons.Filled.Bookmark, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Save Link", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.save_link), style = MaterialTheme.typography.titleMedium)
                     }
                 }
 

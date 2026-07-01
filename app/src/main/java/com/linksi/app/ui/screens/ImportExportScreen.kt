@@ -34,6 +34,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.linksi.app.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,10 +52,10 @@ fun ImportExportScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Import & Export") },
+                title = { Text(stringResource(R.string.import_export_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -71,40 +73,40 @@ fun ImportExportScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Export
-            item { SectionHeader("Export", Icons.Outlined.FileDownload) }
+            item { SectionHeader(stringResource(R.string.export), Icons.Outlined.FileDownload) }
             item {
                 SettingsCard {
                     SettingsItem(
                         icon = Icons.Outlined.FileDownload,
-                        title = "Export as Linksi JSON",
-                        subtitle = "Full backup — reimport on any device with Linksi",
+                        title = stringResource(R.string.export_json_title),
+                        subtitle = stringResource(R.string.export_json_subtitle),
                         onClick = { exportJsonLauncher.launch(exportFileName("json")) }
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsItem(
                         icon = Icons.Outlined.TableChart,
-                        title = "Export as CSV",
-                        subtitle = "Open in Excel, Google Sheets, or any spreadsheet app",
+                        title = stringResource(R.string.export_csv_title),
+                        subtitle = stringResource(R.string.export_csv_subtitle),
                         onClick = { exportCsvLauncher.launch(exportFileName("csv")) }
                     )
                 }
             }
 
             // Import
-            item { SectionHeader("Import", Icons.Outlined.FileUpload) }
+            item { SectionHeader(stringResource(R.string.import_action), Icons.Outlined.FileUpload) }
             item {
                 SettingsCard {
                     SettingsItem(
                         icon = Icons.Outlined.FileUpload,
-                        title = "Import Linksi backup",
-                        subtitle = "Restore from a .json file exported from Linksi",
+                        title = stringResource(R.string.import_json_title),
+                        subtitle = stringResource(R.string.import_json_subtitle),
                         onClick = { importLauncher.launch(arrayOf("application/json")) }
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsItem(
                         icon = Icons.Outlined.Language,
-                        title = "Import browser bookmarks",
-                        subtitle = "Import from Chrome, Firefox, Safari HTML export",
+                        title = stringResource(R.string.import_browser_title),
+                        subtitle = stringResource(R.string.import_browser_subtitle),
                         onClick = { importLauncher.launch(arrayOf("text/html", "text/plain", "*/*")) }
                     )
                 }
@@ -147,9 +149,9 @@ fun ImportExportScreen(
 
                         Text(
                             when (state.importPhase) {
-                                "Fetching metadata…" ->
-                                    "Fetching titles and preview images for each link. This may take a moment."
-                                else -> "Please wait…"
+                                stringResource(R.string.fetching_metadata_phase) ->
+                                    stringResource(R.string.fetching_metadata_desc)
+                                else -> stringResource(R.string.please_wait)
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

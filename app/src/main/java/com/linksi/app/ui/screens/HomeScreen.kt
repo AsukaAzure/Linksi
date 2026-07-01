@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.stringResource
 import com.linksi.app.domain.model.*
 import com.linksi.app.ui.components.*
 import java.text.SimpleDateFormat
@@ -122,9 +123,9 @@ fun HomeScreen(
                 "UNDO_DELETE" -> {
                     val result = snackbarHostState.showSnackbar(
                         message = if (state.lastDeletedLinks.size > 1)
-                            "${state.lastDeletedLinks.size} links deleted"
-                        else "Link deleted",
-                        actionLabel = "Undo",
+                            context.getString(com.linksi.app.R.string.links_deleted, state.lastDeletedLinks.size)
+                        else context.getString(com.linksi.app.R.string.link_deleted),
+                        actionLabel = context.getString(com.linksi.app.R.string.undo),
                         duration = SnackbarDuration.Long
                     )
                     if (result == SnackbarResult.ActionPerformed) {
@@ -136,9 +137,9 @@ fun HomeScreen(
                 "UNDO_MOVE" -> {
                     val result = snackbarHostState.showSnackbar(
                         message = if (state.lastMovedLinks.size > 1)
-                            "${state.lastMovedLinks.size} links moved"
-                        else "Link moved",
-                        actionLabel = "Undo",
+                            context.getString(com.linksi.app.R.string.links_moved, state.lastMovedLinks.size)
+                        else context.getString(com.linksi.app.R.string.link_moved),
+                        actionLabel = context.getString(com.linksi.app.R.string.undo),
                         duration = SnackbarDuration.Long
                     )
                     if (result == SnackbarResult.ActionPerformed) {
@@ -147,10 +148,26 @@ fun HomeScreen(
                     viewModel.dismissSnackbar()
                 }
 
-                "UNDO_FOLDER_DELETE", "Folder already exists", "Folder restored" -> {
-                    if (!showFolders) {
-                        viewModel.dismissSnackbar()
+                "UNDO_FOLDER_DELETE" -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = context.getString(com.linksi.app.R.string.folder_deleted),
+                        actionLabel = context.getString(com.linksi.app.R.string.undo),
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoFolderDelete()
                     }
+                    viewModel.dismissSnackbar()
+                }
+
+                context.getString(com.linksi.app.R.string.folder_exists) -> {
+                    snackbarHostState.showSnackbar(context.getString(com.linksi.app.R.string.folder_exists))
+                    viewModel.dismissSnackbar()
+                }
+
+                context.getString(com.linksi.app.R.string.folder_restored) -> {
+                    snackbarHostState.showSnackbar(context.getString(com.linksi.app.R.string.folder_restored))
+                    viewModel.dismissSnackbar()
                 }
 
                 else -> {
@@ -194,7 +211,7 @@ fun HomeScreen(
                     ) {
                         Icon(Icons.Filled.Add, null, Modifier.size(20.dp))
                         Text(
-                            "Save Link", style = MaterialTheme.typography.labelLarge,
+                            stringResource(id = com.linksi.app.R.string.save_link), style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -274,7 +291,7 @@ fun HomeScreen(
                                 // don't reset searchExpanded here —
                                 // LaunchedEffect above handles it after isSelectionMode flips
                             }) {
-                                Icon(Icons.Filled.Close, "Cancel", Modifier.size(18.dp))
+                                Icon(Icons.Filled.Close, context.getString(com.linksi.app.R.string.cancel), Modifier.size(18.dp))
                             }
 
                             // Only show inner content while actually in selection mode
@@ -290,26 +307,26 @@ fun HomeScreen(
                                     )
                                 } else {
                                     Text(
-                                        "${state.selectedIds.size} selected",
+                                        stringResource(id = com.linksi.app.R.string.selected, state.selectedIds.size),
                                         style = MaterialTheme.typography.titleSmall,
                                         modifier = Modifier.weight(1f),
                                         maxLines = 1,
                                         overflow = TextOverflow.Clip
                                     )
-                                    TextButton(onClick = viewModel::selectAll) { Text("All") }
+                                    TextButton(onClick = viewModel::selectAll) { Text(stringResource(id = com.linksi.app.R.string.all)) }
                                     IconButton(onClick = {
                                         showFolderPicker = true
                                     }) {  // wired up now
                                         Icon(
                                             Icons.Outlined.FolderOpen,
-                                            "Move",
+                                            context.getString(com.linksi.app.R.string.move),
                                             Modifier.size(18.dp)
                                         )
                                     }
                                     IconButton(onClick = viewModel::deleteSelected) {
                                         Icon(
                                             Icons.Outlined.Delete,
-                                            "Delete",
+                                            context.getString(com.linksi.app.R.string.delete),
                                             Modifier.size(18.dp),
                                             tint = MaterialTheme.colorScheme.error
                                         )
@@ -341,7 +358,7 @@ fun HomeScreen(
                         value = state.searchQuery,
                         onValueChange = viewModel::onSearchQueryChange,
                         placeholder = {
-                            Text(if (searchExpanded) "Search…" else "Search links, domains…")
+                            Text(if (searchExpanded) context.getString(com.linksi.app.R.string.search_short) else stringResource(id = com.linksi.app.R.string.search_hint))
                         },
                         leadingIcon = {
                             IconButton(
@@ -353,7 +370,7 @@ fun HomeScreen(
                                 enabled = state.isSelectionMode && !searchExpanded
                             ) {
                                 Icon(
-                                    Icons.Filled.Search, "Search",
+                                    Icons.Filled.Search, context.getString(com.linksi.app.R.string.search_short),
                                     modifier = Modifier.padding(start = 8.dp)
                                 )
                             }
@@ -361,7 +378,7 @@ fun HomeScreen(
                         trailingIcon = {
                             if (state.searchQuery.isNotBlank()) {
                                 IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                    Icon(Icons.Filled.Clear, "Clear")
+                                    Icon(Icons.Filled.Clear, context.getString(com.linksi.app.R.string.clear))
                                 }
                             }
                         },
@@ -634,9 +651,9 @@ fun StatsBar(count: Int, unread: Int, favorites: Int) {
             .padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        StatChip(label = "$count saved", icon = Icons.Outlined.Link)
-        StatChip(label = "$unread unread", icon = Icons.Outlined.FiberNew)
-        StatChip(label = "$favorites faved", icon = Icons.Outlined.Favorite)
+        StatChip(label = stringResource(id = com.linksi.app.R.string.saved_count, count), icon = Icons.Outlined.Link)
+        StatChip(label = stringResource(id = com.linksi.app.R.string.unread_count, unread), icon = Icons.Outlined.FiberNew)
+        StatChip(label = stringResource(id = com.linksi.app.R.string.faved_count, favorites), icon = Icons.Outlined.Favorite)
     }
 }
 
@@ -689,7 +706,7 @@ fun FolderAndFilterRow(
                 shape = startingShape,
                 selected = selectedFolderId == null && selectedFilter == FilterOption.ALL,
                 onClick = { onFolderSelect(null); onFilterSelect(FilterOption.ALL) },
-                label = { Text("All") },
+                label = { Text(stringResource(id = com.linksi.app.R.string.all)) },
                 leadingIcon = { Icon(Icons.Outlined.AllInclusive, null, Modifier.size(16.dp)) }
             )
         }
@@ -698,7 +715,7 @@ fun FolderAndFilterRow(
                 shape = middleShape,
                 selected = selectedFilter == FilterOption.FAVORITES,
                 onClick = { onFilterSelect(FilterOption.FAVORITES) },
-                label = { Text("Favorites") },
+                label = { Text(stringResource(id = com.linksi.app.R.string.favorites)) },
                 leadingIcon = { Icon(Icons.Outlined.Favorite, null, Modifier.size(16.dp)) }
             )
         }
@@ -707,7 +724,7 @@ fun FolderAndFilterRow(
                 shape = middleShape,
                 selected = selectedFilter == FilterOption.UNREAD,
                 onClick = { onFilterSelect(FilterOption.UNREAD) },
-                label = { Text("Unread") },
+                label = { Text(stringResource(id = com.linksi.app.R.string.unread)) },
                 leadingIcon = { Icon(Icons.Outlined.FiberNew, null, Modifier.size(16.dp)) }
             )
         }
@@ -861,12 +878,12 @@ fun EmptyState(hasSearch: Boolean, onAddLink: () -> Unit) {
         ) {
             Text(text = if (hasSearch) "🔍" else "🔗", fontSize = 64.sp)
             Text(
-                text = if (hasSearch) "No links found" else "No links yet",
+                text = if (hasSearch) stringResource(id = com.linksi.app.R.string.no_links_found) else stringResource(id = com.linksi.app.R.string.no_links),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = if (hasSearch) "Try a different search" else "Save your first link!",
+                text = if (hasSearch) stringResource(id = com.linksi.app.R.string.try_different_search) else stringResource(id = com.linksi.app.R.string.add_first_link),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -874,7 +891,7 @@ fun EmptyState(hasSearch: Boolean, onAddLink: () -> Unit) {
                 Button(onClick = onAddLink) {
                     Icon(Icons.Filled.Add, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Save a Link")
+                    Text(stringResource(id = com.linksi.app.R.string.save_link))
                 }
             }
         }
@@ -907,20 +924,20 @@ fun BulkActionBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onCancel) {
-                Icon(Icons.Filled.Close, "Cancel")
+                Icon(Icons.Filled.Close, stringResource(id = com.linksi.app.R.string.cancel))
             }
             Text(
-                "$selectedCount selected",
+                stringResource(id = com.linksi.app.R.string.selected, selectedCount),
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = onSelectAll) { Text("All") }
+            TextButton(onClick = onSelectAll) { Text(stringResource(id = com.linksi.app.R.string.all)) }
             TextButton(onClick = { showFolderPicker = true }) {
-                Icon(Icons.Outlined.FolderOpen, "Move")
+                Icon(Icons.Outlined.FolderOpen, stringResource(id = com.linksi.app.R.string.move))
             }
             IconButton(onClick = onDelete) {
                 Icon(
-                    Icons.Outlined.Delete, "Delete",
+                    Icons.Outlined.Delete, stringResource(id = com.linksi.app.R.string.delete),
                     tint = MaterialTheme.colorScheme.error
                 )
             }

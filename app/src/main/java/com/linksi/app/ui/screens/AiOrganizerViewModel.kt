@@ -106,7 +106,7 @@ class AiOrganizerViewModel @Inject constructor(
             if (apiKey.isBlank()) {
                 _uiState.update { it.copy(
                     modelStatus = SettingsViewModel.ModelStatus.ERROR,
-                    testErrorMessage = "No API key set for ${model.provider.name}"
+                    testErrorMessage = context.getString(com.linksi.app.R.string.no_api_key_for, model.provider.name)
                 )}
                 return@launch
             }
@@ -160,14 +160,14 @@ class AiOrganizerViewModel @Inject constructor(
     private fun mapErrorToMessage(e: Throwable): String {
         val msg = e.message ?: ""
         return when {
-            msg.contains("400") -> "Invalid request. Please check your API key."
-            msg.contains("401") -> "Invalid API key. Please check your settings."
-            msg.contains("403") -> "API key unauthorized or insufficient permissions."
-            msg.contains("429") || msg.contains("quota", ignoreCase = true) -> 
-                "API quota exceeded or rate limited."
-            msg.contains("insufficient", ignoreCase = true) -> "Insufficient credits in your AI account."
-            msg.contains("Unable to resolve host") -> "Network error. Please check your internet connection."
-            else -> "Error: ${msg.take(60)}"
+            msg.contains("400") -> context.getString(com.linksi.app.R.string.error_invalid_request)
+            msg.contains("401") -> context.getString(com.linksi.app.R.string.invalid_api_key_error)
+            msg.contains("403") -> context.getString(com.linksi.app.R.string.unauthorized_api_key_error)
+            msg.contains("429") || msg.contains("quota", ignoreCase = true) ->
+                context.getString(com.linksi.app.R.string.quota_exceeded_error)
+            msg.contains("insufficient", ignoreCase = true) -> context.getString(com.linksi.app.R.string.error_insufficient_credits)
+            msg.contains("Unable to resolve host") -> context.getString(com.linksi.app.R.string.error_network)
+            else -> context.getString(com.linksi.app.R.string.generic_error_prefix, msg.take(60))
         }
     }
 
@@ -228,7 +228,7 @@ class AiOrganizerViewModel @Inject constructor(
             if (apiKey.isBlank()) {
                 _uiState.update { it.copy(
                     step = AiOrganizerStep.ERROR,
-                    errorMessage = "No API key set for ${model.provider.name}."
+                    errorMessage = context.getString(com.linksi.app.R.string.no_api_key_for, model.provider.name)
                 )}
                 return@launch
             }
@@ -246,7 +246,7 @@ class AiOrganizerViewModel @Inject constructor(
             if (linksToOrganize.isEmpty()) {
                 _uiState.update { it.copy(
                     step = AiOrganizerStep.ERROR,
-                    errorMessage = "No links to organize."
+                    errorMessage = context.getString(com.linksi.app.R.string.error_no_links_to_organize)
                 )}
                 return@launch
             }
@@ -258,7 +258,7 @@ class AiOrganizerViewModel @Inject constructor(
             for ((index, batch) in batches.withIndex()) {
                 _uiState.update { it.copy(
                     batchProgress = if (batches.size > 1)
-                        "Processing batch ${index + 1} of ${batches.size}…"
+                        context.getString(com.linksi.app.R.string.processing_batch, index + 1, batches.size)
                     else ""
                 )}
 
@@ -278,7 +278,7 @@ class AiOrganizerViewModel @Inject constructor(
                         } catch (e: Exception) {
                             _uiState.update { it.copy(
                                 step = AiOrganizerStep.ERROR,
-                                errorMessage = "Failed to parse AI response: ${e.message}"
+                                errorMessage = context.getString(com.linksi.app.R.string.error_failed_to_parse_ai, e.message ?: "")
                             )}
                             return@launch
                         }

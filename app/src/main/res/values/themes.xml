@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Base app theme using Material3 -->
-    <style name="Theme.Linksi" parent="Theme.Material3.DynamicColors.DayNight">
+    <style name="Theme.Linksi" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- Splash Screen Theme to prevent flickering on startup -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">?android:attr/colorBackground</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/linksi</item>
+        <item name="postSplashScreenTheme">@style/Theme.Linksi</item>
     </style>
 
     <!-- Transparent theme for ShareReceiverActivity so it looks like a bottom sheet over any app -->

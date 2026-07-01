@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linksi.app.domain.model.AI_MODELS
@@ -48,6 +49,7 @@ fun SettingsScreen(
     var showModelPicker by remember { mutableStateOf(false) }
     var showAiOrganizer by remember { mutableStateOf(false) }
     var showImportExport by remember { mutableStateOf(false) }
+    var showLanguagePicker by remember { mutableStateOf(false) }
 
     // Handle system back button
     BackHandler(enabled = !showAiOrganizer && !showImportExport) {
@@ -77,10 +79,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(id = com.linksi.app.R.string.settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, "Back")
+                        Icon(Icons.Outlined.ArrowBack, stringResource(id = com.linksi.app.R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -101,14 +103,14 @@ fun SettingsScreen(
 
             // ── Import & Export ───────────────────────────────────
             item {
-                SectionHeader("Import & Export", Icons.Outlined.SwapHoriz)
+                SectionHeader(stringResource(id = com.linksi.app.R.string.import_export), Icons.Outlined.SwapHoriz)
             }
             item {
                 SettingsCard {
                     SettingsItem(
                         icon = Icons.Outlined.FolderOpen,
-                        title = "Import & Export",
-                        subtitle = "Backup, restore, or import from browsers",
+                        title = stringResource(id = com.linksi.app.R.string.import_export),
+                        subtitle = stringResource(id = com.linksi.app.R.string.import_export_subtitle),
                         onClick = { showImportExport = true },
                         trailingContent = {
                             Icon(
@@ -122,16 +124,16 @@ fun SettingsScreen(
 
             // ── AI Organizer ──────────────────────────────────────
             item {
-                SectionHeader("AI Organizer", Icons.Outlined.AutoAwesome)
+                SectionHeader(stringResource(id = com.linksi.app.R.string.ai_organizer), Icons.Outlined.AutoAwesome)
             }
             item {
                 SettingsCard {
                     // Enable toggle
                     ListItem(
-                        headlineContent = { Text("AI Organizer") },
+                        headlineContent = { Text(stringResource(id = com.linksi.app.R.string.ai_organizer)) },
                         supportingContent = {
                             Text(
-                                "Auto-organize links into folders using AI",
+                                stringResource(id = com.linksi.app.R.string.ai_organizer_subtitle),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         },
@@ -155,20 +157,25 @@ fun SettingsScreen(
                         // Model selector
                         val selectedModel = AI_MODELS.find { it.id == state.selectedModelId }
                         ListItem(
-                            headlineContent = { Text("AI Model") },
+                            headlineContent = { Text(stringResource(id = com.linksi.app.R.string.ai_model)) },
                             supportingContent = {
-                                when (state.modelStatus) {
-                                    SettingsViewModel.ModelStatus.ACTIVE -> Text("Active — ${selectedModel?.name}",
-                                        color = Color(0xFF22C55E),
-                                        style = MaterialTheme.typography.bodySmall)
-                                    SettingsViewModel.ModelStatus.ERROR -> Text(
-                                        state.updateCheckError ?: "Error — check API key",
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodySmall)
-                                    SettingsViewModel.ModelStatus.UNKNOWN -> Text(selectedModel?.name ?: "Select a model",
-                                        style = MaterialTheme.typography.bodySmall)
-                                }
-                            },
+                            when (state.modelStatus) {
+                                SettingsViewModel.ModelStatus.ACTIVE -> Text(
+                                    stringResource(id = com.linksi.app.R.string.ai_model_active, selectedModel?.name ?: ""),
+                                    color = Color(0xFF22C55E),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                SettingsViewModel.ModelStatus.ERROR -> Text(
+                                    state.updateCheckError ?: stringResource(id = com.linksi.app.R.string.ai_model_error),
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                SettingsViewModel.ModelStatus.UNKNOWN -> Text(
+                                    selectedModel?.name ?: stringResource(id = com.linksi.app.R.string.ai_model_select),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        },
                             leadingContent = {
                                 Icon(
                                     Icons.Outlined.SmartToy, null,
@@ -206,10 +213,10 @@ fun SettingsScreen(
 
                         // Open organizer
                         ListItem(
-                            headlineContent = { Text("Organize My Links") },
+                            headlineContent = { Text(stringResource(id = com.linksi.app.R.string.organize_my_links)) },
                             supportingContent = {
                                 Text(
-                                    "Start organizing now",
+                                    stringResource(id = com.linksi.app.R.string.organize_now),
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             },
@@ -233,18 +240,18 @@ fun SettingsScreen(
 
             // ── Browser ───────────────────────────────────────────
             item {
-                SectionHeader("Browser", Icons.Outlined.Language)
+                SectionHeader(stringResource(id = com.linksi.app.R.string.browser), Icons.Outlined.Language)
             }
             item {
                 SettingsCard {
                     ListItem(
-                        headlineContent = { Text("In-app browser") },
+                        headlineContent = { Text(stringResource(id = com.linksi.app.R.string.in_app_browser)) },
                         supportingContent = {
                             Text(
                                 if (state.useInAppBrowser)
-                                    "Links open inside Linksi"
+                                    stringResource(id = com.linksi.app.R.string.in_app_browser_on)
                                 else
-                                    "Links open in your default browser",
+                                    stringResource(id = com.linksi.app.R.string.in_app_browser_off),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         },
@@ -266,19 +273,45 @@ fun SettingsScreen(
                 }
             }
 
+
+            // ── General ───────────────────────────────────────────
+            item {
+                SectionHeader(stringResource(id = com.linksi.app.R.string.general), Icons.Outlined.Settings)
+            }
+            item {
+                SettingsCard {
+                    SettingsItem(
+                        icon = Icons.Outlined.Language,
+                        title = stringResource(id = com.linksi.app.R.string.language),
+                        subtitle = when(state.selectedLanguage) {
+                            "en" -> "English"
+                            "es" -> "Spanish"
+                            else -> stringResource(id = com.linksi.app.R.string.system_default)
+                        },
+                        onClick = { showLanguagePicker = true },
+                        trailingContent = {
+                            Icon(
+                                Icons.Outlined.ChevronRight, null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    )
+                }
+            }
+
             // ── Updates ───────────────────────────────────────────
             item {
-                SectionHeader("Updates", Icons.Outlined.SystemUpdate)
+                SectionHeader(stringResource(id = com.linksi.app.R.string.updates), Icons.Outlined.SystemUpdate)
             }
             item {
                 SettingsCard {
                     ListItem(
-                        headlineContent = { Text("Version") },
+                        headlineContent = { Text(stringResource(id = com.linksi.app.R.string.version)) },
                         supportingContent = {
                             Text(
-                                "Current: ${state.currentVersion}" +
+                                stringResource(id = com.linksi.app.R.string.current) + ": ${state.currentVersion}" +
                                         if (state.latestVersion.isNotBlank())
-                                            " · Latest: ${state.latestVersion}"
+                                            " · " + stringResource(id = com.linksi.app.R.string.latest) + ": ${state.latestVersion}"
                                         else "",
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -304,7 +337,7 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.primaryContainer
                                     ) {
                                         Text(
-                                            "Update available",
+                                            stringResource(id = com.linksi.app.R.string.update_available),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                                             modifier = Modifier.padding(
@@ -329,8 +362,8 @@ fun SettingsScreen(
                     ListItem(
                         headlineContent = {
                             Text(
-                                if (state.updateAvailable) "Download update"
-                                else "Check for updates"
+                                if (state.updateAvailable) stringResource(id = com.linksi.app.R.string.download_update)
+                                else stringResource(id = com.linksi.app.R.string.check_for_updates)
                             )
                         },
                         supportingContent = {
@@ -367,7 +400,7 @@ fun SettingsScreen(
 
             // ── Stats ─────────────────────────────────────────────
             item {
-                SectionHeader("Stats", Icons.Outlined.BarChart)
+                SectionHeader(stringResource(id = com.linksi.app.R.string.stats), Icons.Outlined.BarChart)
             }
             item {
                 SettingsCard {
@@ -377,9 +410,9 @@ fun SettingsScreen(
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        StatItem("Total links", "${state.totalLinks}")
-                        StatItem("Folders", "${state.totalFolders}")
-                        StatItem("Favorites", "${state.totalFavorites}")
+                        StatItem(stringResource(id = com.linksi.app.R.string.total_links), "${state.totalLinks}")
+                        StatItem(stringResource(id = com.linksi.app.R.string.folders), "${state.totalFolders}")
+                        StatItem(stringResource(id = com.linksi.app.R.string.favorites), "${state.totalFavorites}")
                     }
                 }
             }
@@ -394,7 +427,7 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Made with ",
+                        stringResource(id = com.linksi.app.R.string.made_with),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -403,7 +436,7 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall
                     )
                     Text(
-                        " by ",
+                        stringResource(id = com.linksi.app.R.string.by),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -435,12 +468,12 @@ fun SettingsScreen(
                     tint = MaterialTheme.colorScheme.primary
                 )
             },
-            title = { Text("Import complete") },
+            title = { Text(stringResource(id = com.linksi.app.R.string.import_complete)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Imported ${result.count} links from ${result.source}.")
+                    Text(stringResource(id = com.linksi.app.R.string.imported_links_from, result.count, result.source))
                     if (result.folders.isNotEmpty())
-                        Text("${result.folders.size} folders also imported.")
+                        Text(stringResource(id = com.linksi.app.R.string.folders_also_imported, result.folders.size))
                     if (state.duplicateCount > 0) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
@@ -457,7 +490,7 @@ fun SettingsScreen(
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                                 Text(
-                                    "${state.duplicateCount} duplicate links skipped.",
+                                    stringResource(id = com.linksi.app.R.string.duplicates_skipped, state.duplicateCount),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
@@ -467,7 +500,7 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                Button(onClick = viewModel::dismissImportResult) { Text("Done") }
+                Button(onClick = viewModel::dismissImportResult) { Text(stringResource(id = com.linksi.app.R.string.done)) }
             }
         )
     }
@@ -478,6 +511,18 @@ fun SettingsScreen(
             currentModelId = state.selectedModelId,
             onModelSelected = { viewModel.setSelectedModel(it) },
             onDismiss = { showModelPicker = false }
+        )
+    }
+
+    // ── Language Picker ───────────────────────────────────────
+    if (showLanguagePicker) {
+        LanguagePickerSheet(
+            currentLanguageCode = state.selectedLanguage,
+            onLanguageSelected = { 
+                viewModel.setLanguage(it)
+                showLanguagePicker = false
+            },
+            onDismiss = { showLanguagePicker = false }
         )
     }
 
@@ -602,6 +647,47 @@ fun StatItem(label: String, value: String) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LanguagePickerSheet(
+    currentLanguageCode: String,
+    onLanguageSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                stringResource(id = com.linksi.app.R.string.select_language),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(16.dp)
+            )
+
+            val languages = listOf(
+                "" to stringResource(id = com.linksi.app.R.string.system_default),
+                "en" to "English",
+                "es" to "Spanish"
+            )
+
+            languages.forEach { (code, name) ->
+                ListItem(
+                    headlineContent = { Text(name) },
+                    leadingContent = {
+                        RadioButton(
+                            selected = currentLanguageCode == code,
+                            onClick = { onLanguageSelected(code) }
+                        )
+                    },
+                    modifier = Modifier.clickable { onLanguageSelected(code) }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun ApiKeyItem(
     provider: AiProvider,
@@ -640,7 +726,7 @@ fun ApiKeyItem(
             TextButton(
                 onClick = { editing = !editing; keyInput = currentKey }
             ) {
-                Text(if (editing) "Cancel" else if (currentKey.isBlank()) "Add" else "Edit")
+                Text(if (editing) stringResource(id = com.linksi.app.R.string.cancel) else if (currentKey.isBlank()) stringResource(id = com.linksi.app.R.string.add) else stringResource(id = com.linksi.app.R.string.edit))
             }
         }
 
@@ -648,7 +734,7 @@ fun ApiKeyItem(
             OutlinedTextField(
                 value = keyInput,
                 onValueChange = { keyInput = it },
-                placeholder = { Text("Paste API key…") },
+                placeholder = { Text(stringResource(id = com.linksi.app.R.string.paste_api_key)) },
                 singleLine = true,
                 visualTransformation = if (showKey)
                     androidx.compose.ui.text.input.VisualTransformation.None

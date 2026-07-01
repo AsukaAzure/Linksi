@@ -86,7 +86,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("📖 Time to read!")
+            .setContentTitle(context.getString(com.linksi.app.R.string.notification_title))
             .setContentText(title.ifBlank { url })
             .setStyle(NotificationCompat.BigTextStyle().bigText(title.ifBlank { url }))
             .setContentIntent(pendingIntent)

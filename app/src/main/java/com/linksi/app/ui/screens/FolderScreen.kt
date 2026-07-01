@@ -26,7 +26,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
-import com.linksi.app.ui.components.*
+import com.linksi.app.R
+import com.linksi.app.ui.components.AddFolderDialog
+import com.linksi.app.ui.components.EditFolderDialog
+import com.linksi.app.ui.components.FolderPickerDialog
+import com.linksi.app.ui.components.LinkCard
+import com.linksi.app.ui.components.OptionsFullRow
+import com.linksi.app.ui.components.iconFromName
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.rememberCoroutineScope
@@ -45,6 +51,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -192,6 +199,7 @@ fun FolderListScreen(
     var viewMode = state.folderViewMode
     var showSortMenu by remember { mutableStateOf(false) }
     var sortOption = state.folderSortOption
+    val context = LocalContext.current
 
     val sortedFolders = remember(folders, sortOption) {
         when (sortOption) {
@@ -205,11 +213,11 @@ fun FolderListScreen(
 
     LaunchedEffect(state.snackbarMessage) {
         if (state.snackbarMessage == "UNDO_FOLDER_DELETE") {
-            val folderName = state.lastDeletedFolder?.name ?: "Folder"
+            val folderName = state.lastDeletedFolder?.name ?: ""
             val linkCount = state.lastDeletedFolderLinks.size
             val result = snackbarHostState.showSnackbar(
-                message = "\"$folderName\" and $linkCount links deleted",
-                actionLabel = "Undo",
+                message = context.getString(R.string.folder_deleted_with_links, folderName, linkCount),
+                actionLabel = context.getString(R.string.undo),
                 duration = SnackbarDuration.Long
             )
             if (result == SnackbarResult.ActionPerformed) {
@@ -222,16 +230,16 @@ fun FolderListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Folders", style = MaterialTheme.typography.headlineMedium) },
+                title = { Text(stringResource(id = R.string.folders_title), style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, "Back")
+                        Icon(Icons.Outlined.ArrowBack, stringResource(id = R.string.back))
                     }
                 },
                 actions = {
                     // Sort button
                     IconButton(onClick = { showSortMenu = true }) {
-                        Icon(Icons.Outlined.Sort, "Sort")
+                        Icon(Icons.Outlined.Sort, stringResource(id = R.string.sort_folders))
                     }
                     // Toggle view
                     IconButton(onClick = {
@@ -243,12 +251,12 @@ fun FolderListScreen(
                             if (viewMode == FolderViewMode.LIST)
                                 Icons.Outlined.GridView
                             else Icons.Outlined.ViewList,
-                            "Toggle view"
+                            stringResource(id = R.string.toggle_view)
                         )
                     }
                     // Add folder
                     IconButton(onClick = onAddFolder) {
-                        Icon(Icons.Filled.Add, "Add folder")
+                        Icon(Icons.Filled.Add, stringResource(id = R.string.add_folder))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -271,12 +279,12 @@ fun FolderListScreen(
                     Icon(Icons.Outlined.FolderOpen, null,
                         Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("No folders yet",
+                    Text(stringResource(id = R.string.no_folders),
                         style = MaterialTheme.typography.titleMedium)
                     Button(onClick = onAddFolder) {
                         Icon(Icons.Filled.Add, null, Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Create folder")
+                        Text(stringResource(id = R.string.create_folder))
                     }
                 }
             }
@@ -348,7 +356,7 @@ fun FolderListScreen(
                                                 Icon(Icons.Outlined.Edit, null,
                                                     tint = MaterialTheme.colorScheme.onPrimaryContainer)
                                                 Text(
-                                                    if (swipeConfirmed) "Release to edit" else "Edit",
+                                                    if (swipeConfirmed) stringResource(id = R.string.release_to_edit) else stringResource(id = R.string.edit),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                                 )
@@ -362,8 +370,8 @@ fun FolderListScreen(
                                                     tint = MaterialTheme.colorScheme.onErrorContainer
                                                 )
                                                 Text(
-                                                    if (swipeConfirmed) "Release to delete"
-                                                    else "Keep swiping…",
+                                                    if (swipeConfirmed) stringResource(id = R.string.release_to_delete)
+                                                    else stringResource(id = R.string.keep_swiping),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.onErrorContainer
                                                 )
@@ -423,13 +431,13 @@ fun FolderListScreen(
                     .navigationBarsPadding()
                     .padding(bottom = 24.dp)
             ) {
-                Text("Sort folders",
+                Text(stringResource(id = R.string.sort_folders),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp))
                 HorizontalDivider()
                 FolderSortOption.values().forEach { option ->
                     ListItem(
-                        headlineContent = { Text(option.label) },
+                        headlineContent = { Text(option.getLabel()) },
                         leadingContent = { Icon(option.icon, null) },
                         trailingContent = {
                             if (option == sortOption)
@@ -461,13 +469,21 @@ fun FolderListScreen(
 // ── Enums ─────────────────────────────────────────────────────
 enum class FolderViewMode { LIST, GRID }
 
-enum class FolderSortOption(val label: String,
-                            val icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    NAME_AZ("Name A → Z", Icons.Outlined.SortByAlpha),
-    NAME_ZA("Name Z → A", Icons.Outlined.SortByAlpha),
-    NEWEST("Newest first", Icons.Outlined.Schedule),
-    OLDEST("Oldest first", Icons.Outlined.Schedule),
-    MOST_LINKS("Most links", Icons.Outlined.Link)
+enum class FolderSortOption(val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    NAME_AZ(Icons.Outlined.SortByAlpha),
+    NAME_ZA(Icons.Outlined.SortByAlpha),
+    NEWEST(Icons.Outlined.Schedule),
+    OLDEST(Icons.Outlined.Schedule),
+    MOST_LINKS(Icons.Outlined.Link);
+
+    @Composable
+    fun getLabel(): String = when(this) {
+        NAME_AZ -> stringResource(id = R.string.name_az)
+        NAME_ZA -> stringResource(id = R.string.name_za)
+        NEWEST -> stringResource(id = R.string.newest_first)
+        OLDEST -> stringResource(id = R.string.oldest_first)
+        MOST_LINKS -> stringResource(id = R.string.most_links)
+    }
 }
 
 // ── Grid card ─────────────────────────────────────────────────
@@ -535,7 +551,7 @@ fun FolderGridCard(
             )
 
             Text(
-                "${folder.linkCount} links",
+                stringResource(R.string.links_count, folder.linkCount),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -585,7 +601,7 @@ fun FolderGridCard(
                         Text(folder.name,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold)
-                        Text("${folder.linkCount} links",
+                        Text("${folder.linkCount} " + stringResource(id = R.string.total_links).lowercase(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -596,13 +612,13 @@ fun FolderGridCard(
 
                 OptionsFullRow(
                     icon = Icons.Outlined.Edit,
-                    title = "Edit folder",
+                    title = stringResource(id = R.string.edit_folder),
                     onClick = { showMenu = false; onEdit() }
                 )
 
                 OptionsFullRow(
                     icon = Icons.Outlined.Delete,
-                    title = "Delete folder",
+                    title = stringResource(id = R.string.delete_folder),
                     iconTint = MaterialTheme.colorScheme.error,
                     onClick = { showMenu = false; onDelete() }
                 )
@@ -622,7 +638,6 @@ fun FolderListItem(
     onDelete: () -> Unit,
     onEdit: (Folder) -> Unit
 ) {
-//    var showToolTip by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     ListItem(
@@ -666,7 +681,7 @@ fun FolderListItem(
             onLongClick = {
                 Toast.makeText(
                     context,
-                    "Swipe the folder to edit or delete",
+                    context.getString(R.string.swipe_to_edit_delete),
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -675,44 +690,6 @@ fun FolderListItem(
             containerColor = MaterialTheme.colorScheme.background
         )
     )
-
-//    if (showMenu) {
-//        AlertDialog(
-//            onDismissRequest = { showMenu = false },
-//            title = { Text(folder.name) },
-//            text = {
-//                Column {
-//                    ListItem(
-//                        headlineContent = { Text("Edit folder") },
-//                        leadingContent = { Icon(Icons.Outlined.Edit, null) },
-//                        modifier = Modifier.clickable {
-//                            showMenu = false
-//                            onEdit(folder)
-//                        }
-//                    )
-//                    HorizontalDivider()
-//                    ListItem(
-//                        headlineContent = {
-//                            Text("Delete folder", color = MaterialTheme.colorScheme.error)
-//                        },
-//                        leadingContent = {
-//                            Icon(
-//                                Icons.Outlined.Delete, null,
-//                                tint = MaterialTheme.colorScheme.error
-//                            )
-//                        },
-//                        modifier = Modifier.clickable {
-//                            showMenu = false
-//                            onDelete()
-//                        }
-//                    )
-//                }
-//            },
-//            confirmButton = {
-//                TextButton(onClick = { showMenu = false }) { Text("Cancel") }
-//            }
-//        )
-//    }
 }
 
 // ── Folder Detail ─────────────────────────────────────────────
@@ -731,7 +708,7 @@ fun FolderDetailScreen(
     val isSelectionMode = selectedIds.isNotEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    var searchExpanded by remember { mutableStateOf(false) }  // add this
+    val context = LocalContext.current
 
     BackHandler(enabled = isSelectionMode) {
         selectedIds = emptySet()
@@ -771,7 +748,7 @@ fun FolderDetailScreen(
                             if (isSelectionMode) selectedIds = emptySet()
                             else onBack()
                         }) {
-                            Icon(Icons.Outlined.ArrowBack, "Back")
+                            Icon(Icons.Outlined.ArrowBack, stringResource(id = R.string.back))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -834,7 +811,7 @@ fun FolderDetailScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(onClick = { selectedIds = emptySet() }) {
-                                Icon(Icons.Filled.Close, "Cancel", Modifier.size(18.dp))
+                                Icon(Icons.Filled.Close, stringResource(id = R.string.cancel), Modifier.size(18.dp))
                             }
 
                             if (isSelectionMode) {
@@ -847,7 +824,7 @@ fun FolderDetailScreen(
                                     )
                                 } else {
                                     Text(
-                                        "${selectedIds.size} selected",
+                                        stringResource(id = R.string.selected, selectedIds.size),
                                         style = MaterialTheme.typography.titleSmall,
                                         modifier = Modifier.weight(1f),
                                         maxLines = 1,
@@ -855,11 +832,11 @@ fun FolderDetailScreen(
                                     )
                                     TextButton(onClick = {
                                         selectedIds = folderLinks.map { it.id }.toSet()
-                                    }) { Text("All") }
+                                    }) { Text(stringResource(id = R.string.all)) }
                                     IconButton(onClick = { showFolderPicker = true }) {
                                         Icon(
                                             Icons.Outlined.FolderOpen,
-                                            "Move",
+                                            stringResource(id = R.string.move),
                                             Modifier.size(18.dp)
                                         )
                                     }
@@ -869,8 +846,8 @@ fun FolderDetailScreen(
                                                 folderLinks.filter { it.id in selectedIds }
                                             linksToDelete.forEach { viewModel.deleteLink(it) }
                                             val result = snackbarHostState.showSnackbar(
-                                                message = "${linksToDelete.size} links deleted",
-                                                actionLabel = "Undo",
+                                                message = context.getString(R.string.links_deleted, linksToDelete.size),
+                                                actionLabel = context.getString(R.string.undo),
                                                 withDismissAction = true,
                                                 duration = SnackbarDuration.Long
                                             )
@@ -881,7 +858,7 @@ fun FolderDetailScreen(
                                         }
                                     }) {
                                         Icon(
-                                            Icons.Outlined.Delete, "Delete",
+                                            Icons.Outlined.Delete, stringResource(id = R.string.delete),
                                             Modifier.size(18.dp),
                                             tint = MaterialTheme.colorScheme.error
                                         )
@@ -903,8 +880,8 @@ fun FolderDetailScreen(
                                                     )
                                                 }
                                                 val result = snackbarHostState.showSnackbar(
-                                                    message = "${linksToMove.size} links moved",
-                                                    actionLabel = "Undo",
+                                                    message = context.getString(R.string.links_moved, linksToMove.size),
+                                                    actionLabel = context.getString(R.string.undo),
                                                     duration = SnackbarDuration.Long
                                                 )
                                                 if (result == SnackbarResult.ActionPerformed) {
@@ -932,7 +909,7 @@ fun FolderDetailScreen(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         placeholder = {
-                            Text(if (searchExpanded) "Search…" else "Search in ${folder.name}…")
+                            Text(if (searchExpanded) stringResource(id = R.string.search_short) else stringResource(id = R.string.search_in_folder, folder.name))
                         },
                         leadingIcon = {
                             IconButton(
@@ -944,7 +921,7 @@ fun FolderDetailScreen(
                                 enabled = isSelectionMode && !searchExpanded
                             ) {
                                 Icon(
-                                    Icons.Filled.Search, "Search",
+                                    Icons.Filled.Search, stringResource(id = R.string.search_short),
                                     modifier = Modifier.padding(start = 8.dp)
                                 )
                             }
@@ -952,7 +929,7 @@ fun FolderDetailScreen(
                         trailingIcon = {
                             if (searchQuery.isNotBlank()) {
                                 IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Filled.Clear, "Clear")
+                                    Icon(Icons.Filled.Clear, stringResource(id = R.string.clear))
                                 }
                             }
                         },
@@ -969,14 +946,14 @@ fun FolderDetailScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(paddingValues)
         ) {
             Text(
-                "${folderLinks.size} links",
+                stringResource(R.string.links_count, folderLinks.size),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
@@ -985,8 +962,8 @@ fun FolderDetailScreen(
             if (folderLinks.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        if (searchQuery.isBlank()) "No links in this folder"
-                        else "No results for \"$searchQuery\"",
+                        if (searchQuery.isBlank()) stringResource(id = R.string.no_links_in_folder)
+                        else stringResource(id = R.string.no_results_for, searchQuery),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

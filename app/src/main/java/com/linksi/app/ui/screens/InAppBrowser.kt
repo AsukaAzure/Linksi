@@ -31,6 +31,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.linksi.app.R
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,7 +114,7 @@ fun InAppBrowser(
                         onClick = { webView?.goBack() },
                         enabled = canGoBack
                     ) {
-                        Icon(Icons.Outlined.ArrowBack, "Back")
+                        Icon(Icons.Outlined.ArrowBack, stringResource(R.string.back))
                     }
 
                     // Forward
@@ -120,7 +122,7 @@ fun InAppBrowser(
                         onClick = { webView?.goForward() },
                         enabled = canGoForward
                     ) {
-                        Icon(Icons.Outlined.ArrowForward, "Forward")
+                        Icon(Icons.Outlined.ArrowForward, stringResource(R.string.forward))
                     }
 
                     // URL bar in center
@@ -176,13 +178,13 @@ fun InAppBrowser(
                         Icon(
                             if (isLoading) Icons.Outlined.Close
                             else Icons.Outlined.Refresh,
-                            "Refresh"
+                            stringResource(if (isLoading) R.string.close else R.string.refresh)
                         )
                     }
 
                     // Close browser
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Outlined.Close, "Close")
+                        Icon(Icons.Outlined.Close, stringResource(R.string.close))
                     }
                 }
             }

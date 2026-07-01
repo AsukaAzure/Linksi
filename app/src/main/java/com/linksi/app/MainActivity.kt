@@ -1,100 +1,86 @@
 package com.linksi.app
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.core.os.LocaleListCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.linksi.app.ui.screens.HomeScreen
 import com.linksi.app.ui.screens.OnboardingScreen
 import com.linksi.app.ui.theme.LinksTheme
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import com.linksi.app.utils.APP_LANGUAGE
+import com.linksi.app.utils.dataStore
 import com.linksi.app.utils.isOnboardingComplete
 import com.linksi.app.utils.setOnboardingComplete
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.content.Intent
-import android.net.Uri
-import androidx.compose.runtime.*
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
-            LinksTheme {
-                val context = LocalContext.current
-                val scope = rememberCoroutineScope()
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
 
-                // Check if onboarding is complete
-                val onboardingComplete by isOnboardingComplete(context)
-                    .collectAsState(initial = null)
+            // State for language and onboarding
+            val appLanguage by remember {
+                context.dataStore.data.map { it[APP_LANGUAGE] ?: "" }
+            }.collectAsState(initial = null)
 
-                var showUpdateDialog by remember { mutableStateOf(false) }
-                var latestVersion by remember { mutableStateOf("") }
-                var currentVersion by remember { mutableStateOf("") }
+            val onboardingComplete by remember {
+                isOnboardingComplete(context)
+            }.collectAsState(initial = null)
 
-                LaunchedEffect(Unit) {
-                    try {
-                        val version = context.packageManager
-                            .getPackageInfo(context.packageName, 0).versionName ?: "1.0.0"
-                        currentVersion = version
+            // Keep splash screen visible until we have both values
+            splashScreen.setKeepOnScreenCondition {
+                appLanguage == null || onboardingComplete == null
+            }
 
-                        val response = withContext(Dispatchers.IO) {
-                            java.net.URL("https://api.github.com/repos/AsukaAzure/Linksi/releases/latest")
-                                .openConnection()
-                                .apply {
-                                    connectTimeout = 6000
-                                    readTimeout = 6000
-                                }
-                                .getInputStream()
-                                .bufferedReader()
-                                .readText()
-                        }
-
-                        val tagName = Regex(""""tag_name"\s*:\s*"([^"]+)"""")
-                            .find(response)?.groupValues?.get(1) ?: ""
-
-                        latestVersion = tagName.removePrefix("v")
-
-                        if (isNewerVersion(latestVersion, currentVersion)) {
-                            showUpdateDialog = true
-                        }
-                    } catch (e: Exception) {
-                        // Silently fail — don't interrupt user if check fails
+            // Apply language if it differs from current system/app setting
+            LaunchedEffect(appLanguage) {
+                appLanguage?.let { lang ->
+                    val appLocale: LocaleListCompat = if (lang.isEmpty()) {
+                        LocaleListCompat.getEmptyLocaleList()
+                    } else {
+                        LocaleListCompat.forLanguageTags(lang)
+                    }
+                    if (AppCompatDelegate.getApplicationLocales() != appLocale) {
+                        AppCompatDelegate.setApplicationLocales(appLocale)
                     }
                 }
+            }
 
+            LinksTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     when (onboardingComplete) {
                         null -> {
-                            // Loading — show nothing or splash
+                            // Empty box while splash screen is still covering
                             Box(Modifier.fillMaxSize())
                         }
-
                         false -> {
                             OnboardingScreen(
                                 onFinish = {
@@ -104,76 +90,114 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
-
                         true -> {
                             HomeScreen()
                         }
                     }
-                    if (showUpdateDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showUpdateDialog = false },
-                            icon = {
-                                Icon(
-                                    Icons.Outlined.SystemUpdate, null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            title = { Text("Update Available") },
-                            text = {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text("A new version of Linksi is available.")
-                                    Spacer(Modifier.height(4.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        Column {
-                                            Text(
-                                                "Current",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                "v$currentVersion",
-                                                style = MaterialTheme.typography.bodyMedium
-                                            )
-                                        }
-                                        Column {
-                                            Text(
-                                                "Latest",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                "v$latestVersion",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            confirmButton = {
-                                Button(onClick = {
-                                    val intent = Intent(
-                                        Intent.ACTION_VIEW,
-                                        Uri.parse("https://github.com/AsukaAzure/Linksi/releases/latest")
-                                    )
-                                    context.startActivity(intent)
-                                    showUpdateDialog = false
-                                }) {
-                                    Icon(Icons.Outlined.Download, null, Modifier.size(16.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Update Now")
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showUpdateDialog = false }) {
-                                    Text("Later")
-                                }
-                            }
-                        )
-                    }
+
+                    UpdateCheckDialog()
                 }
             }
+        }
+    }
+
+    @Composable
+    private fun UpdateCheckDialog() {
+        val context = LocalContext.current
+        var showUpdateDialog by remember { mutableStateOf(false) }
+        var latestVersion by remember { mutableStateOf("") }
+        var currentVersion by remember { mutableStateOf("") }
+
+        LaunchedEffect(Unit) {
+            try {
+                val version = context.packageManager
+                    .getPackageInfo(context.packageName, 0).versionName ?: "1.0.0"
+                currentVersion = version
+
+                val response = withContext(Dispatchers.IO) {
+                    java.net.URL("https://api.github.com/repos/AsukaAzure/Linksi/releases/latest")
+                        .openConnection()
+                        .apply {
+                            connectTimeout = 6000
+                            readTimeout = 6000
+                        }
+                        .getInputStream()
+                        .bufferedReader()
+                        .readText()
+                }
+
+                val tagName = Regex(""""tag_name"\s*:\s*"([^"]+)"""")
+                    .find(response)?.groupValues?.get(1) ?: ""
+
+                latestVersion = tagName.removePrefix("v")
+
+                if (isNewerVersion(latestVersion, currentVersion)) {
+                    showUpdateDialog = true
+                }
+            } catch (e: Exception) {
+                // Silently fail update check
+            }
+        }
+
+        if (showUpdateDialog) {
+            AlertDialog(
+                onDismissRequest = { showUpdateDialog = false },
+                icon = {
+                    Icon(
+                        Icons.Outlined.SystemUpdate, null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                title = { Text(stringResource(id = R.string.update_available_dialog_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(id = R.string.update_available_dialog_text))
+                        Spacer(Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Column {
+                                Text(
+                                    stringResource(id = R.string.current),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text("v$currentVersion", style = MaterialTheme.typography.bodyMedium)
+                            }
+                            Column {
+                                Text(
+                                    stringResource(id = R.string.latest),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    "v$latestVersion",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/AsukaAzure/Linksi/releases/latest")
+                        )
+                        context.startActivity(intent)
+                        showUpdateDialog = false
+                    }) {
+                        Icon(Icons.Outlined.Download, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(id = R.string.update_now))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showUpdateDialog = false }) {
+                        Text(stringResource(id = R.string.later))
+                    }
+                }
+            )
         }
     }
 
