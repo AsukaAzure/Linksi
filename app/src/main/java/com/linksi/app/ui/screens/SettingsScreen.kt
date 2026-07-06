@@ -286,6 +286,7 @@ fun SettingsScreen(
                         subtitle = when(state.selectedLanguage) {
                             "en" -> "English"
                             "es" -> "Spanish"
+                            "ru" -> "Russian"
                             else -> stringResource(id = com.linksi.app.R.string.system_default)
                         },
                         onClick = { showLanguagePicker = true },
@@ -669,7 +670,8 @@ fun LanguagePickerSheet(
             val languages = listOf(
                 "" to stringResource(id = com.linksi.app.R.string.system_default),
                 "en" to "English",
-                "es" to "Spanish"
+                "es" to "Spanish",
+                "ru" to "Russian"
             )
 
             languages.forEach { (code, name) ->
