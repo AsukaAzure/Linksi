@@ -18,7 +18,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -36,8 +38,8 @@ fun LinkEditSheet(
     onDismiss: () -> Unit,
     onSave: (Link) -> Unit
 ) {
-    var title by remember { mutableStateOf(link.title) }
-    var description by remember { mutableStateOf(link.description) }
+    var title by remember { mutableStateOf(TextFieldValue(link.title)) }
+    var description by remember { mutableStateOf(TextFieldValue(link.description)) }
     var previewImageUrl by remember { mutableStateOf(link.previewImageUrl) }
     var showImageUrlDialog by remember { mutableStateOf(false) }
     var imageUrlInput by remember { mutableStateOf("") }
@@ -61,6 +63,8 @@ fun LinkEditSheet(
         scope.launch { sheetState.hide(); onDismiss() }
     }
 
+    val textToolbar = LocalTextToolbar.current
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -68,13 +72,12 @@ fun LinkEditSheet(
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-        ) {
+        CompositionLocalProvider(LocalTextToolbar provides textToolbar) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
             // ── Drag handle ───────────────────────────────────
             Box(
                 modifier = Modifier
@@ -220,79 +223,65 @@ fun LinkEditSheet(
             Spacer(Modifier.height(12.dp))
 
             // ── Title text field ──────────────────────────────
-            Surface(
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                placeholder = { Text(stringResource(R.string.title)) },
+                singleLine = true,
                 shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                trailingIcon = {
+                    if (title.text.isNotEmpty()) {
+                        IconButton(onClick = { title = TextFieldValue("") }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = stringResource(R.string.clear)
+                            )
+                        }
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                ),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp)
-            ) {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    placeholder = { Text(stringResource(R.string.title)) },
-                    singleLine = true,
-                    trailingIcon = {
-                        if (title.isNotEmpty()) {
-                            IconButton(onClick = { title = "" }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Close,
-                                    contentDescription = stringResource(R.string.clear)
-                                )
-                            }
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
-                    ),
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            )
 
             Spacer(Modifier.height(8.dp))
 
             // ── Description text field ────────────────────────
-            Surface(
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                placeholder = { Text(stringResource(R.string.description)) },
                 shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                trailingIcon = {
+                    if (description.text.isNotEmpty()) {
+                        IconButton(onClick = { description = TextFieldValue("") }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = stringResource(R.string.clear)
+                            )
+                        }
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp)
-            ) {
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    placeholder = { Text(stringResource(R.string.description)) },
-                    maxLines = 5,
-                    trailingIcon = {
-                        if (description.isNotEmpty()) {
-                            IconButton(onClick = { description = "" }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Close,
-                                    contentDescription = stringResource(R.string.clear)
-                                )
-                            }
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 100.dp)
-                )
-            }
+                    .heightIn(min = 100.dp)
+            )
 
             Spacer(Modifier.height(16.dp))
 
@@ -300,8 +289,8 @@ fun LinkEditSheet(
             Button(
                 onClick = {
                     onSave(link.copy(
-                        title = title.trim(),
-                        description = description.trim(),
+                        title = title.text.trim(),
+                        description = description.text.trim(),
                         previewImageUrl = previewImageUrl
                     ))
                     dismiss()
@@ -316,6 +305,7 @@ fun LinkEditSheet(
             }
 
             Spacer(Modifier.height(16.dp))
+            }
         }
     }
 
