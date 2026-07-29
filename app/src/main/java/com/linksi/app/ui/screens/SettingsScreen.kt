@@ -287,6 +287,7 @@ fun SettingsScreen(
                             "en" -> "English"
                             "es" -> "Spanish"
                             "ru" -> "Russian"
+                            "zh" -> "Chinese (Simplified)"
                             else -> stringResource(id = com.linksi.app.R.string.system_default)
                         },
                         onClick = { showLanguagePicker = true },
@@ -671,7 +672,8 @@ fun LanguagePickerSheet(
                 "" to stringResource(id = com.linksi.app.R.string.system_default),
                 "en" to "English",
                 "es" to "Spanish",
-                "ru" to "Russian"
+                "ru" to "Russian",
+                "zh" to "Chinese (Simplified)"
             )
 
             languages.forEach { (code, name) ->
