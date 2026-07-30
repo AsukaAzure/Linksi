@@ -48,15 +48,14 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    var showModelPicker by remember { mutableStateOf(false) }
     var showAiOrganizer by remember { mutableStateOf(false) }
     var showImportExport by remember { mutableStateOf(false) }
     var showLanguagePicker by remember { mutableStateOf(false) }
-    var showPinSetup by remember { mutableStateOf(false) }
-    var showDelayPicker by remember { mutableStateOf(false) }
+    var showAiSettings by remember { mutableStateOf(false) }
+    var showSecuritySettings by remember { mutableStateOf(false) }
 
     // Handle system back button
-    BackHandler(enabled = !showAiOrganizer && !showImportExport) {
+    BackHandler(enabled = !showAiOrganizer && !showImportExport && !showAiSettings && !showSecuritySettings) {
         onBack()
     }
 
@@ -106,13 +105,10 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            // ── Import & Export ───────────────────────────────────
-            item {
-                SectionHeader(stringResource(id = com.linksi.app.R.string.import_export), Icons.Outlined.SwapHoriz)
-            }
+            // ── Data & Tools ──────────────────────────────────────
             item {
                 SettingsCard {
                     SettingsItem(
@@ -127,247 +123,44 @@ fun SettingsScreen(
                             )
                         }
                     )
-                }
-            }
-
-            // ── AI Organizer ──────────────────────────────────────
-            item {
-                SectionHeader(stringResource(id = com.linksi.app.R.string.ai_organizer), Icons.Outlined.AutoAwesome)
-            }
-            item {
-                SettingsCard {
-                    // Enable toggle
-                    ListItem(
-                        headlineContent = { Text(stringResource(id = com.linksi.app.R.string.ai_organizer)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(id = com.linksi.app.R.string.ai_organizer_subtitle),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.Outlined.AutoAwesome, null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    SettingsItem(
+                        icon = Icons.Outlined.AutoAwesome,
+                        title = stringResource(id = com.linksi.app.R.string.ai_organizer),
+                        subtitle = stringResource(id = com.linksi.app.R.string.ai_organizer_subtitle),
+                        onClick = { showAiSettings = true },
                         trailingContent = {
-                            Switch(
-                                checked = state.aiEnabled,
-                                onCheckedChange = { viewModel.setAiEnabled(it) }
+                            Icon(
+                                Icons.Outlined.ChevronRight, null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     )
-
-                    if (state.aiEnabled) {
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // Model selector
-                        val selectedModel = AI_MODELS.find { it.id == state.selectedModelId }
-                        ListItem(
-                            headlineContent = { Text(stringResource(id = com.linksi.app.R.string.ai_model)) },
-                            supportingContent = {
-                            when (state.modelStatus) {
-                                SettingsViewModel.ModelStatus.ACTIVE -> Text(
-                                    stringResource(id = com.linksi.app.R.string.ai_model_active, selectedModel?.name ?: ""),
-                                    color = Color(0xFF22C55E),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                SettingsViewModel.ModelStatus.ERROR -> Text(
-                                    state.updateCheckError ?: stringResource(id = com.linksi.app.R.string.ai_model_error),
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                SettingsViewModel.ModelStatus.UNKNOWN -> Text(
-                                    selectedModel?.name ?: stringResource(id = com.linksi.app.R.string.ai_model_select),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                        },
-                            leadingContent = {
-                                Icon(
-                                    Icons.Outlined.SmartToy, null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            trailingContent = {
-                                Icon(
-                                    Icons.Outlined.ChevronRight, null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            modifier = Modifier.clickable { showModelPicker = true }
-                        )
-
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // API Key — only for selected provider
-                        if (selectedModel != null) {
-                            val providerName = when (selectedModel.provider) {
-                                AiProvider.OPENAI -> "OpenAI"
-                                AiProvider.ANTHROPIC -> "Anthropic"
-                                AiProvider.GEMINI -> "Google Gemini"
-                                AiProvider.DEEPSEEK -> "DeepSeek"
-                                AiProvider.GROK -> "Grok (xAI)"
-                            }
-                            ApiKeyItem(
-                                provider = selectedModel.provider,
-                                currentKey = state.apiKeys[selectedModel.provider] ?: "",
-                                onSave = { key -> viewModel.setApiKey(selectedModel.provider, key) }
-                            )
-                        }
-
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // Open organizer
-                        ListItem(
-                            headlineContent = { Text(stringResource(id = com.linksi.app.R.string.organize_my_links)) },
-                            supportingContent = {
-                                Text(
-                                    stringResource(id = com.linksi.app.R.string.organize_now),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            },
-                            leadingContent = {
-                                Icon(
-                                    Icons.Outlined.AutoFixHigh, null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            trailingContent = {
-                                Icon(
-                                    Icons.Outlined.ChevronRight, null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            modifier = Modifier.clickable { showAiOrganizer = true }
-                        )
-                    }
                 }
             }
 
-            // ── Security ──────────────────────────────────────────
-            item {
-                SectionHeader(stringResource(id = com.linksi.app.R.string.security), Icons.Outlined.Lock)
-            }
+            // ── App Preferences ───────────────────────────────────
             item {
                 SettingsCard {
-                    // Enable App Lock
-                    ListItem(
-                        headlineContent = { Text(stringResource(id = com.linksi.app.R.string.app_lock)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(id = com.linksi.app.R.string.app_lock_subtitle),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.Outlined.Lock, null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
+                    SettingsItem(
+                        icon = Icons.Outlined.Lock,
+                        title = stringResource(id = com.linksi.app.R.string.security),
+                        subtitle = stringResource(id = com.linksi.app.R.string.app_lock_subtitle),
+                        onClick = { showSecuritySettings = true },
                         trailingContent = {
-                            Switch(
-                                checked = state.isSecurityEnabled,
-                                onCheckedChange = { 
-                                    viewModel.setSecurityEnabled(it)
-                                    if (it && state.pin.isEmpty()) showPinSetup = true
-                                }
+                            Icon(
+                                Icons.Outlined.ChevronRight, null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     )
-
-                    if (state.isSecurityEnabled) {
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // Biometric Unlock
-                        ListItem(
-                            headlineContent = { Text(stringResource(id = com.linksi.app.R.string.biometric_unlock)) },
-                            supportingContent = {
-                                Text(
-                                    stringResource(id = com.linksi.app.R.string.biometric_unlock_subtitle),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            },
-                            leadingContent = {
-                                Icon(
-                                    Icons.Outlined.Fingerprint, null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            trailingContent = {
-                                Switch(
-                                    checked = state.isBiometricEnabled,
-                                    onCheckedChange = { viewModel.setBiometricEnabled(it) }
-                                )
-                            }
-                        )
-
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // Change PIN
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    if (state.pin.isEmpty()) stringResource(id = com.linksi.app.R.string.set_pin)
-                                    else stringResource(id = com.linksi.app.R.string.change_pin)
-                                )
-                            },
-                            leadingContent = {
-                                Icon(
-                                    Icons.Outlined.Password, null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            trailingContent = {
-                                Icon(
-                                    Icons.Outlined.ChevronRight, null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            modifier = Modifier.clickable { showPinSetup = true }
-                        )
-
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // Lock Delay
-                        ListItem(
-                            headlineContent = { Text(stringResource(id = com.linksi.app.R.string.lock_delay)) },
-                            supportingContent = {
-                                val delayText = when (state.lockDelay) {
-                                    0L -> stringResource(id = com.linksi.app.R.string.immediately)
-                                    60000L -> stringResource(id = com.linksi.app.R.string.after_1_minute)
-                                    300000L -> stringResource(id = com.linksi.app.R.string.after_5_minutes)
-                                    1800000L -> stringResource(id = com.linksi.app.R.string.after_30_minutes)
-                                    else -> stringResource(id = com.linksi.app.R.string.immediately)
-                                }
-                                Text(delayText, style = MaterialTheme.typography.bodySmall)
-                            },
-                            leadingContent = {
-                                Icon(
-                                    Icons.Outlined.Timer, null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            trailingContent = {
-                                Icon(
-                                    Icons.Outlined.ChevronRight, null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            modifier = Modifier.clickable { showDelayPicker = true }
-                        )
-                    }
-                }
-            }
-
-            // ── Browser ───────────────────────────────────────────
-            item {
-                SectionHeader(stringResource(id = com.linksi.app.R.string.browser), Icons.Outlined.Language)
-            }
-            item {
-                SettingsCard {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
                     ListItem(
                         headlineContent = { Text(stringResource(id = com.linksi.app.R.string.in_app_browser)) },
                         supportingContent = {
@@ -394,16 +187,10 @@ fun SettingsScreen(
                             )
                         }
                     )
-                }
-            }
-
-
-            // ── General ───────────────────────────────────────────
-            item {
-                SectionHeader(stringResource(id = com.linksi.app.R.string.general), Icons.Outlined.Settings)
-            }
-            item {
-                SettingsCard {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
                     SettingsItem(
                         icon = Icons.Outlined.Language,
                         title = stringResource(id = com.linksi.app.R.string.language),
@@ -526,14 +313,11 @@ fun SettingsScreen(
 
             // ── Stats ─────────────────────────────────────────────
             item {
-                SectionHeader(stringResource(id = com.linksi.app.R.string.stats), Icons.Outlined.BarChart)
-            }
-            item {
                 SettingsCard {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(vertical = 20.dp, horizontal = 16.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         StatItem(stringResource(id = com.linksi.app.R.string.total_links), "${state.totalLinks}")
@@ -558,7 +342,7 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "❤️",
+                        " ❤️ ",
                         style = MaterialTheme.typography.labelSmall
                     )
                     Text(
@@ -631,15 +415,6 @@ fun SettingsScreen(
         )
     }
 
-    // ── Model Picker ──────────────────────────────────────────
-    if (showModelPicker) {
-        ModelPickerSheet(
-            currentModelId = state.selectedModelId,
-            onModelSelected = { viewModel.setSelectedModel(it) },
-            onDismiss = { showModelPicker = false }
-        )
-    }
-
     // ── Language Picker ───────────────────────────────────────
     if (showLanguagePicker) {
         LanguagePickerSheet(
@@ -649,29 +424,6 @@ fun SettingsScreen(
                 showLanguagePicker = false
             },
             onDismiss = { showLanguagePicker = false }
-        )
-    }
-
-    // ── PIN Setup Dialog ──────────────────────────────────────
-    if (showPinSetup) {
-        PinSetupDialog(
-            onPinSaved = {
-                viewModel.setPin(it)
-                showPinSetup = false
-            },
-            onDismiss = { showPinSetup = false }
-        )
-    }
-
-    // ── Lock Delay Picker ─────────────────────────────────────
-    if (showDelayPicker) {
-        LockDelayPickerSheet(
-            currentDelay = state.lockDelay,
-            onDelaySelected = {
-                viewModel.setLockDelay(it)
-                showDelayPicker = false
-            },
-            onDismiss = { showDelayPicker = false }
         )
     }
 
@@ -689,6 +441,31 @@ fun SettingsScreen(
         ) {
             AiOrganizerScreen(onBack = { showAiOrganizer = false })
         }
+    }
+
+    // ── AI Settings overlay ──────────────────────────────────
+    AnimatedVisibility(
+        visible = showAiSettings,
+        enter = slideInHorizontally(initialOffsetX = { it }),
+        exit = slideOutHorizontally(targetOffsetX = { it })
+    ) {
+        BackHandler { showAiSettings = false }
+        AiSettingsScreen(
+            onBack = { showAiSettings = false },
+            onOpenOrganizer = { showAiOrganizer = true }
+        )
+    }
+
+    // ── Security Settings overlay ─────────────────────────────
+    AnimatedVisibility(
+        visible = showSecuritySettings,
+        enter = slideInHorizontally(initialOffsetX = { it }),
+        exit = slideOutHorizontally(targetOffsetX = { it })
+    ) {
+        BackHandler { showSecuritySettings = false }
+        SecuritySettingsScreen(
+            onBack = { showSecuritySettings = false }
+        )
     }
 
     // ── Import Export overlay ─────────────────────────────────
@@ -787,11 +564,14 @@ fun BrowserInstructionItem(browser: String, steps: String) {
 fun StatItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            value, style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary
+            value,
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
         )
         Text(
-            label, style = MaterialTheme.typography.labelSmall,
+            label,
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -1000,7 +780,8 @@ fun LanguagePickerSheet(
 fun ApiKeyItem(
     provider: AiProvider,
     currentKey: String,
-    onSave: (String) -> Unit
+    onSave: (String) -> Unit,
+    enabled: Boolean = true
 ) {
     var editing by remember { mutableStateOf(false) }
     var keyInput by remember { mutableStateOf(currentKey) }
@@ -1014,6 +795,8 @@ fun ApiKeyItem(
         AiProvider.GROK -> "Grok (xAI)"
     }
 
+    val alpha = if (enabled) 1f else 0.38f
+
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1022,23 +805,25 @@ fun ApiKeyItem(
             Text(
                 providerName,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
             )
             if (currentKey.isNotBlank()) {
                 Icon(
                     Icons.Outlined.CheckCircle, null,
                     Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = alpha)
                 )
             }
             TextButton(
-                onClick = { editing = !editing; keyInput = currentKey }
+                onClick = { editing = !editing; keyInput = currentKey },
+                enabled = enabled
             ) {
                 Text(if (editing) stringResource(id = com.linksi.app.R.string.cancel) else if (currentKey.isBlank()) stringResource(id = com.linksi.app.R.string.add) else stringResource(id = com.linksi.app.R.string.edit))
             }
         }
 
-        if (editing) {
+        if (editing && enabled) {
             OutlinedTextField(
                 value = keyInput,
                 onValueChange = { keyInput = it },
@@ -1078,7 +863,7 @@ fun ApiKeyItem(
             Text(
                 "••••••••${currentKey.takeLast(4)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha)
             )
         }
     }

@@ -358,7 +358,13 @@ class SettingsViewModel @Inject constructor(
 
     fun setSecurityEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            context.dataStore.edit { it[SECURITY_LOCK_ENABLED] = enabled }
+            context.dataStore.edit { prefs ->
+                prefs[SECURITY_LOCK_ENABLED] = enabled
+                if (enabled) {
+                    // Prevent immediate lock when enabling while app is active
+                    prefs[LAST_APP_PAUSE_TIME] = Long.MAX_VALUE
+                }
+            }
             if (enabled && _uiState.value.pin.isEmpty()) {
                 _uiState.update { it.copy(message = context.getString(R.string.pin_must_be_4_digits)) }
             }
@@ -373,13 +379,25 @@ class SettingsViewModel @Inject constructor(
 
     fun setPin(pin: String) {
         viewModelScope.launch {
-            context.dataStore.edit { it[SECURITY_PIN] = pin }
+            context.dataStore.edit { prefs ->
+                prefs[SECURITY_PIN] = pin
+                // Also reset pause time when setting/changing pin to prevent instant lock
+                if (prefs[SECURITY_LOCK_ENABLED] == true) {
+                    prefs[LAST_APP_PAUSE_TIME] = Long.MAX_VALUE
+                }
+            }
         }
     }
 
     fun setLockDelay(delayMs: Long) {
         viewModelScope.launch {
-            context.dataStore.edit { it[SECURITY_LOCK_DELAY] = delayMs }
+            context.dataStore.edit { prefs ->
+                prefs[SECURITY_LOCK_DELAY] = delayMs
+                // Reset pause time to prevent instant lock when changing delay while app is active
+                if (prefs[SECURITY_LOCK_ENABLED] == true) {
+                    prefs[LAST_APP_PAUSE_TIME] = Long.MAX_VALUE
+                }
+            }
         }
     }
 

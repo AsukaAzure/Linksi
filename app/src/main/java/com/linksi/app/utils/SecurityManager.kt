@@ -57,9 +57,10 @@ object SecurityManager {
         val lastPauseTime = prefs[LAST_APP_PAUSE_TIME] ?: 0L
         if (lastPauseTime == 0L) return true // First launch or cleared
 
-        val lockDelay = prefs[SECURITY_LOCK_DELAY] ?: 0L
         val currentTime = System.currentTimeMillis()
+        if (lastPauseTime > currentTime) return false // App is running and security was just enabled
 
+        val lockDelay = prefs[SECURITY_LOCK_DELAY] ?: 0L
         return (currentTime - lastPauseTime) >= lockDelay
     }
 }
