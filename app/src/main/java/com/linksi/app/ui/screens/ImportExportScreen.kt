@@ -44,6 +44,7 @@ fun ImportExportScreen(
     onBack: () -> Unit,
     exportJsonLauncher: androidx.activity.result.ActivityResultLauncher<String>,
     exportCsvLauncher: androidx.activity.result.ActivityResultLauncher<String>,
+    exportHtmlLauncher: androidx.activity.result.ActivityResultLauncher<String>,
     importLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
     exportFileName: (String) -> String
 ) {
@@ -88,6 +89,13 @@ fun ImportExportScreen(
                         title = stringResource(R.string.export_csv_title),
                         subtitle = stringResource(R.string.export_csv_subtitle),
                         onClick = { exportCsvLauncher.launch(exportFileName("csv")) }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsItem(
+                        icon = Icons.Outlined.Language,
+                        title = stringResource(R.string.export_html_title),
+                        subtitle = stringResource(R.string.export_html_subtitle),
+                        onClick = { exportHtmlLauncher.launch(exportFileName("html")) }
                     )
                 }
             }

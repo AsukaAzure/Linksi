@@ -222,6 +222,8 @@
     <string name="export_json_subtitle">Full backup — reimport on any device with Linksi</string>
     <string name="export_csv_title">Export as CSV</string>
     <string name="export_csv_subtitle">Open in Excel, Google Sheets, or any spreadsheet app</string>
+    <string name="export_html_title">Export as HTML</string>
+    <string name="export_html_subtitle">Standard browser bookmarks format — import in Chrome, Safari, etc.</string>
     <string name="import_action">Import</string>
     <string name="import_json_title">Import Linksi backup</string>
     <string name="import_json_subtitle">Restore from a .json file exported from Linksi</string>
@@ -234,6 +236,7 @@
     <string name="importing_links_phase">Importing links…</string>
     <string name="exported_links">Exported %1$d links</string>
     <string name="exported_links_csv">Exported %1$d links as CSV</string>
+    <string name="exported_links_html">Exported %1$d links as HTML</string>
     <string name="export_failed">Export failed: %1$s</string>
     <string name="import_message_with_duplicates">Imported %1$d links • %2$d duplicates skipped</string>
     <string name="import_message_success">Imported %1$d links</string>

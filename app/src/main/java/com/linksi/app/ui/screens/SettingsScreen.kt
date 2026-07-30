@@ -69,6 +69,10 @@ fun SettingsScreen(
         ActivityResultContracts.CreateDocument("text/csv")
     ) { uri -> uri?.let { viewModel.exportCsv(context, it) } }
 
+    val exportHtmlLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/html")
+    ) { uri -> uri?.let { viewModel.exportHtml(context, it) } }
+
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { viewModel.importFile(context, it) } }
@@ -699,6 +703,7 @@ fun SettingsScreen(
             onBack = { showImportExport = false },
             exportJsonLauncher = exportJsonLauncher,
             exportCsvLauncher = exportCsvLauncher,
+            exportHtmlLauncher = exportHtmlLauncher,
             importLauncher = importLauncher,
             exportFileName = ::exportFileName
         )

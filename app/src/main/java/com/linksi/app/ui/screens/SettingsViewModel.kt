@@ -207,6 +207,21 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun exportHtml(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val links = repository.getAllLinks().first()
+                val html = exportLinksToHtml(links)
+                context.contentResolver.openOutputStream(uri)?.use {
+                    it.write(html.toByteArray())
+                }
+                _uiState.update { it.copy(message = context.getString(R.string.exported_links_html, links.size)) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(message = context.getString(R.string.export_failed, e.message)) }
+            }
+        }
+    }
+
     fun importFile(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {

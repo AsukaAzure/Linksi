@@ -220,6 +220,8 @@
     <string name="export_json_subtitle">Полная резервная копия — можно импортировать на любом устройстве с Linksi</string>
     <string name="export_csv_title">Экспорт в CSV</string>
     <string name="export_csv_subtitle">Открыть в Excel, Google Таблицах или любом другом приложении для таблиц</string>
+    <string name="export_html_title">Экспорт в HTML</string>
+    <string name="export_html_subtitle">Стандартный формат закладок — импорт в Chrome, Safari и др.</string>
     <string name="import_action">Импорт</string>
     <string name="import_json_title">Импорт резервной копии Linksi</string>
     <string name="import_json_subtitle">Восстановление из .json файла, экспортированного из Linksi</string>
@@ -232,6 +234,7 @@
     <string name="importing_links_phase">Импорт ссылок…</string>
     <string name="exported_links">Экспортировано ссылок: %1$d</string>
     <string name="exported_links_csv">Экспортировано %1$d ссылок в CSV</string>
+    <string name="exported_links_html">Экспортировано %1$d ссылок в HTML</string>
     <string name="export_failed">Ошибка экспорта: %1$s</string>
     <string name="import_message_with_duplicates">Импортировано %1$d ссылок • %2$d дубликатов пропущено</string>
     <string name="import_message_success">Импортировано %1$d ссылок</string>

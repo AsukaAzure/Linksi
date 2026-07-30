@@ -135,6 +135,30 @@ fun exportLinksToCsv(links: List<Link>): String {
     return sb.toString()
 }
 
+// ── Export as HTML ────────────────────────────────────────────
+fun exportLinksToHtml(links: List<Link>): String {
+    val sb = StringBuilder()
+    sb.appendLine("<!DOCTYPE NETSCAPE-Bookmark-file-1>")
+    sb.appendLine("<!-- This is an automatically generated file.")
+    sb.appendLine("     It will be read and written.")
+    sb.appendLine("     DO NOT EDIT! -->")
+    sb.appendLine("<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">")
+    sb.appendLine("<TITLE>Bookmarks</TITLE>")
+    sb.appendLine("<H1>Bookmarks</H1>")
+    sb.appendLine("<DL><p>")
+    sb.appendLine("    <DT><H3 ADD_DATE=\"${System.currentTimeMillis() / 1000}\" LAST_MODIFIED=\"${System.currentTimeMillis() / 1000}\">Linksi Export</H3>")
+    sb.appendLine("    <DL><p>")
+
+    links.forEach { link ->
+        val addDate = link.createdAt / 1000
+        sb.appendLine("        <DT><A HREF=\"${link.url}\" ADD_DATE=\"$addDate\">${link.title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</A>")
+    }
+
+    sb.appendLine("    </DL><p>")
+    sb.appendLine("</DL><p>")
+    return sb.toString()
+}
+
 private fun csvEscape(value: String) = "\"${value.replace("\"", "\"\"")}\""
 
 // ── File name helpers ─────────────────────────────────────────

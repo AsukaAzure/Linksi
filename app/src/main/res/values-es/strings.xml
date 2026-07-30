@@ -222,6 +222,8 @@
     <string name="export_json_subtitle">Copia de seguridad completa — reimportar en cualquier dispositivo con Linksi</string>
     <string name="export_csv_title">Exportar como CSV</string>
     <string name="export_csv_subtitle">Abrir en Excel, Google Sheets o cualquier aplicación de hojas de cálculo</string>
+    <string name="export_html_title">Exportar como HTML</string>
+    <string name="export_html_subtitle">Formato de marcadores estándar — importar en Chrome, Safari, etc.</string>
     <string name="import_action">Importar</string>
     <string name="import_json_title">Importar copia de seguridad de Linksi</string>
     <string name="import_json_subtitle">Restaurar desde un archivo .json exportado de Linksi</string>
@@ -234,6 +236,7 @@
     <string name="importing_links_phase">Importando enlaces…</string>
     <string name="exported_links">Exportados %1$d enlaces</string>
     <string name="exported_links_csv">Exportados %1$d enlaces como CSV</string>
+    <string name="exported_links_html">Exportados %1$d enlaces como HTML</string>
     <string name="export_failed">Error en la exportación: %1$s</string>
     <string name="import_message_with_duplicates">Importados %1$d enlaces • %2$d duplicados omitidos</string>
     <string name="import_message_success">Importados %1$d enlaces</string>

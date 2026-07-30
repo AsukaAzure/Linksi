@@ -220,6 +220,8 @@
     <string name="export_json_subtitle">完整备份 — 可在任何装有 Linksi 的设备上重新导入</string>
     <string name="export_csv_title">导出为 CSV</string>
     <string name="export_csv_subtitle">在 Excel、Google 表格或任何电子表格应用中打开</string>
+    <string name="export_html_title">导出为 HTML</string>
+    <string name="export_html_subtitle">标准浏览器书签格式 — 导入 Chrome, Safari 等</string>
     <string name="import_action">导入</string>
     <string name="import_json_title">导入 Linksi 备份</string>
     <string name="import_json_subtitle">从 Linksi 导出的 .json 文件恢复</string>
@@ -232,6 +234,7 @@
     <string name="importing_links_phase">正在导入链接…</string>
     <string name="exported_links">已导出 %1$d 个链接</string>
     <string name="exported_links_csv">已导出 %1$d 个链接为 CSV</string>
+    <string name="exported_links_html">已导出 %1$d 个链接为 HTML</string>
     <string name="export_failed">导出失败：%1$s</string>
     <string name="import_message_with_duplicates">已导入 %1$d 个链接 • 已跳过 %2$d 个重复项</string>
     <string name="import_message_success">已导入 %1$d 个链接</string>
