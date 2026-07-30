@@ -29,3 +29,4 @@ val SECURITY_BIOMETRIC_ENABLED = booleanPreferencesKey("security_biometric_enabl
 val SECURITY_PIN = stringPreferencesKey("security_pin")
 val SECURITY_LOCK_DELAY = longPreferencesKey("security_lock_delay")
 val LAST_APP_PAUSE_TIME = longPreferencesKey("last_app_pause_time")
+val SKIP_UPDATE_UNTIL = longPreferencesKey("skip_update_until")

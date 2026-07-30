@@ -151,12 +151,17 @@ class MainActivity : AppCompatActivity() {
     @Composable
     private fun UpdateCheckDialog() {
         val context = LocalContext.current
+        val scope = rememberCoroutineScope()
         var showUpdateDialog by remember { mutableStateOf(false) }
         var latestVersion by remember { mutableStateOf("") }
         var currentVersion by remember { mutableStateOf("") }
 
         LaunchedEffect(Unit) {
             try {
+                // Check if user skipped updates recently
+                val skipUntil = context.dataStore.data.map { it[SKIP_UPDATE_UNTIL] ?: 0L }.first()
+                if (System.currentTimeMillis() < skipUntil) return@LaunchedEffect
+
                 val version = context.packageManager
                     .getPackageInfo(context.packageName, 0).versionName ?: "1.0.0"
                 currentVersion = version
@@ -240,8 +245,15 @@ class MainActivity : AppCompatActivity() {
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showUpdateDialog = false }) {
-                        Text(stringResource(id = R.string.later))
+                    TextButton(onClick = {
+                        scope.launch {
+                            context.dataStore.edit {
+                                it[SKIP_UPDATE_UNTIL] = System.currentTimeMillis() + 24 * 60 * 60 * 1000
+                            }
+                        }
+                        showUpdateDialog = false
+                    }) {
+                        Text(stringResource(id = R.string.skip))
                     }
                 }
             )
