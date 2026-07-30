@@ -304,4 +304,26 @@
     <string name="error_no_links_to_organize">No hay enlaces para organizar.</string>
     <string name="error_failed_to_parse_ai">Error al analizar la respuesta de la IA: %1$s</string>
     <string name="processing_batch">Procesando lote %1$d de %2$d…</string>
+
+    <!-- Seguridad -->
+    <string name="security">Seguridad</string>
+    <string name="app_lock">Bloqueo de aplicación</string>
+    <string name="app_lock_subtitle">Protege tus enlaces con PIN o biometría</string>
+    <string name="biometric_unlock">Desbloqueo biométrico</string>
+    <string name="biometric_unlock_subtitle">Usa huella digital o reconocimiento facial</string>
+    <string name="lock_delay">Retraso de bloqueo</string>
+    <string name="lock_delay_subtitle">Cuánto tiempo esperar antes de bloquear</string>
+    <string name="immediately">Inmediatamente</string>
+    <string name="after_1_minute">Después de 1 minuto</string>
+    <string name="after_5_minutes">Después de 5 minutos</string>
+    <string name="after_30_minutes">Después de 30 minutos</string>
+    <string name="set_pin">Establecer PIN</string>
+    <string name="change_pin">Cambiar PIN</string>
+    <string name="enter_pin">Ingrese el PIN</string>
+    <string name="confirm_pin">Confirmar PIN</string>
+    <string name="pins_dont_match">Los PIN no coinciden</string>
+    <string name="pin_must_be_4_digits">El PIN debe ser de 4 dígitos</string>
+    <string name="pin_saved">PIN guardado</string>
+    <string name="unlock">Desbloquear</string>
+    <string name="authenticate">Autenticarse para desbloquear Linksi</string>
 </resources>

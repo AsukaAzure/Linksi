@@ -19,21 +19,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.os.LocaleListCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import com.linksi.app.ui.screens.HomeScreen
+import com.linksi.app.ui.screens.LockScreen
 import com.linksi.app.ui.screens.OnboardingScreen
 import com.linksi.app.ui.theme.LinksTheme
-import com.linksi.app.utils.APP_LANGUAGE
-import com.linksi.app.utils.dataStore
-import com.linksi.app.utils.isOnboardingComplete
-import com.linksi.app.utils.setOnboardingComplete
+import com.linksi.app.utils.*
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+
+    private var isLocked by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -52,9 +56,28 @@ class MainActivity : AppCompatActivity() {
                 isOnboardingComplete(context)
             }.collectAsState(initial = null)
 
-            // Keep splash screen visible until we have both values
+            val securityPrefs by remember {
+                context.dataStore.data.map { prefs ->
+                    Triple(
+                        prefs[SECURITY_LOCK_ENABLED] ?: false,
+                        prefs[SECURITY_BIOMETRIC_ENABLED] ?: false,
+                        prefs[SECURITY_PIN] ?: ""
+                    )
+                }
+            }.collectAsState(initial = null)
+
+            // Keep splash screen visible until we have all values
             splashScreen.setKeepOnScreenCondition {
-                appLanguage == null || onboardingComplete == null
+                appLanguage == null || onboardingComplete == null || securityPrefs == null
+            }
+
+            // Check if we should lock on startup
+            LaunchedEffect(securityPrefs) {
+                if (securityPrefs != null && !isLocked) {
+                    if (SecurityManager.shouldLockApp(context)) {
+                        isLocked = true
+                    }
+                }
             }
 
             // Apply language if it differs from current system/app setting
@@ -76,27 +99,51 @@ class MainActivity : AppCompatActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    when (onboardingComplete) {
-                        null -> {
-                            // Empty box while splash screen is still covering
-                            Box(Modifier.fillMaxSize())
-                        }
-                        false -> {
-                            OnboardingScreen(
-                                onFinish = {
-                                    scope.launch {
-                                        setOnboardingComplete(context)
+                    if (isLocked && securityPrefs != null) {
+                        LockScreen(
+                            savedPin = securityPrefs!!.third,
+                            isBiometricEnabled = securityPrefs!!.second,
+                            onUnlock = { isLocked = false }
+                        )
+                    } else {
+                        when (onboardingComplete) {
+                            null -> {
+                                // Empty box while splash screen is still covering
+                                Box(Modifier.fillMaxSize())
+                            }
+                            false -> {
+                                OnboardingScreen(
+                                    onFinish = {
+                                        scope.launch {
+                                            setOnboardingComplete(context)
+                                        }
                                     }
-                                }
-                            )
-                        }
-                        true -> {
-                            HomeScreen()
+                                )
+                            }
+                            true -> {
+                                HomeScreen()
+                            }
                         }
                     }
 
                     UpdateCheckDialog()
                 }
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        lifecycleScope.launch {
+            dataStore.edit { it[LAST_APP_PAUSE_TIME] = System.currentTimeMillis() }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch {
+            if (SecurityManager.shouldLockApp(this@MainActivity)) {
+                isLocked = true
             }
         }
     }

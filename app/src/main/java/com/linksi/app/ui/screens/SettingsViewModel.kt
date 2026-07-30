@@ -45,7 +45,11 @@ data class SettingsUiState(
     val apiKeys: Map<AiProvider, String> = emptyMap(),
     val modelStatus: SettingsViewModel.ModelStatus = SettingsViewModel.ModelStatus.UNKNOWN,
     val isTestingModel: Boolean = false,
-    val selectedLanguage: String = ""
+    val selectedLanguage: String = "",
+    val isSecurityEnabled: Boolean = false,
+    val isBiometricEnabled: Boolean = false,
+    val lockDelay: Long = 0L, // 0 means immediate
+    val pin: String = ""
 )
 
 @HiltViewModel
@@ -88,7 +92,11 @@ class SettingsViewModel @Inject constructor(
                         aiEnabled        = prefs[AI_ENABLED]        ?: false,
                         selectedModelId  = prefs[AI_SELECTED_MODEL] ?: "claude35sonnet",
                         apiKeys          = keys,
-                        selectedLanguage = prefs[APP_LANGUAGE] ?: ""
+                        selectedLanguage = prefs[APP_LANGUAGE] ?: "",
+                        isSecurityEnabled = prefs[SECURITY_LOCK_ENABLED] ?: false,
+                        isBiometricEnabled = prefs[SECURITY_BIOMETRIC_ENABLED] ?: false,
+                        lockDelay = prefs[SECURITY_LOCK_DELAY] ?: 0L,
+                        pin = prefs[SECURITY_PIN] ?: ""
                     )
                 }
             }
@@ -330,6 +338,33 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             context.dataStore.edit { it[APP_LANGUAGE] = languageCode }
             _uiState.update { it.copy(selectedLanguage = languageCode) }
+        }
+    }
+
+    fun setSecurityEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[SECURITY_LOCK_ENABLED] = enabled }
+            if (enabled && _uiState.value.pin.isEmpty()) {
+                _uiState.update { it.copy(message = context.getString(R.string.pin_must_be_4_digits)) }
+            }
+        }
+    }
+
+    fun setBiometricEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[SECURITY_BIOMETRIC_ENABLED] = enabled }
+        }
+    }
+
+    fun setPin(pin: String) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[SECURITY_PIN] = pin }
+        }
+    }
+
+    fun setLockDelay(delayMs: Long) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[SECURITY_LOCK_DELAY] = delayMs }
         }
     }
 

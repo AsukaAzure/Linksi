@@ -304,4 +304,26 @@
     <string name="error_no_links_to_organize">No links to organize.</string>
     <string name="error_failed_to_parse_ai">Failed to parse AI response: %1$s</string>
     <string name="processing_batch">Processing batch %1$d of %2$d…</string>
+
+    <!-- Security -->
+    <string name="security">Security</string>
+    <string name="app_lock">App Lock</string>
+    <string name="app_lock_subtitle">Protect your links with PIN or Biometrics</string>
+    <string name="biometric_unlock">Biometric Unlock</string>
+    <string name="biometric_unlock_subtitle">Use fingerprint or face lock</string>
+    <string name="lock_delay">Lock Delay</string>
+    <string name="lock_delay_subtitle">How long to wait before locking</string>
+    <string name="immediately">Immediately</string>
+    <string name="after_1_minute">After 1 minute</string>
+    <string name="after_5_minutes">After 5 minutes</string>
+    <string name="after_30_minutes">After 30 minutes</string>
+    <string name="set_pin">Set PIN</string>
+    <string name="change_pin">Change PIN</string>
+    <string name="enter_pin">Enter PIN</string>
+    <string name="confirm_pin">Confirm PIN</string>
+    <string name="pins_dont_match">PINs do not match</string>
+    <string name="pin_must_be_4_digits">PIN must be 4 digits</string>
+    <string name="pin_saved">PIN saved</string>
+    <string name="unlock">Unlock</string>
+    <string name="authenticate">Authenticate to unlock Linksi</string>
 </resources>

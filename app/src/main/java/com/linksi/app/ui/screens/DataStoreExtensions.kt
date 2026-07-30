@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 
@@ -21,3 +22,10 @@ val AI_KEY_GEMINI = stringPreferencesKey("ai_key_gemini")
 val AI_KEY_DEEPSEEK = stringPreferencesKey("ai_key_deepseek")
 val AI_KEY_GROK = stringPreferencesKey("ai_key_grok")
 val APP_LANGUAGE = stringPreferencesKey("app_language")
+
+// Security Settings
+val SECURITY_LOCK_ENABLED = booleanPreferencesKey("security_lock_enabled")
+val SECURITY_BIOMETRIC_ENABLED = booleanPreferencesKey("security_biometric_enabled")
+val SECURITY_PIN = stringPreferencesKey("security_pin")
+val SECURITY_LOCK_DELAY = longPreferencesKey("security_lock_delay")
+val LAST_APP_PAUSE_TIME = longPreferencesKey("last_app_pause_time")

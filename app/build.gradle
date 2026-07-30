@@ -99,6 +99,9 @@ dependencies {
     // DataStore Preferences
     implementation 'androidx.datastore:datastore-preferences:1.0.0'
 
+    // Biometric
+    implementation 'androidx.biometric:biometric:1.1.0'
+
     // Jsoup for link metadata
     implementation 'org.jsoup:jsoup:1.17.2'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'

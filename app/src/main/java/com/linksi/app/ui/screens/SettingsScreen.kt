@@ -21,9 +21,11 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.materialIcon
+import androidx.compose.material3.RadioButton
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
@@ -50,6 +52,8 @@ fun SettingsScreen(
     var showAiOrganizer by remember { mutableStateOf(false) }
     var showImportExport by remember { mutableStateOf(false) }
     var showLanguagePicker by remember { mutableStateOf(false) }
+    var showPinSetup by remember { mutableStateOf(false) }
+    var showDelayPicker by remember { mutableStateOf(false) }
 
     // Handle system back button
     BackHandler(enabled = !showAiOrganizer && !showImportExport) {
@@ -233,6 +237,122 @@ fun SettingsScreen(
                                 )
                             },
                             modifier = Modifier.clickable { showAiOrganizer = true }
+                        )
+                    }
+                }
+            }
+
+            // ── Security ──────────────────────────────────────────
+            item {
+                SectionHeader(stringResource(id = com.linksi.app.R.string.security), Icons.Outlined.Lock)
+            }
+            item {
+                SettingsCard {
+                    // Enable App Lock
+                    ListItem(
+                        headlineContent = { Text(stringResource(id = com.linksi.app.R.string.app_lock)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(id = com.linksi.app.R.string.app_lock_subtitle),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Outlined.Lock, null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = state.isSecurityEnabled,
+                                onCheckedChange = { 
+                                    viewModel.setSecurityEnabled(it)
+                                    if (it && state.pin.isEmpty()) showPinSetup = true
+                                }
+                            )
+                        }
+                    )
+
+                    if (state.isSecurityEnabled) {
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        // Biometric Unlock
+                        ListItem(
+                            headlineContent = { Text(stringResource(id = com.linksi.app.R.string.biometric_unlock)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(id = com.linksi.app.R.string.biometric_unlock_subtitle),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Outlined.Fingerprint, null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = state.isBiometricEnabled,
+                                    onCheckedChange = { viewModel.setBiometricEnabled(it) }
+                                )
+                            }
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        // Change PIN
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    if (state.pin.isEmpty()) stringResource(id = com.linksi.app.R.string.set_pin)
+                                    else stringResource(id = com.linksi.app.R.string.change_pin)
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Outlined.Password, null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            trailingContent = {
+                                Icon(
+                                    Icons.Outlined.ChevronRight, null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            modifier = Modifier.clickable { showPinSetup = true }
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        // Lock Delay
+                        ListItem(
+                            headlineContent = { Text(stringResource(id = com.linksi.app.R.string.lock_delay)) },
+                            supportingContent = {
+                                val delayText = when (state.lockDelay) {
+                                    0L -> stringResource(id = com.linksi.app.R.string.immediately)
+                                    60000L -> stringResource(id = com.linksi.app.R.string.after_1_minute)
+                                    300000L -> stringResource(id = com.linksi.app.R.string.after_5_minutes)
+                                    1800000L -> stringResource(id = com.linksi.app.R.string.after_30_minutes)
+                                    else -> stringResource(id = com.linksi.app.R.string.immediately)
+                                }
+                                Text(delayText, style = MaterialTheme.typography.bodySmall)
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Outlined.Timer, null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            trailingContent = {
+                                Icon(
+                                    Icons.Outlined.ChevronRight, null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            modifier = Modifier.clickable { showDelayPicker = true }
                         )
                     }
                 }
@@ -528,6 +648,29 @@ fun SettingsScreen(
         )
     }
 
+    // ── PIN Setup Dialog ──────────────────────────────────────
+    if (showPinSetup) {
+        PinSetupDialog(
+            onPinSaved = {
+                viewModel.setPin(it)
+                showPinSetup = false
+            },
+            onDismiss = { showPinSetup = false }
+        )
+    }
+
+    // ── Lock Delay Picker ─────────────────────────────────────
+    if (showDelayPicker) {
+        LockDelayPickerSheet(
+            currentDelay = state.lockDelay,
+            onDelaySelected = {
+                viewModel.setLockDelay(it)
+                showDelayPicker = false
+            },
+            onDismiss = { showDelayPicker = false }
+        )
+    }
+
     // ── AI Organizer overlay ──────────────────────────────────
     AnimatedVisibility(
         visible = showAiOrganizer,
@@ -647,6 +790,162 @@ fun StatItem(label: String, value: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LockDelayPickerSheet(
+    currentDelay: Long,
+    onDelaySelected: (Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                stringResource(id = com.linksi.app.R.string.lock_delay),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(16.dp)
+            )
+
+            val options = listOf(
+                0L to stringResource(id = com.linksi.app.R.string.immediately),
+                60000L to stringResource(id = com.linksi.app.R.string.after_1_minute),
+                300000L to stringResource(id = com.linksi.app.R.string.after_5_minutes),
+                1800000L to stringResource(id = com.linksi.app.R.string.after_30_minutes)
+            )
+
+            options.forEach { (delay, label) ->
+                ListItem(
+                    headlineContent = { Text(label) },
+                    leadingContent = {
+                        RadioButton(
+                            selected = currentDelay == delay,
+                            onClick = { onDelaySelected(delay) }
+                        )
+                    },
+                    modifier = Modifier.clickable { onDelaySelected(delay) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PinSetupDialog(
+    onPinSaved: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var pin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+    var step by remember { mutableIntStateOf(1) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                if (step == 1) stringResource(id = com.linksi.app.R.string.set_pin)
+                else stringResource(id = com.linksi.app.R.string.confirm_pin)
+            )
+        },
+        text = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    val currentVal = if (step == 1) pin else confirmPin
+                    repeat(4) { index ->
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (index < currentVal.length) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant
+                                )
+                        )
+                    }
+                }
+
+                if (error != null) {
+                    Text(
+                        error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                // Simple Numpad Grid
+                val numbers = listOf(
+                    listOf("1", "2", "3"),
+                    listOf("4", "5", "6"),
+                    listOf("7", "8", "9"),
+                    listOf("", "0", "delete")
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    numbers.forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { num ->
+                                if (num.isEmpty()) {
+                                    Spacer(Modifier.size(48.dp))
+                                } else if (num == "delete") {
+                                    IconButton(
+                                        onClick = {
+                                            if (step == 1 && pin.isNotEmpty()) pin = pin.dropLast(1)
+                                            else if (step == 2 && confirmPin.isNotEmpty()) confirmPin = confirmPin.dropLast(1)
+                                        },
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Icon(Icons.Outlined.Backspace, null)
+                                    }
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .clip(CircleShape)
+                                            .clickable {
+                                                if (step == 1) {
+                                                    if (pin.length < 4) pin += num
+                                                    if (pin.length == 4) step = 2
+                                                } else {
+                                                    if (confirmPin.length < 4) confirmPin += num
+                                                    if (confirmPin.length == 4) {
+                                                        if (pin == confirmPin) {
+                                                            onPinSaved(pin)
+                                                        } else {
+                                                            error = context.getString(com.linksi.app.R.string.pins_dont_match)
+                                                            confirmPin = ""
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(num, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(id = com.linksi.app.R.string.cancel))
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
