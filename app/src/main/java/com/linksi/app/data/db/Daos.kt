@@ -6,8 +6,13 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface LinkDao {
 
-    @Query("SELECT * FROM links ORDER BY createdAt DESC")
-    fun getAllLinks(): Flow<List<LinkEntity>>
+    @Query("""
+        SELECT l.* FROM links l 
+        LEFT JOIN folders f ON l.folderId = f.id 
+        WHERE :isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0 
+        ORDER BY l.createdAt DESC
+    """)
+    fun getAllLinks(isFolderLockEnabled: Boolean): Flow<List<LinkEntity>>
 
     @Query("SELECT * FROM links WHERE folderId = :folderId ORDER BY createdAt DESC")
     fun getLinksByFolder(folderId: Long): Flow<List<LinkEntity>>
@@ -15,27 +20,46 @@ interface LinkDao {
     @Query("SELECT * FROM links WHERE folderId IS NULL ORDER BY createdAt DESC")
     fun getUncategorizedLinks(): Flow<List<LinkEntity>>
 
-    @Query("SELECT * FROM links WHERE isFavorite = 1 ORDER BY createdAt DESC")
-    fun getFavoriteLinks(): Flow<List<LinkEntity>>
+    @Query("""
+        SELECT l.* FROM links l 
+        LEFT JOIN folders f ON l.folderId = f.id 
+        WHERE l.isFavorite = 1 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
+        ORDER BY l.createdAt DESC
+    """)
+    fun getFavoriteLinks(isFolderLockEnabled: Boolean): Flow<List<LinkEntity>>
 
-    @Query("SELECT * FROM links WHERE isRead = 0 ORDER BY createdAt DESC")
-    fun getUnreadLinks(): Flow<List<LinkEntity>>
+    @Query("""
+        SELECT l.* FROM links l 
+        LEFT JOIN folders f ON l.folderId = f.id 
+        WHERE l.isRead = 0 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
+        ORDER BY l.createdAt DESC
+    """)
+    fun getUnreadLinks(isFolderLockEnabled: Boolean): Flow<List<LinkEntity>>
 
     @Query(
         """
-        SELECT * FROM links 
-    WHERE url LIKE '%' || :query || '%' 
-    OR title LIKE '%' || :query || '%' 
-    OR description LIKE '%' || :query || '%'
-    OR tags LIKE '%' || :query || '%'
-    OR domain LIKE '%' || :query || '%'
-    ORDER BY createdAt DESC
+        SELECT l.* FROM links l 
+        LEFT JOIN folders f ON l.folderId = f.id 
+        WHERE (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) AND (
+            url LIKE '%' || :query || '%' 
+            OR title LIKE '%' || :query || '%' 
+            OR description LIKE '%' || :query || '%'
+            OR tags LIKE '%' || :query || '%'
+            OR domain LIKE '%' || :query || '%'
+        )
+        ORDER BY l.createdAt DESC
     """
     )
-    fun searchLinks(query: String): Flow<List<LinkEntity>>
+    fun searchLinks(query: String, isFolderLockEnabled: Boolean): Flow<List<LinkEntity>>
 
-    @Query("SELECT * FROM links WHERE reminderAt IS NOT NULL AND reminderAt > :now ORDER BY reminderAt ASC")
-    fun getLinksWithReminders(now: Long = System.currentTimeMillis()): Flow<List<LinkEntity>>
+    @Query("""
+        SELECT l.* FROM links l 
+        LEFT JOIN folders f ON l.folderId = f.id 
+        WHERE (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
+        AND reminderAt IS NOT NULL AND reminderAt > :now 
+        ORDER BY reminderAt ASC
+    """)
+    fun getLinksWithReminders(isFolderLockEnabled: Boolean, now: Long = System.currentTimeMillis()): Flow<List<LinkEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLink(link: LinkEntity): Long
@@ -111,4 +135,7 @@ interface FolderDao {
 
     @Query("SELECT * FROM folders WHERE name = :name LIMIT 1")
     suspend fun getFolderByName(name: String): FolderEntity?
+
+    @Query("UPDATE folders SET isLocked = :isLocked WHERE id = :id")
+    suspend fun toggleLock(id: Long, isLocked: Boolean)
 }

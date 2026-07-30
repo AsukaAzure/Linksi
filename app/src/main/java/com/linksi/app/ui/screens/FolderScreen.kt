@@ -52,6 +52,10 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
+import com.linksi.app.utils.SECURITY_BIOMETRIC_ENABLED
+import com.linksi.app.utils.SECURITY_PIN
+import com.linksi.app.utils.dataStore
+import kotlinx.coroutines.flow.map
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,6 +65,14 @@ fun FoldersScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFolder by remember { mutableStateOf<Folder?>(null) }
+    var folderToUnlock by remember { mutableStateOf<Folder?>(null) }
+
+    val context = LocalContext.current
+    val securityPrefs by remember {
+        context.dataStore.data.map { prefs ->
+            (prefs[SECURITY_PIN] ?: "") to (prefs[SECURITY_BIOMETRIC_ENABLED] ?: false)
+        }
+    }.collectAsState(initial = null)
     // Keep track of the folder even when selectedFolder becomes null to allow exit animation
     val activeFolder = remember(selectedFolder) {
         if (selectedFolder != null) selectedFolder else null
@@ -68,7 +80,12 @@ fun FoldersScreen(
     // We actually need to keep the last non-null folder for the exit animation
     var lastFolder by remember { mutableStateOf<Folder?>(null) }
     LaunchedEffect(selectedFolder) {
-        if (selectedFolder != null) lastFolder = selectedFolder
+        if (selectedFolder != null) {
+            lastFolder = selectedFolder
+            viewModel.selectFolder(selectedFolder?.id)
+        } else {
+            viewModel.selectFolder(null)
+        }
     }
 
     var browserUrl by remember { mutableStateOf<String?>(null) }
@@ -87,11 +104,18 @@ fun FoldersScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         FolderListScreen(
             folders = state.folders,
-            onFolderClick = { selectedFolder = it },
+            onFolderClick = { 
+                if (state.folderLockEnabled && it.isLocked && securityPrefs?.first?.isNotEmpty() == true) {
+                    folderToUnlock = it
+                } else {
+                    selectedFolder = it 
+                }
+            },
             onAddFolder = viewModel::showAddFolderDialog,
             onDeleteFolder = { viewModel.deleteFolder(it) },
             onBack = onBack,
-            viewModel = viewModel
+            viewModel = viewModel,
+            folderLockEnabled = state.folderLockEnabled
         )
 
         AnimatedVisibility(
@@ -109,6 +133,35 @@ fun FoldersScreen(
                         browserTitle = title
                     }
                 )
+            }
+        }
+
+        // ── Authentication Overlay ────────────────────────────
+        AnimatedVisibility(
+            visible = folderToUnlock != null,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it })
+        ) {
+            folderToUnlock?.let { folder ->
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                    LockScreen(
+                        savedPin = securityPrefs?.first ?: "",
+                        isBiometricEnabled = securityPrefs?.second ?: false,
+                        onUnlock = {
+                            selectedFolder = folder
+                            viewModel.selectFolder(folder.id)
+                            folderToUnlock = null
+                        }
+                    )
+                    
+                    // Close button for auth
+                    IconButton(
+                        onClick = { folderToUnlock = null },
+                        modifier = Modifier.padding(16.dp).align(Alignment.TopStart)
+                    ) {
+                        Icon(Icons.Outlined.Close, stringResource(R.string.cancel))
+                    }
+                }
             }
         }
 
@@ -190,7 +243,8 @@ fun FolderListScreen(
     onAddFolder: () -> Unit,
     onDeleteFolder: (Folder) -> Unit,
     onBack: () -> Unit,
-    viewModel: HomeViewModel
+    viewModel: HomeViewModel,
+    folderLockEnabled: Boolean
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -384,7 +438,8 @@ fun FolderListScreen(
                                     folder = folder,
                                     onClick = { onFolderClick(folder) },
                                     onDelete = { onDeleteFolder(folder) },
-                                    onEdit = { editingFolder = it }
+                                    onEdit = { editingFolder = it },
+                                    folderLockEnabled = folderLockEnabled
                                 )
                             }
                             HorizontalDivider(
@@ -410,7 +465,8 @@ fun FolderListScreen(
                                 folder = folder,
                                 onClick = { onFolderClick(folder) },
                                 onEdit = { editingFolder = folder },
-                                onDelete = { onDeleteFolder(folder) }
+                                onDelete = { onDeleteFolder(folder) },
+                                folderLockEnabled = folderLockEnabled
                             )
                         }
                     }
@@ -493,7 +549,8 @@ fun FolderGridCard(
     folder: Folder,
     onClick: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    folderLockEnabled: Boolean
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -515,7 +572,6 @@ fun FolderGridCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Folder icon with color background
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = Color(android.graphics.Color.parseColor(folder.color))
@@ -524,7 +580,8 @@ fun FolderGridCard(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            iconFromName(folder.icon), null,
+                            if (folderLockEnabled && folder.isLocked) Icons.Outlined.Lock else iconFromName(folder.icon),
+                            null,
                             Modifier.size(24.dp),
                             tint = Color(android.graphics.Color.parseColor(folder.color))
                         )
@@ -636,7 +693,8 @@ fun FolderListItem(
     folder: Folder,
     onClick: () -> Unit,
     onDelete: () -> Unit,
-    onEdit: (Folder) -> Unit
+    onEdit: (Folder) -> Unit,
+    folderLockEnabled: Boolean
 ) {
     val context = LocalContext.current
 
@@ -652,7 +710,8 @@ fun FolderListItem(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        iconFromName(folder.icon), null,
+                        if (folderLockEnabled && folder.isLocked) Icons.Outlined.Lock else iconFromName(folder.icon),
+                        null,
                         Modifier.size(22.dp),
                         tint = Color(android.graphics.Color.parseColor(folder.color))
                     )
@@ -867,7 +926,7 @@ fun FolderDetailScreen(
 
                                 if (showFolderPicker) {
                                     FolderPickerDialog(
-                                        folders = state.folders.filter { it.id != folder.id },
+                                        folders = state.folders.filter { it.id != folder.id && !it.isLocked },
                                         currentFolderId = folder.id,
                                         onSelect = { folderId ->
                                             scope.launch {

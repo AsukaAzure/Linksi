@@ -642,7 +642,7 @@ fun AddLinkSheet(
 
     if (showFolderPicker) {
         FolderPickerDialog(
-            folders = folders,
+            folders = folders.filter { !it.isLocked },
             currentFolderId = selectedFolderId,
             onSelect = { folderId -> selectedFolderId = folderId; showFolderPicker = false },
             onDismiss = { showFolderPicker = false },

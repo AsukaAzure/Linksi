@@ -20,7 +20,13 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): LinksDatabase =
         Room.databaseBuilder(context, LinksDatabase::class.java, "linksi_db")
-            .addMigrations(LinksDatabase.MIGRATION_1_2, LinksDatabase.MIGRATION_2_3, LinksDatabase.MIGRATION_3_4, LinksDatabase.MIGRATION_4_5)
+            .addMigrations(
+                LinksDatabase.MIGRATION_1_2,
+                LinksDatabase.MIGRATION_2_3,
+                LinksDatabase.MIGRATION_3_4,
+                LinksDatabase.MIGRATION_4_5,
+                LinksDatabase.MIGRATION_5_6
+            )
             .build()
 
     @Provides

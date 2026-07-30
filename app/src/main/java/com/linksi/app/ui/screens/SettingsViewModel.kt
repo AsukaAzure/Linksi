@@ -49,7 +49,10 @@ data class SettingsUiState(
     val isSecurityEnabled: Boolean = false,
     val isBiometricEnabled: Boolean = false,
     val lockDelay: Long = 0L, // 0 means immediate
-    val pin: String = ""
+    val pin: String = "",
+    val folders: List<com.linksi.app.domain.model.Folder> = emptyList(),
+    val universalLock: Boolean = false,
+    val folderLockEnabled: Boolean = false
 )
 
 @HiltViewModel
@@ -72,7 +75,8 @@ class SettingsViewModel @Inject constructor(
                     it.copy(
                         totalLinks = links.size,
                         totalFolders = folders.size,
-                        totalFavorites = links.count { l -> l.isFavorite }
+                        totalFavorites = links.count { l -> l.isFavorite },
+                        folders = folders
                     )
                 }
             }.collect()
@@ -96,7 +100,9 @@ class SettingsViewModel @Inject constructor(
                         isSecurityEnabled = prefs[SECURITY_LOCK_ENABLED] ?: false,
                         isBiometricEnabled = prefs[SECURITY_BIOMETRIC_ENABLED] ?: false,
                         lockDelay = prefs[SECURITY_LOCK_DELAY] ?: 0L,
-                        pin = prefs[SECURITY_PIN] ?: ""
+                        pin = prefs[SECURITY_PIN] ?: "",
+                        universalLock = prefs[SECURITY_UNIVERSAL_LOCK] ?: false,
+                        folderLockEnabled = prefs[SECURITY_FOLDER_LOCK_ENABLED] ?: false
                     )
                 }
             }
@@ -357,6 +363,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setSecurityEnabled(enabled: Boolean) {
+        if (!_uiState.value.universalLock) return
         viewModelScope.launch {
             context.dataStore.edit { prefs ->
                 prefs[SECURITY_LOCK_ENABLED] = enabled
@@ -397,6 +404,34 @@ class SettingsViewModel @Inject constructor(
                 if (prefs[SECURITY_LOCK_ENABLED] == true) {
                     prefs[LAST_APP_PAUSE_TIME] = Long.MAX_VALUE
                 }
+            }
+        }
+    }
+
+    fun toggleFolderLock(folderId: Long, isLocked: Boolean) {
+        viewModelScope.launch {
+            repository.toggleFolderLock(folderId, isLocked)
+        }
+    }
+
+    fun setUniversalLock(enabled: Boolean) {
+        viewModelScope.launch {
+            context.dataStore.edit { prefs ->
+                prefs[SECURITY_UNIVERSAL_LOCK] = enabled
+                // If turning off universal lock, we must also disable the sub-locks
+                if (!enabled) {
+                    prefs[SECURITY_LOCK_ENABLED] = false
+                    prefs[SECURITY_FOLDER_LOCK_ENABLED] = false
+                }
+            }
+        }
+    }
+
+    fun setFolderLockEnabled(enabled: Boolean) {
+        if (!_uiState.value.universalLock) return // Cannot enable if universal lock is off
+        viewModelScope.launch {
+            context.dataStore.edit { prefs ->
+                prefs[SECURITY_FOLDER_LOCK_ENABLED] = enabled
             }
         }
     }

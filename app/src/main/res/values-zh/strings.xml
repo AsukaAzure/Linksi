@@ -305,4 +305,7 @@
     <string name="error_no_links_to_organize">没有要整理的链接。</string>
     <string name="error_failed_to_parse_ai">解析 AI 响应失败：%1$s</string>
     <string name="processing_batch">正在处理第 %1$d 批（共 %2$d 批）…</string>
+    <string name="locked_folders">锁定文件夹</string>
+    <string name="locked_folders_subtitle">已锁定文件夹中的链接将在主屏幕中隐藏</string>
+    <string name="no_folders_created">尚未创建文件夹</string>
 </resources>

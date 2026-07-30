@@ -329,4 +329,7 @@
     <string name="pin_saved">PIN guardado</string>
     <string name="unlock">Desbloquear</string>
     <string name="authenticate">Autenticarse para desbloquear Linksi</string>
+    <string name="locked_folders">Carpetas bloqueadas</string>
+    <string name="locked_folders_subtitle">Los enlaces en carpetas bloqueadas están ocultos de la pantalla de inicio</string>
+    <string name="no_folders_created">Aún no se han creado carpetas</string>
 </resources>

@@ -305,4 +305,7 @@
     <string name="error_no_links_to_organize">Нет ссылок для организации.</string>
     <string name="error_failed_to_parse_ai">Не удалось разобрать ответ AI: %1$s</string>
     <string name="processing_batch">Обработка пакета %1$d из %2$d…</string>
+    <string name="locked_folders">Заблокированные папки</string>
+    <string name="locked_folders_subtitle">Ссылки в заблокированных папках скрыты с главного экрана</string>
+    <string name="no_folders_created">Папки еще не созданы</string>
 </resources>

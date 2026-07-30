@@ -13,10 +13,8 @@ class LinkRepository @Inject constructor(
     private val folderDao: FolderDao
 ) {
     // ─── Links ───────────────────────────────────────────────
-    fun getAllLinks(): Flow<List<Link>> =
-        linkDao.getAllLinks().map { it.map(::toLink) }
-
-
+    fun getAllLinks(isFolderLockEnabled: Boolean = true): Flow<List<Link>> =
+        linkDao.getAllLinks(isFolderLockEnabled).map { it.map(::toLink) }
 
     fun getLinksByFolder(folderId: Long): Flow<List<Link>> =
         linkDao.getLinksByFolder(folderId).map { it.map(::toLink) }
@@ -24,17 +22,17 @@ class LinkRepository @Inject constructor(
     fun getUncategorizedLinks(): Flow<List<Link>> =
         linkDao.getUncategorizedLinks().map { it.map(::toLink) }
 
-    fun getFavoriteLinks(): Flow<List<Link>> =
-        linkDao.getFavoriteLinks().map { it.map(::toLink) }
+    fun getFavoriteLinks(isFolderLockEnabled: Boolean = true): Flow<List<Link>> =
+        linkDao.getFavoriteLinks(isFolderLockEnabled).map { it.map(::toLink) }
 
-    fun getUnreadLinks(): Flow<List<Link>> =
-        linkDao.getUnreadLinks().map { it.map(::toLink) }
+    fun getUnreadLinks(isFolderLockEnabled: Boolean = true): Flow<List<Link>> =
+        linkDao.getUnreadLinks(isFolderLockEnabled).map { it.map(::toLink) }
 
-    fun searchLinks(query: String): Flow<List<Link>> =
-        linkDao.searchLinks(query).map { it.map(::toLink) }
+    fun searchLinks(query: String, isFolderLockEnabled: Boolean = true): Flow<List<Link>> =
+        linkDao.searchLinks(query, isFolderLockEnabled).map { it.map(::toLink) }
 
-    fun getLinksWithReminders(): Flow<List<Link>> =
-        linkDao.getLinksWithReminders().map { it.map(::toLink) }
+    fun getLinksWithReminders(isFolderLockEnabled: Boolean = true): Flow<List<Link>> =
+        linkDao.getLinksWithReminders(isFolderLockEnabled).map { it.map(::toLink) }
 
     suspend fun insertLink(link: Link): Long =
         linkDao.insertLink(toEntity(link))
@@ -78,7 +76,8 @@ class LinkRepository @Inject constructor(
                     it.folder.icon,
                     it.folder.color,
                     it.folder.createdAt,
-                    it.linkCount
+                    it.linkCount,
+                    it.folder.isLocked
                 )
             }
         }
@@ -90,7 +89,8 @@ class LinkRepository @Inject constructor(
                 name = folder.name,
                 icon = folder.icon,
                 color = folder.color,
-                createdAt = folder.createdAt
+                createdAt = folder.createdAt,
+                isLocked = folder.isLocked
             )
         )
     }
@@ -102,7 +102,8 @@ class LinkRepository @Inject constructor(
                 folder.name,
                 folder.icon,
                 folder.color,
-                folder.createdAt
+                folder.createdAt,
+                isLocked = folder.isLocked
             )
         )
 
@@ -113,9 +114,13 @@ class LinkRepository @Inject constructor(
                 folder.name,
                 folder.icon,
                 folder.color,
-                folder.createdAt
+                folder.createdAt,
+                isLocked = folder.isLocked
             )
         )
+
+    suspend fun toggleFolderLock(id: Long, isLocked: Boolean) =
+        folderDao.toggleLock(id, isLocked)
 
     suspend fun getFolderById(id: Long): Folder? =
         folderDao.getFolderById(id)?.let { toFolder(it) }
@@ -176,6 +181,7 @@ class LinkRepository @Inject constructor(
         name = entity.name,
         icon = entity.icon,
         color = entity.color,
-        createdAt = entity.createdAt
+        createdAt = entity.createdAt,
+        isLocked = entity.isLocked
     )
 }

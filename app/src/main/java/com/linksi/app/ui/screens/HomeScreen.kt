@@ -335,7 +335,7 @@ fun HomeScreen(
 
                                 if (showFolderPicker) {
                                     FolderPickerDialog(
-                                        folders = state.folders,
+                                        folders = state.folders.filter { !it.isLocked },
                                         currentFolderId = null,
                                         onSelect = { folderId ->
                                             viewModel.moveSelectedToFolder(folderId)
@@ -395,11 +395,12 @@ fun HomeScreen(
 
                 // Folder chips + filter chips
                 FolderAndFilterRow(
-                    folders = state.folders,
+                    folders = state.folders.filter { !it.isLocked },
                     selectedFolderId = state.selectedFolderId,
                     selectedFilter = state.filterOption,
                     onFolderSelect = viewModel::selectFolder,
-                    onFilterSelect = viewModel::setFilter
+                    onFilterSelect = viewModel::setFilter,
+                    folderLockEnabled = state.folderLockEnabled
                 )
 
                 // Stats bar
@@ -459,7 +460,8 @@ fun HomeScreen(
                             onSetTags = { link, tags -> viewModel.setTags(link, tags) },
                             allTags = state.allTags,
                             onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
-                            onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) }
+                            onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
+                            folderLockEnabled = state.folderLockEnabled
                         )
 
                         ViewMode.GRID -> LinksGrid(
@@ -493,7 +495,8 @@ fun HomeScreen(
                             onSetTags = { link, tags -> viewModel.setTags(link, tags) },
                             allTags = state.allTags,
                             onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
-                            onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) }
+                            onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
+                            folderLockEnabled = state.folderLockEnabled
                         )
                     }
                 }
@@ -592,7 +595,7 @@ fun HomeScreen(
 
     if (state.showAddLinkDialog) {
         AddLinkSheet(
-            folders = state.folders,
+            folders = state.folders.filter { !it.isLocked },
             allTags = state.allTags,
             isFetchingMetadata = state.isFetchingMetadata,
 //            isInTour = isInTour,
@@ -678,7 +681,8 @@ fun FolderAndFilterRow(
     selectedFolderId: Long?,
     selectedFilter: FilterOption,
     onFolderSelect: (Long?) -> Unit,
-    onFilterSelect: (FilterOption) -> Unit
+    onFilterSelect: (FilterOption) -> Unit,
+    folderLockEnabled: Boolean
 ) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -744,7 +748,8 @@ fun FolderAndFilterRow(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            iconFromName(folder.icon), null, Modifier.size(14.dp),
+                            if (folderLockEnabled && folder.isLocked) Icons.Outlined.Lock else iconFromName(folder.icon),
+                            null, Modifier.size(14.dp),
                             tint = Color(android.graphics.Color.parseColor(folder.color))
                         )
                         Text(folder.name)
@@ -778,6 +783,7 @@ fun LinksList(
     allTags: List<String> = emptyList(),
     onRefreshMetadata: (Link) -> Unit = {},
     onDeleteTagGlobally: (String) -> Unit = {},
+    folderLockEnabled: Boolean = false
 ) {
     LazyColumn(
         state = listState,
@@ -805,6 +811,7 @@ fun LinksList(
                 allTags = allTags,
                 onRefreshMetadata = { onRefreshMetadata(link) },
                 onDeleteTagGlobally = { tag -> onDeleteTagGlobally(tag) },
+                folderLockEnabled = folderLockEnabled,
                 modifier = Modifier
             )
         }
@@ -833,7 +840,8 @@ fun LinksGrid(
     allTags: List<String> = emptyList(),
     onRefreshMetadata: (Link) -> Unit = {},
     onDeleteTagGlobally: (String) -> Unit = {},
-    ) {
+    folderLockEnabled: Boolean = false
+) {
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Fixed(2),
         contentPadding = PaddingValues(16.dp),
@@ -859,7 +867,8 @@ fun LinksGrid(
                 onSetExpiry = { time -> onSetExpiry(link, time) },
                 onSetTags = { tags -> onSetTags(link, tags) },
                 allTags = allTags,
-                onRefreshMetadata = { onRefreshMetadata(link) }
+                onRefreshMetadata = { onRefreshMetadata(link) },
+                folderLockEnabled = folderLockEnabled
             )
         }
         item { Spacer(Modifier.height(80.dp)) }

@@ -30,7 +30,8 @@ data class FolderEntity(
     val name: String,
     val icon: String = "folder",
     val color: String = "#6750A4",
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val isLocked: Boolean = false
 )
 
 data class FolderWithCount(

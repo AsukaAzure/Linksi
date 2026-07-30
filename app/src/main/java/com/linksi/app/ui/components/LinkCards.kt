@@ -80,6 +80,7 @@ fun LinkCard(
     onRefreshMetadata: () -> Unit = {},
     onDeleteTagGlobally: (String) -> Unit = {},
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
+    folderLockEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -402,7 +403,7 @@ fun LinkCard(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Icon(
-                                            iconFromName(folder.icon),
+                                            if (folderLockEnabled && folder.isLocked) Icons.Outlined.Lock else iconFromName(folder.icon),
                                             contentDescription = null,
                                             modifier = Modifier.size(14.dp),
                                             tint = Color(
@@ -555,6 +556,7 @@ fun LinkGridCard(
     allTags: List<String> = emptyList(),
     onRefreshMetadata: () -> Unit = {},
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
+    folderLockEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }

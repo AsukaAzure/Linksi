@@ -177,7 +177,7 @@ fun AddLinkDialog(
                             label = { Text("📥 " + stringResource(R.string.inbox)) }
                         )
                     }
-                    items(folders) { folder ->
+                    items(folders.filter { !it.isLocked }) { folder ->
                         FilterChip(
                             shape = middleShape,
                             selected = selectedFolderId == folder.id,
@@ -711,8 +711,8 @@ fun EditLinkDialog(
                                 onClick = { selectedFolderId = null },
                                 label = { Text("📥 " + stringResource(R.string.inbox)) })
                         }
-                        itemsIndexed(folders) { index, folder ->
-                            val currentShape = if (index == folders.lastIndex){
+                        itemsIndexed(folders.filter { !it.isLocked }) { index, folder ->
+                            val currentShape = if (index == folders.filter { !it.isLocked }.lastIndex){
                                 endingShape
                             } else {
                                 middleShape

@@ -18,7 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -53,10 +55,15 @@ fun SettingsScreen(
     var showLanguagePicker by remember { mutableStateOf(false) }
     var showAiSettings by remember { mutableStateOf(false) }
     var showSecuritySettings by remember { mutableStateOf(false) }
+    var showSecurityAuth by remember { mutableStateOf(false) }
 
     // Handle system back button
-    BackHandler(enabled = !showAiOrganizer && !showImportExport && !showAiSettings && !showSecuritySettings) {
+    BackHandler(enabled = !showAiOrganizer && !showImportExport && !showAiSettings && !showSecuritySettings && !showSecurityAuth) {
         onBack()
+    }
+
+    BackHandler(enabled = showSecurityAuth) {
+        showSecurityAuth = false
     }
 
     // File launchers
@@ -149,7 +156,13 @@ fun SettingsScreen(
                         icon = Icons.Outlined.Lock,
                         title = stringResource(id = com.linksi.app.R.string.security),
                         subtitle = stringResource(id = com.linksi.app.R.string.app_lock_subtitle),
-                        onClick = { showSecuritySettings = true },
+                        onClick = {
+                            if (state.universalLock && state.pin.isNotEmpty()) {
+                                showSecurityAuth = true
+                            } else {
+                                showSecuritySettings = true
+                            }
+                        },
                         trailingContent = {
                             Icon(
                                 Icons.Outlined.ChevronRight, null,
@@ -466,6 +479,32 @@ fun SettingsScreen(
         SecuritySettingsScreen(
             onBack = { showSecuritySettings = false }
         )
+    }
+
+    // ── Security Auth Overlay ────────────────────────────────
+    AnimatedVisibility(
+        visible = showSecurityAuth,
+        enter = slideInVertically(initialOffsetY = { it }),
+        exit = slideOutVertically(targetOffsetY = { it })
+    ) {
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            LockScreen(
+                savedPin = state.pin,
+                isBiometricEnabled = state.isBiometricEnabled,
+                onUnlock = {
+                    showSecurityAuth = false
+                    showSecuritySettings = true
+                }
+            )
+
+            // Close button for auth
+            IconButton(
+                onClick = { showSecurityAuth = false },
+                modifier = Modifier.padding(16.dp).align(Alignment.TopStart)
+            ) {
+                Icon(Icons.Outlined.Close, stringResource(id = com.linksi.app.R.string.cancel))
+            }
+        }
     }
 
     // ── Import Export overlay ─────────────────────────────────
