@@ -23,8 +23,22 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Create keystore
+        run: |
+          keytool -genkey -v -keystore keystroke.jks \
+            -alias ${{ secrets.KEY_ALIAS || 'link-si-key' }} \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass ${{ secrets.KEYSTORE_PASSWORD || 'link-si-pass' }} \
+            -keypass ${{ secrets.KEY_PASSWORD || 'link-si-pass' }} \
+            -dname "CN=Linksi, OU=Development, O=Linksi, L=Unknown, ST=Unknown, C=UN"
+
       - name: Build Release APK
         run: ./gradlew assembleRelease
+        env:
+          KEYSTORE_PATH: keystroke.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'link-si-pass' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'link-si-key' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'link-si-pass' }}
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
