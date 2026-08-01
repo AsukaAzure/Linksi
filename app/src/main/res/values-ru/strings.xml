@@ -305,6 +305,27 @@
     <string name="error_no_links_to_organize">Нет ссылок для организации.</string>
     <string name="error_failed_to_parse_ai">Не удалось разобрать ответ AI: %1$s</string>
     <string name="processing_batch">Обработка пакета %1$d из %2$d…</string>
+    <!-- Security -->
+    <string name="security">Безопасность</string>
+    <string name="app_lock">Блокировка приложения</string>
+    <string name="app_lock_subtitle">Защитите ваши ссылки с помощью PIN-кода или биометрии</string>
+    <string name="biometric_unlock">Биометрическая разблокировка</string>
+    <string name="biometric_unlock_subtitle">Используйте отпечаток пальца или распознавание лица</string>
+    <string name="lock_delay">Задержка блокировки</string>
+    <string name="lock_delay_subtitle">Через какое время блокировать приложение</string>
+    <string name="immediately">Немедленно</string>
+    <string name="after_1_minute">Через 1 минуту</string>
+    <string name="after_5_minutes">Через 5 минут</string>
+    <string name="after_30_minutes">Через 30 минут</string>
+    <string name="set_pin">Установить PIN-код</string>
+    <string name="change_pin">Изменить PIN-код</string>
+    <string name="enter_pin">Введите PIN-код</string>
+    <string name="confirm_pin">Подтвердите PIN-код</string>
+    <string name="pins_dont_match">PIN-коды не совпадают</string>
+    <string name="pin_must_be_4_digits">PIN-код должен состоять из 4 цифр</string>
+    <string name="pin_saved">PIN-код сохранен</string>
+    <string name="unlock">Разблокировать</string>
+    <string name="authenticate">Авторизуйтесь для разблокировки Linksi</string>
     <string name="locked_folders">Заблокированные папки</string>
     <string name="locked_folders_subtitle">Ссылки в заблокированных папках скрыты с главного экрана</string>
     <string name="no_folders_created">Папки еще не созданы</string>
