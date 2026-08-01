@@ -112,15 +112,15 @@ fun AddLinkSheet(
     }
 
     val tempLink = remember(editTitle, editDescription, previewImageUrl, url) {
+        val domain = com.linksi.app.utils.extractDomain(url)
         Link(
             id = 0,
             url = url,
             title = editTitle,
             description = editDescription,
             previewImageUrl = previewImageUrl,
-            faviconUrl = "",
-            domain = url.removePrefix("https://").removePrefix("http://")
-                .removePrefix("www.").substringBefore("/")
+            faviconUrl = "https://www.google.com/s2/favicons?domain=$domain&sz=64",
+            domain = domain
         )
     }
 

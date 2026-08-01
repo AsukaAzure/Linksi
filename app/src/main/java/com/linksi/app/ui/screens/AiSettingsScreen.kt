@@ -14,7 +14,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linksi.app.R
-import com.linksi.app.domain.model.AI_MODELS
 import com.linksi.app.domain.model.AiProvider
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,7 +77,7 @@ fun AiSettingsScreen(
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
                     // Model selector
-                    val selectedModel = AI_MODELS.find { it.id == state.selectedModelId }
+                    val selectedModel = state.availableModels.find { it.id == state.selectedModelId }
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.ai_model)) },
                         supportingContent = {
@@ -168,6 +167,7 @@ fun AiSettingsScreen(
     if (showModelPicker) {
         ModelPickerSheet(
             currentModelId = state.selectedModelId,
+            models = state.availableModels,
             onModelSelected = { viewModel.setSelectedModel(it) },
             onDismiss = { showModelPicker = false }
         )

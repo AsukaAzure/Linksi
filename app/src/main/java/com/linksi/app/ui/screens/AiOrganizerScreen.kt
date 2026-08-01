@@ -36,6 +36,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.text.selection.SelectionContainer
 import com.linksi.app.R
 import com.linksi.app.domain.model.*
 import com.linksi.app.ui.components.iconFromName
@@ -125,7 +126,7 @@ fun AiOrganizerIdle(
     onSetBatchSize: (Int) -> Unit,
     onTestModel: () -> Unit
 ) {
-    val selectedModel = AI_MODELS.find { it.id == state.selectedModelId }
+    val selectedModel = state.availableModels.find { it.id == state.selectedModelId }
     val apiKey = state.apiKeys[selectedModel?.provider] ?: ""
     val isReady = apiKey.isNotBlank()
 
@@ -995,12 +996,13 @@ fun AiDoneScreen(onBack: () -> Unit, onRevert: () -> Unit, onOrganizeAgain: () -
 @Composable
 fun ModelPickerSheet(
     currentModelId: String,
+    models: List<AiModel>,
     onModelSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedProvider by remember {
         mutableStateOf(
-            AI_MODELS.find { it.id == currentModelId }?.provider ?: AiProvider.ANTHROPIC
+            models.find { it.id == currentModelId }?.provider ?: AiProvider.ANTHROPIC
         )
     }
 
@@ -1064,7 +1066,7 @@ fun ModelPickerSheet(
             HorizontalDivider()
 
             // Models for selected provider
-            val providerModels = AI_MODELS.filter { it.provider == selectedProvider }
+            val providerModels = models.filter { it.provider == selectedProvider }
 
             Column(
                 modifier = Modifier
@@ -1088,7 +1090,7 @@ fun ModelPickerSheet(
                     label = "provider_models"
                 ) { provider ->
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        AI_MODELS.filter { it.provider == provider }.forEach { model ->
+                        models.filter { it.provider == provider }.forEach { model ->
                             val isSelected = model.id == currentModelId
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
@@ -1268,15 +1270,18 @@ fun AiErrorScreen(
                 )
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.errorContainer
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(12.dp),
-                        textAlign = TextAlign.Center
-                    )
+                    SelectionContainer {
+                        Text(
+                            message,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(16.dp),
+                            textAlign = TextAlign.Start
+                        )
+                    }
                 }
                 
                 Spacer(Modifier.height(8.dp))

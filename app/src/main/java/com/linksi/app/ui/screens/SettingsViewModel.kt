@@ -43,6 +43,7 @@ data class SettingsUiState(
     val isImporting: Boolean = false,
     val importPhase: String = "",
     val apiKeys: Map<AiProvider, String> = emptyMap(),
+    val availableModels: List<com.linksi.app.domain.model.AiModel> = com.linksi.app.domain.model.AI_MODELS,
     val modelStatus: SettingsViewModel.ModelStatus = SettingsViewModel.ModelStatus.UNKNOWN,
     val isTestingModel: Boolean = false,
     val selectedLanguage: String = "",
@@ -66,6 +67,7 @@ class SettingsViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
+        observeModels()
         viewModelScope.launch {
             combine(
                 repository.getAllLinks(),
@@ -109,6 +111,20 @@ class SettingsViewModel @Inject constructor(
         }
         val versionName = context.packageManager.getPackageInfo(context.packageName, 0).versionName
         _uiState.update { it.copy(currentVersion = versionName ?: "1.0.0") }
+    }
+
+    private fun observeModels() {
+        viewModelScope.launch {
+            AiModelRegistry.getModels(context).collect { models ->
+                _uiState.update { it.copy(availableModels = models) }
+            }
+        }
+    }
+
+    fun refreshModels() {
+        viewModelScope.launch {
+            AiModelRegistry.refreshAll(context, _uiState.value.apiKeys)
+        }
     }
 
     fun checkForUpdate() {
@@ -345,6 +361,7 @@ class SettingsViewModel @Inject constructor(
                     AiProvider.GROK -> prefs[AI_KEY_GROK] = key
                 }
             }
+            refreshModels()
         }
     }
 
@@ -438,7 +455,7 @@ class SettingsViewModel @Inject constructor(
 
     fun testSelectedModel() {
         viewModelScope.launch {
-            val model = AI_MODELS.find { it.id == _uiState.value.selectedModelId } ?: return@launch
+            val model = _uiState.value.availableModels.find { it.id == _uiState.value.selectedModelId } ?: return@launch
             val apiKey = _uiState.value.apiKeys[model.provider] ?: ""
 
             if (apiKey.isBlank()) {

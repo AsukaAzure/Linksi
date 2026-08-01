@@ -30,6 +30,7 @@ data class AiOrganizerUiState(
     val isEnabled: Boolean = false,
     val selectedModelId: String = "claude3sonnet",
     val apiKeys: Map<AiProvider, String> = emptyMap(),
+    val availableModels: List<AiModel> = AI_MODELS,
 
     // Organize flow
     val step: AiOrganizerStep = AiOrganizerStep.IDLE,
@@ -67,7 +68,22 @@ class AiOrganizerViewModel @Inject constructor(
 
     init {
         loadSettings()
+        observeModels()
         loadLastSession()
+    }
+
+    private fun observeModels() {
+        viewModelScope.launch {
+            AiModelRegistry.getModels(context).collect { models ->
+                _uiState.update { it.copy(availableModels = models) }
+            }
+        }
+    }
+
+    fun refreshModels() {
+        viewModelScope.launch {
+            AiModelRegistry.refreshAll(context, _uiState.value.apiKeys)
+        }
     }
 
     // ── Settings ──────────────────────────────────────────────
@@ -100,7 +116,7 @@ class AiOrganizerViewModel @Inject constructor(
     fun testModel() {
         viewModelScope.launch {
             val state = _uiState.value
-            val model = AI_MODELS.find { it.id == state.selectedModelId } ?: return@launch
+            val model = state.availableModels.find { it.id == state.selectedModelId } ?: return@launch
             val apiKey = state.apiKeys[model.provider] ?: ""
 
             if (apiKey.isBlank()) {
@@ -159,15 +175,18 @@ class AiOrganizerViewModel @Inject constructor(
 
     private fun mapErrorToMessage(e: Throwable): String {
         val msg = e.message ?: ""
+        // If it's a known resource-mapped error, return the resource
         return when {
-            msg.contains("400") -> context.getString(com.linksi.app.R.string.error_invalid_request)
+            msg.contains("400") && msg.contains("invalid", ignoreCase = true) -> context.getString(com.linksi.app.R.string.error_invalid_request)
             msg.contains("401") -> context.getString(com.linksi.app.R.string.invalid_api_key_error)
             msg.contains("403") -> context.getString(com.linksi.app.R.string.unauthorized_api_key_error)
             msg.contains("429") || msg.contains("quota", ignoreCase = true) ->
                 context.getString(com.linksi.app.R.string.quota_exceeded_error)
             msg.contains("insufficient", ignoreCase = true) -> context.getString(com.linksi.app.R.string.error_insufficient_credits)
             msg.contains("Unable to resolve host") -> context.getString(com.linksi.app.R.string.error_network)
-            else -> context.getString(com.linksi.app.R.string.generic_error_prefix, msg.take(60))
+            // If the message contains actual details (more than 10 chars and not just a code), show it
+            msg.length > 10 && !msg.startsWith("HTTP") -> msg
+            else -> context.getString(com.linksi.app.R.string.generic_error_prefix, msg.take(100))
         }
     }
 
@@ -196,6 +215,7 @@ class AiOrganizerViewModel @Inject constructor(
                 }
             }
             _uiState.update { it.copy(modelStatus = SettingsViewModel.ModelStatus.UNKNOWN, testErrorMessage = null) }
+            refreshModels()
         }
     }
 
@@ -222,7 +242,7 @@ class AiOrganizerViewModel @Inject constructor(
     fun generatePlan() {
         viewModelScope.launch {
             val state = _uiState.value
-            val model = AI_MODELS.find { it.id == state.selectedModelId } ?: return@launch
+            val model = state.availableModels.find { it.id == state.selectedModelId } ?: return@launch
             val apiKey = state.apiKeys[model.provider] ?: ""
 
             if (apiKey.isBlank()) {
@@ -374,6 +394,7 @@ class AiOrganizerViewModel @Inject constructor(
     }
 
     fun onScreenOpened() {
+        refreshModels()
         val currentStep = _uiState.value.step
         if (currentStep == AiOrganizerStep.DONE || currentStep == AiOrganizerStep.ERROR) {
             _uiState.update {

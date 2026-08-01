@@ -199,6 +199,9 @@ class HomeViewModel @Inject constructor(
                 return@launch
             }
 
+            val domain = extractDomain(url)
+            val faviconUrl = "https://www.google.com/s2/favicons?domain=$domain&sz=64"
+
             val link = Link(
                 url = url,
                 title = titleOverride ?: "",
@@ -206,6 +209,8 @@ class HomeViewModel @Inject constructor(
                 folderId = folderId,
                 reminderAt = reminderAt,
                 previewImageUrl = previewImageOverride ?: "",
+                faviconUrl = faviconUrl,
+                domain = domain,
                 note = note,
                 tags = tags,
                 expiresAt = expiresAt
@@ -295,12 +300,29 @@ class HomeViewModel @Inject constructor(
     fun refreshLinkMetadata(link: Link) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            // Logic to fetch metadata again
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    snackbarMessage = context.getString(R.string.metadata_refreshed)
+            try {
+                val meta = MetadataFetcher.fetch(link.url)
+                val updatedLink = link.copy(
+                    title = meta.title.ifBlank { link.title },
+                    description = meta.description.ifBlank { link.description },
+                    previewImageUrl = meta.previewImageUrl.ifBlank { link.previewImageUrl },
+                    faviconUrl = meta.faviconUrl.ifBlank { "https://www.google.com/s2/favicons?domain=${meta.domain}&sz=64" },
+                    domain = meta.domain.ifBlank { extractDomain(link.url) }
                 )
+                repository.updateLink(updatedLink)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        snackbarMessage = context.getString(R.string.metadata_refreshed)
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        snackbarMessage = context.getString(R.string.metadata_refresh_failed)
+                    )
+                }
             }
         }
     }

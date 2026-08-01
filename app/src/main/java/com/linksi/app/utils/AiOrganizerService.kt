@@ -211,28 +211,153 @@ For new folders set isExistingFolder=false and existingFolderId=null.
 
     private fun makeHttpRequest(
         url: java.net.URL,
-        body: String,
+        body: String?,
         headers: Map<String, String>,
+        method: String = "POST",
         parseResponse: (String) -> String
     ): String {
         val connection = url.openConnection() as java.net.HttpURLConnection
         connection.apply {
-            requestMethod = "POST"
-            doOutput = true
+            requestMethod = method
+            doOutput = body != null
             connectTimeout = 30000
             readTimeout = 60000
             headers.forEach { (k, v) -> setRequestProperty(k, v) }
         }
-        connection.outputStream.use { it.write(body.toByteArray()) }
+        body?.let {
+            connection.outputStream.use { os -> os.write(it.toByteArray()) }
+        }
         val responseCode = connection.responseCode
         val responseText = if (responseCode in 200..299) {
             connection.inputStream.bufferedReader().readText()
         } else {
-            val error = connection.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
-            throw Exception("HTTP $responseCode: $error")
+            val errorBody = connection.errorStream?.bufferedReader()?.readText() ?: ""
+            val detailedMessage = try {
+                val json = JSONObject(errorBody)
+                // Try to find common error message fields
+                when {
+                    json.has("error") -> {
+                        val errorObj = json.get("error")
+                        if (errorObj is JSONObject) errorObj.optString("message", errorBody)
+                        else if (errorObj is String) errorObj
+                        else errorBody
+                    }
+                    json.has("message") -> json.getString("message")
+                    else -> errorBody
+                }
+            } catch (e: Exception) {
+                errorBody
+            }
+            throw Exception(detailedMessage.ifBlank { "HTTP $responseCode: Unknown Error" })
         }
         return parseResponse(responseText)
     }
+
+    suspend fun discoverOpenAiModels(apiKey: String): List<AiModel> = withContext(Dispatchers.IO) {
+        val url = java.net.URL("https://api.openai.com/v1/models")
+        val response = makeHttpRequest(url, null, mapOf(
+            "Authorization" to "Bearer $apiKey"
+        ), "GET") { it }
+
+        val json = JSONObject(response)
+        val data = json.getJSONArray("data")
+        val models = mutableListOf<AiModel>()
+        
+        // Match gpt, o1, o3, etc. but exclude embeddings, dall-e, etc.
+        val chatRegex = Regex("^(gpt|o1|o3).*", RegexOption.IGNORE_CASE)
+        
+        for (i in 0 until data.length()) {
+            val m = data.getJSONObject(i)
+            val id = m.getString("id")
+            if (chatRegex.containsMatchIn(id) && !id.contains("vision") && !id.contains("audio")) {
+                models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.OPENAI, id))
+            }
+        }
+        models.sortedByDescending { it.id }
+    }
+
+    suspend fun discoverAnthropicModels(apiKey: String): List<AiModel> = withContext(Dispatchers.IO) {
+        val url = java.net.URL("https://api.anthropic.com/v1/models")
+        val response = makeHttpRequest(url, null, mapOf(
+            "x-api-key" to apiKey,
+            "anthropic-version" to "2023-06-01"
+        ), "GET") { it }
+
+        val json = JSONObject(response)
+        val data = json.getJSONArray("data")
+        val models = mutableListOf<AiModel>()
+        for (i in 0 until data.length()) {
+            val m = data.getJSONObject(i)
+            val id = m.getString("id")
+            val displayName = m.optString("display_name", id)
+            models.add(AiModel(id, displayName, AiProvider.ANTHROPIC, id))
+        }
+        models
+    }
+
+    suspend fun discoverGeminiModels(apiKey: String): List<AiModel> = withContext(Dispatchers.IO) {
+        val url = java.net.URL("https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey")
+        val response = makeHttpRequest(url, null, emptyMap(), "GET") { it }
+
+        val json = JSONObject(response)
+        val data = json.getJSONArray("models")
+        val models = mutableListOf<AiModel>()
+        for (i in 0 until data.length()) {
+            val m = data.getJSONObject(i)
+            val name = m.getString("name").removePrefix("models/")
+            val displayName = m.getString("displayName")
+            val supportedMethods = m.getJSONArray("supportedGenerationMethods")
+            
+            var supportsChat = false
+            for (j in 0 until supportedMethods.length()) {
+                if (supportedMethods.getString(j) == "generateContent") {
+                    supportsChat = true
+                    break
+                }
+            }
+
+            if (supportsChat && !name.contains("vision") && !name.contains("embedding")) {
+                models.add(AiModel(name, displayName, AiProvider.GEMINI, name))
+            }
+        }
+        models
+    }
+
+    suspend fun discoverDeepSeekModels(apiKey: String): List<AiModel> = withContext(Dispatchers.IO) {
+        val url = java.net.URL("https://api.deepseek.com/models")
+        val response = makeHttpRequest(url, null, mapOf(
+            "Authorization" to "Bearer $apiKey"
+        ), "GET") { it }
+
+        val json = JSONObject(response)
+        val data = json.getJSONArray("data")
+        val models = mutableListOf<AiModel>()
+        for (i in 0 until data.length()) {
+            val m = data.getJSONObject(i)
+            val id = m.getString("id")
+            models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.DEEPSEEK, id))
+        }
+        models
+    }
+
+    suspend fun discoverGrokModels(apiKey: String): List<AiModel> = withContext(Dispatchers.IO) {
+        val url = java.net.URL("https://api.x.ai/v1/models")
+        val response = makeHttpRequest(url, null, mapOf(
+            "Authorization" to "Bearer $apiKey"
+        ), "GET") { it }
+
+        val json = JSONObject(response)
+        val data = json.getJSONArray("data")
+        val models = mutableListOf<AiModel>()
+        for (i in 0 until data.length()) {
+            val m = data.getJSONObject(i)
+            val id = m.getString("id")
+            models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.GROK, id))
+        }
+        models
+    }
+
+    private fun String.capitalizeWords(): String = split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
 
     fun parseAiResponse(
         response: String,

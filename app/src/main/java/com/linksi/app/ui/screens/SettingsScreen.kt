@@ -35,7 +35,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.linksi.app.domain.model.AI_MODELS
 import com.linksi.app.domain.model.AiProvider
 import com.linksi.app.utils.exportFileName
 
@@ -440,6 +439,22 @@ fun SettingsScreen(
         )
     }
 
+    // ── AI Settings overlay ──────────────────────────────────
+    AnimatedVisibility(
+        visible = showAiSettings,
+        enter = slideInHorizontally(initialOffsetX = { it }),
+        exit = slideOutHorizontally(targetOffsetX = { it })
+    ) {
+        BackHandler { 
+            if (showAiOrganizer) showAiOrganizer = false 
+            else showAiSettings = false 
+        }
+        AiSettingsScreen(
+            onBack = { showAiSettings = false },
+            onOpenOrganizer = { showAiOrganizer = true }
+        )
+    }
+
     // ── AI Organizer overlay ──────────────────────────────────
     AnimatedVisibility(
         visible = showAiOrganizer,
@@ -454,19 +469,6 @@ fun SettingsScreen(
         ) {
             AiOrganizerScreen(onBack = { showAiOrganizer = false })
         }
-    }
-
-    // ── AI Settings overlay ──────────────────────────────────
-    AnimatedVisibility(
-        visible = showAiSettings,
-        enter = slideInHorizontally(initialOffsetX = { it }),
-        exit = slideOutHorizontally(targetOffsetX = { it })
-    ) {
-        BackHandler { showAiSettings = false }
-        AiSettingsScreen(
-            onBack = { showAiSettings = false },
-            onOpenOrganizer = { showAiOrganizer = true }
-        )
     }
 
     // ── Security Settings overlay ─────────────────────────────
