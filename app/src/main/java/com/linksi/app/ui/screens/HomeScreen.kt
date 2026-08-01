@@ -134,6 +134,18 @@ fun HomeScreen(
                     viewModel.dismissSnackbar()
                 }
 
+                "UNDO_MOVE_TO_BIN" -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = context.getString(com.linksi.app.R.string.moved_to_bin),
+                        actionLabel = context.getString(com.linksi.app.R.string.undo),
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoDeleted()
+                    }
+                    viewModel.dismissSnackbar()
+                }
+
                 "UNDO_MOVE" -> {
                     val result = snackbarHostState.showSnackbar(
                         message = if (state.lastMovedLinks.size > 1)

@@ -338,4 +338,18 @@
     <string name="app_security">App Security</string>
     <string name="cannot_read_file">Cannot read file</string>
     <string name="not_a_linksi_file">Not a Linksi export file</string>
+
+    <!-- Trash Bin -->
+    <string name="trash_bin">Trash Bin</string>
+    <string name="trash_bin_subtitle">Keep deleted links for 30 days</string>
+    <string name="moved_to_bin">Moved to Trash Bin</string>
+    <string name="restore">Restore</string>
+    <string name="permanently_delete">Permanently Delete</string>
+    <string name="empty_bin">Empty Bin</string>
+    <string name="empty_bin_confirm">Are you sure you want to permanently delete all links in the Trash Bin?</string>
+    <string name="bin_auto_delete_hint">Items in the Trash Bin will be automatically deleted after 30 days.</string>
+    <string name="no_links_in_bin">Trash Bin is empty</string>
+    <string name="restored_links">Restored %1$d links</string>
+    <string name="link_restored">Link restored</string>
+    <string name="links_permanently_deleted">Permanently deleted %1$d links</string>
 </resources>

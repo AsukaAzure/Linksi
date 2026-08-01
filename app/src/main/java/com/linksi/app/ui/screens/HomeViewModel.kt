@@ -47,7 +47,8 @@ data class HomeUiState(
     val folderViewMode: FolderViewMode = FolderViewMode.LIST,
     val folderSortOption: FolderSortOption = FolderSortOption.NAME_AZ,
     val homeViewMode : ViewMode = ViewMode.LIST,
-    val folderLockEnabled: Boolean = false
+    val folderLockEnabled: Boolean = false,
+    val trashBinEnabled: Boolean = true
 )
 
 @HiltViewModel
@@ -92,7 +93,8 @@ class HomeViewModel @Inject constructor(
                         folderSortOption = prefs[FOLDER_SORT_OPTION]?.let {
                             FolderSortOption.valueOf(it)
                         } ?: FolderSortOption.NAME_AZ,
-                        folderLockEnabled = prefs[SECURITY_FOLDER_LOCK_ENABLED] ?: false
+                        folderLockEnabled = prefs[SECURITY_FOLDER_LOCK_ENABLED] ?: false,
+                        trashBinEnabled = prefs[TRASH_BIN_ENABLED] ?: true
                     )
                 }
             }
@@ -229,12 +231,22 @@ class HomeViewModel @Inject constructor(
 
     fun deleteLink(link: Link) {
         viewModelScope.launch {
-            repository.deleteLink(link)
-            _uiState.update {
-                it.copy(
-                    lastDeletedLinks = listOf(link),
-                    snackbarMessage = "UNDO_DELETE"
-                )
+            if (_uiState.value.trashBinEnabled) {
+                repository.moveToBin(link.id)
+                _uiState.update {
+                    it.copy(
+                        lastDeletedLinks = listOf(link),
+                        snackbarMessage = "UNDO_MOVE_TO_BIN"
+                    )
+                }
+            } else {
+                repository.deleteLink(link)
+                _uiState.update {
+                    it.copy(
+                        lastDeletedLinks = listOf(link),
+                        snackbarMessage = "UNDO_DELETE"
+                    )
+                }
             }
         }
     }
@@ -242,7 +254,11 @@ class HomeViewModel @Inject constructor(
     fun undoDeleted() {
         viewModelScope.launch {
             _uiState.value.lastDeletedLinks.forEach {
-                repository.insertLink(it)
+                if (_uiState.value.trashBinEnabled) {
+                    repository.restoreFromBin(it.id)
+                } else {
+                    repository.insertLink(it)
+                }
             }
             _uiState.update { it.copy(lastDeletedLinks = emptyList(), snackbarMessage = null) }
         }
@@ -459,11 +475,17 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val ids = _uiState.value.selectedIds
             val linksToDelete = _uiState.value.links.filter { it.id in ids }
-            linksToDelete.forEach { repository.deleteLink(it) }
+            val useBin = _uiState.value.trashBinEnabled
+
+            linksToDelete.forEach {
+                if (useBin) repository.moveToBin(it.id)
+                else repository.deleteLink(it)
+            }
+
             _uiState.update {
                 it.copy(
                     lastDeletedLinks = linksToDelete,
-                    snackbarMessage = "UNDO_DELETE",
+                    snackbarMessage = if (useBin) "UNDO_MOVE_TO_BIN" else "UNDO_DELETE",
                     selectedIds = emptySet(),
                     isSelectionMode = false
                 )

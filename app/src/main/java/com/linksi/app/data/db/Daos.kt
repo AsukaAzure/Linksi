@@ -9,21 +9,21 @@ interface LinkDao {
     @Query("""
         SELECT l.* FROM links l 
         LEFT JOIN folders f ON l.folderId = f.id 
-        WHERE :isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0 
+        WHERE l.inBin = 0 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
         ORDER BY l.createdAt DESC
     """)
     fun getAllLinks(isFolderLockEnabled: Boolean): Flow<List<LinkEntity>>
 
-    @Query("SELECT * FROM links WHERE folderId = :folderId ORDER BY createdAt DESC")
+    @Query("SELECT * FROM links WHERE inBin = 0 AND folderId = :folderId ORDER BY createdAt DESC")
     fun getLinksByFolder(folderId: Long): Flow<List<LinkEntity>>
 
-    @Query("SELECT * FROM links WHERE folderId IS NULL ORDER BY createdAt DESC")
+    @Query("SELECT * FROM links WHERE inBin = 0 AND folderId IS NULL ORDER BY createdAt DESC")
     fun getUncategorizedLinks(): Flow<List<LinkEntity>>
 
     @Query("""
         SELECT l.* FROM links l 
         LEFT JOIN folders f ON l.folderId = f.id 
-        WHERE l.isFavorite = 1 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
+        WHERE l.inBin = 0 AND l.isFavorite = 1 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
         ORDER BY l.createdAt DESC
     """)
     fun getFavoriteLinks(isFolderLockEnabled: Boolean): Flow<List<LinkEntity>>
@@ -31,7 +31,7 @@ interface LinkDao {
     @Query("""
         SELECT l.* FROM links l 
         LEFT JOIN folders f ON l.folderId = f.id 
-        WHERE l.isRead = 0 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
+        WHERE l.inBin = 0 AND l.isRead = 0 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
         ORDER BY l.createdAt DESC
     """)
     fun getUnreadLinks(isFolderLockEnabled: Boolean): Flow<List<LinkEntity>>
@@ -40,7 +40,7 @@ interface LinkDao {
         """
         SELECT l.* FROM links l 
         LEFT JOIN folders f ON l.folderId = f.id 
-        WHERE (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) AND (
+        WHERE l.inBin = 0 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) AND (
             url LIKE '%' || :query || '%' 
             OR title LIKE '%' || :query || '%' 
             OR description LIKE '%' || :query || '%'
@@ -55,7 +55,7 @@ interface LinkDao {
     @Query("""
         SELECT l.* FROM links l 
         LEFT JOIN folders f ON l.folderId = f.id 
-        WHERE (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
+        WHERE l.inBin = 0 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
         AND reminderAt IS NOT NULL AND reminderAt > :now 
         ORDER BY reminderAt ASC
     """)
@@ -82,7 +82,19 @@ interface LinkDao {
     @Query("UPDATE links SET folderId = :folderId WHERE id = :id")
     suspend fun moveToFolder(id: Long, folderId: Long?)
 
-    @Query("SELECT COUNT(*) FROM links")
+    @Query("UPDATE links SET inBin = 1, deletedAt = :deletedAt WHERE id = :id")
+    suspend fun moveToBin(id: Long, deletedAt: Long = System.currentTimeMillis())
+
+    @Query("UPDATE links SET inBin = 0, deletedAt = NULL WHERE id = :id")
+    suspend fun restoreFromBin(id: Long)
+
+    @Query("SELECT * FROM links WHERE inBin = 1 ORDER BY deletedAt DESC")
+    fun getLinksInBin(): Flow<List<LinkEntity>>
+
+    @Query("DELETE FROM links WHERE inBin = 1 AND deletedAt < :threshold")
+    suspend fun cleanBin(threshold: Long)
+
+    @Query("SELECT COUNT(*) FROM links WHERE inBin = 0")
     suspend fun getTotalCount(): Int
 
     @Query("SELECT * FROM links WHERE id = :id")
@@ -114,7 +126,7 @@ interface FolderDao {
         """
         SELECT f.*, COUNT(l.id) as link_count 
         FROM folders f 
-        LEFT JOIN links l ON l.folderId = f.id 
+        LEFT JOIN links l ON l.folderId = f.id AND l.inBin = 0
         GROUP BY f.id
         ORDER BY f.createdAt ASC
     """

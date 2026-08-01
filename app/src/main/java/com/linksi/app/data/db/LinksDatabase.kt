@@ -8,7 +8,7 @@ import androidx.work.impl.Migration_1_2
 
 @Database(
     entities = [LinkEntity::class, FolderEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class LinksDatabase : RoomDatabase() {
@@ -79,6 +79,12 @@ abstract class LinksDatabase : RoomDatabase() {
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE folders ADD COLUMN isLocked INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE links ADD COLUMN inBin INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE links ADD COLUMN deletedAt INTEGER")
             }
         }
     }

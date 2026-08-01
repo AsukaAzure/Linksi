@@ -20,7 +20,9 @@ data class Link(
     val isPinned: Boolean = false,
     val note: String = "",
     val expiresAt: Long? = null,
-    val tags: List<String> = emptyList()
+    val tags: List<String> = emptyList(),
+    val inBin: Boolean = false,
+    val deletedAt: Long? = null
 ) : Parcelable
 
 @Parcelize

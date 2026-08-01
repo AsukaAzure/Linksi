@@ -20,7 +20,9 @@ data class LinkEntity(
     val isPinned: Boolean = false,
     val note: String = "",
     val expiresAt: Long? = null,
-    val tags: String = ""
+    val tags: String = "",
+    val inBin: Boolean = false,
+    val deletedAt: Long? = null
 )
 
 @Entity(tableName = "folders")

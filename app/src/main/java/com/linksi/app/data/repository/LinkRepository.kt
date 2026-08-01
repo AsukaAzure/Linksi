@@ -52,6 +52,20 @@ class LinkRepository @Inject constructor(
     suspend fun moveToFolder(id: Long, folderId: Long?) =
         linkDao.moveToFolder(id, folderId)
 
+    suspend fun moveToBin(id: Long) =
+        linkDao.moveToBin(id)
+
+    suspend fun restoreFromBin(id: Long) =
+        linkDao.restoreFromBin(id)
+
+    fun getLinksInBin(): Flow<List<Link>> =
+        linkDao.getLinksInBin().map { it.map(::toLink) }
+
+    suspend fun cleanBin(days: Int = 30) {
+        val threshold = System.currentTimeMillis() - (days.toLong() * 24 * 60 * 60 * 1000)
+        linkDao.cleanBin(threshold)
+    }
+
     suspend fun getLinkById(id: Long): Link? =
         linkDao.getLinkById(id)?.let(::toLink)
 
@@ -154,7 +168,9 @@ class LinkRepository @Inject constructor(
         isPinned = entity.isPinned,
         note = entity.note,
         expiresAt = entity.expiresAt,
-        tags = entity.tags.split(",").filter { it.isNotBlank() }
+        tags = entity.tags.split(",").filter { it.isNotBlank() },
+        inBin = entity.inBin,
+        deletedAt = entity.deletedAt
     )
 
     private fun toEntity(link: Link) = LinkEntity(
@@ -173,7 +189,9 @@ class LinkRepository @Inject constructor(
         isPinned = link.isPinned,
         note = link.note,
         expiresAt = link.expiresAt,
-        tags = link.tags.joinToString(",")
+        tags = link.tags.joinToString(","),
+        inBin = link.inBin,
+        deletedAt = link.deletedAt
     )
 
     private fun toFolder(entity: FolderEntity) = Folder(

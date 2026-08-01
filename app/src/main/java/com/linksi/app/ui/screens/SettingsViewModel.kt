@@ -53,7 +53,8 @@ data class SettingsUiState(
     val pin: String = "",
     val folders: List<com.linksi.app.domain.model.Folder> = emptyList(),
     val universalLock: Boolean = false,
-    val folderLockEnabled: Boolean = false
+    val folderLockEnabled: Boolean = false,
+    val trashBinEnabled: Boolean = true
 )
 
 @HiltViewModel
@@ -104,7 +105,8 @@ class SettingsViewModel @Inject constructor(
                         lockDelay = prefs[SECURITY_LOCK_DELAY] ?: 0L,
                         pin = prefs[SECURITY_PIN] ?: "",
                         universalLock = prefs[SECURITY_UNIVERSAL_LOCK] ?: false,
-                        folderLockEnabled = prefs[SECURITY_FOLDER_LOCK_ENABLED] ?: false
+                        folderLockEnabled = prefs[SECURITY_FOLDER_LOCK_ENABLED] ?: false,
+                        trashBinEnabled = prefs[TRASH_BIN_ENABLED] ?: true
                     )
                 }
             }
@@ -450,6 +452,13 @@ class SettingsViewModel @Inject constructor(
             context.dataStore.edit { prefs ->
                 prefs[SECURITY_FOLDER_LOCK_ENABLED] = enabled
             }
+        }
+    }
+
+    fun setTrashBinEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[TRASH_BIN_ENABLED] = enabled }
+            _uiState.update { it.copy(trashBinEnabled = enabled) }
         }
     }
 

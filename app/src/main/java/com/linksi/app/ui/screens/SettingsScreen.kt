@@ -55,9 +55,10 @@ fun SettingsScreen(
     var showAiSettings by remember { mutableStateOf(false) }
     var showSecuritySettings by remember { mutableStateOf(false) }
     var showSecurityAuth by remember { mutableStateOf(false) }
+    var showTrashBin by remember { mutableStateOf(false) }
 
     // Handle system back button
-    BackHandler(enabled = !showAiOrganizer && !showImportExport && !showAiSettings && !showSecuritySettings && !showSecurityAuth) {
+    BackHandler(enabled = !showAiOrganizer && !showImportExport && !showAiSettings && !showSecuritySettings && !showSecurityAuth && !showTrashBin) {
         onBack()
     }
 
@@ -138,6 +139,22 @@ fun SettingsScreen(
                         title = stringResource(id = com.linksi.app.R.string.ai_organizer),
                         subtitle = stringResource(id = com.linksi.app.R.string.ai_organizer_subtitle),
                         onClick = { showAiSettings = true },
+                        trailingContent = {
+                            Icon(
+                                Icons.Outlined.ChevronRight, null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    SettingsItem(
+                        icon = Icons.Outlined.DeleteOutline,
+                        title = stringResource(id = com.linksi.app.R.string.trash_bin),
+                        subtitle = stringResource(id = com.linksi.app.R.string.trash_bin_subtitle),
+                        onClick = { showTrashBin = true },
                         trailingContent = {
                             Icon(
                                 Icons.Outlined.ChevronRight, null,
@@ -524,6 +541,18 @@ fun SettingsScreen(
             exportHtmlLauncher = exportHtmlLauncher,
             importLauncher = importLauncher,
             exportFileName = ::exportFileName
+        )
+    }
+
+    // ── Trash Bin overlay ─────────────────────────────────────
+    AnimatedVisibility(
+        visible = showTrashBin,
+        enter = slideInHorizontally(initialOffsetX = { it }),
+        exit = slideOutHorizontally(targetOffsetX = { it })
+    ) {
+        BackHandler { showTrashBin = false }
+        TrashBinScreen(
+            onBack = { showTrashBin = false }
         )
     }
 }
