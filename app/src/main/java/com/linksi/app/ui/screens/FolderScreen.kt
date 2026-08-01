@@ -926,7 +926,8 @@ fun FolderDetailScreen(
 
                                 if (showFolderPicker) {
                                     FolderPickerDialog(
-                                        folders = state.folders.filter { it.id != folder.id && !it.isLocked },
+                                        folders = (if (state.folderLockEnabled) state.folders.filter { !it.isLocked } else state.folders)
+                                            .filter { it.id != folder.id },
                                         currentFolderId = folder.id,
                                         onSelect = { folderId ->
                                             scope.launch {

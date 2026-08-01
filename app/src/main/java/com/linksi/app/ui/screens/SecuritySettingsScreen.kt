@@ -54,10 +54,10 @@ fun SecuritySettingsScreen(
             item {
                 SettingsCard {
                     ListItem(
-                        headlineContent = { Text("Universal Lock") },
+                        headlineContent = { Text(stringResource(R.string.universal_lock)) },
                         supportingContent = {
                             Text(
-                                "Enable both App Lock and Folder Lock features",
+                                stringResource(R.string.universal_lock_desc),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         },
@@ -80,7 +80,7 @@ fun SecuritySettingsScreen(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "App Security",
+                    stringResource(R.string.app_security),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = if (state.universalLock) 1f else 0.38f),
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)

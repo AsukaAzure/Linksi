@@ -332,4 +332,10 @@
     <string name="locked_folders">Locked Folders</string>
     <string name="locked_folders_subtitle">Links in locked folders are hidden from the home screen</string>
     <string name="no_folders_created">No folders created yet</string>
+
+    <string name="universal_lock">Universal Lock</string>
+    <string name="universal_lock_desc">Enable both App Lock and Folder Lock features</string>
+    <string name="app_security">App Security</string>
+    <string name="cannot_read_file">Cannot read file</string>
+    <string name="not_a_linksi_file">Not a Linksi export file</string>
 </resources>

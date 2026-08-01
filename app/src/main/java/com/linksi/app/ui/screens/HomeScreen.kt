@@ -335,7 +335,7 @@ fun HomeScreen(
 
                                 if (showFolderPicker) {
                                     FolderPickerDialog(
-                                        folders = state.folders.filter { !it.isLocked },
+                                        folders = if (state.folderLockEnabled) state.folders.filter { !it.isLocked } else state.folders,
                                         currentFolderId = null,
                                         onSelect = { folderId ->
                                             viewModel.moveSelectedToFolder(folderId)
@@ -395,7 +395,7 @@ fun HomeScreen(
 
                 // Folder chips + filter chips
                 FolderAndFilterRow(
-                    folders = state.folders.filter { !it.isLocked },
+                    folders = if (state.folderLockEnabled) state.folders.filter { !it.isLocked } else state.folders,
                     selectedFolderId = state.selectedFolderId,
                     selectedFilter = state.filterOption,
                     onFolderSelect = viewModel::selectFolder,
@@ -594,10 +594,10 @@ fun HomeScreen(
 //    }
 
     if (state.showAddLinkDialog) {
-        AddLinkSheet(
-            folders = state.folders.filter { !it.isLocked },
-            allTags = state.allTags,
-            isFetchingMetadata = state.isFetchingMetadata,
+                                        AddLinkSheet(
+                                            folders = if (state.folderLockEnabled) state.folders.filter { !it.isLocked } else state.folders,
+                                            allTags = state.allTags,
+                                            isFetchingMetadata = state.isFetchingMetadata,
 //            isInTour = isInTour,
 //            tourStep = tourStep,
 //            onTourNext = { nextStep() },

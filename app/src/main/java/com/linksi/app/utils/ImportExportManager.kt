@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.linksi.app.domain.model.Link
 import com.linksi.app.domain.model.Folder
+import com.linksi.app.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -56,10 +57,10 @@ data class ImportResult(
 // ── Import Linksi JSON ────────────────────────────────────────
 fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
     val json = context.contentResolver.openInputStream(uri)
-        ?.bufferedReader()?.readText() ?: throw Exception("Cannot read file")
+        ?.bufferedReader()?.readText() ?: throw Exception(context.getString(R.string.cannot_read_file))
 
     val root = JSONObject(json)
-    if (root.optString("app") != "Linksi") throw Exception("Not a Linksi export file")
+    if (root.optString("app") != "Linksi") throw Exception(context.getString(R.string.not_a_linksi_file))
 
     val folders = mutableListOf<Folder>()
     val foldersArr = root.optJSONArray("folders")
@@ -99,7 +100,7 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
 // ── Import Chrome / Browser HTML bookmarks ────────────────────
 fun importFromBrowserHtml(context: Context, uri: Uri): ImportResult {
     val html = context.contentResolver.openInputStream(uri)
-        ?.bufferedReader()?.readText() ?: throw Exception("Cannot read file")
+        ?.bufferedReader()?.readText() ?: throw Exception(context.getString(R.string.cannot_read_file))
 
     val links = mutableListOf<Link>()
     // Match <A HREF="url" ...>title</A>
