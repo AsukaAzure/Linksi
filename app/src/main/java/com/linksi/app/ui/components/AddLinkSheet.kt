@@ -88,6 +88,7 @@ fun AddLinkSheet(
     var previewImageUrl by remember { mutableStateOf("") }
     var imageLoadFailed by remember { mutableStateOf(false) }
     var isFetchingPreview by remember { mutableStateOf(false) }
+    var lastFetchedUrl by remember { mutableStateOf("") }
 
     var showFolderPicker by remember { mutableStateOf(false) }
     var showReminderSheet by remember { mutableStateOf(false) }
@@ -125,19 +126,40 @@ fun AddLinkSheet(
     }
 
     LaunchedEffect(url) {
-        if (url.isNotBlank() && (url.startsWith("http://") || url.startsWith("https://"))) {
-            kotlinx.coroutines.delay(800) // debounce
-            if (editTitle.isBlank()) { // only if not already set
-                isFetchingPreview = true
-                try {
-                    val meta = com.linksi.app.utils.MetadataFetcher.fetch(url)
+        val trimmedUrl = url.trim()
+        if (trimmedUrl.isBlank()) {
+            if (lastFetchedUrl.isNotBlank()) {
+                editTitle = ""
+                editDescription = ""
+                previewImageUrl = ""
+                lastFetchedUrl = ""
+            }
+            return@LaunchedEffect
+        }
+
+        if (com.linksi.app.utils.isValidUrl(trimmedUrl) && trimmedUrl != lastFetchedUrl) {
+            kotlinx.coroutines.delay(800) // Debounce: wait for user to stop typing
+            
+            isFetchingPreview = true
+            try {
+                val meta = com.linksi.app.utils.MetadataFetcher.fetch(trimmedUrl)
+                // Only auto-fill if the fields are currently blank to avoid overwriting user edits
+                if (editTitle.isBlank()) {
                     editTitle = meta.title.ifBlank {
-                        url.removePrefix("https://").removePrefix("http://")
+                        trimmedUrl.removePrefix("https://").removePrefix("http://")
                             .removePrefix("www.").substringBefore("/")
                     }
+                }
+                if (editDescription.isBlank()) {
                     editDescription = meta.description
+                }
+                if (previewImageUrl.isBlank()) {
                     previewImageUrl = meta.previewImageUrl
-                } catch (e: Exception) { }
+                }
+                lastFetchedUrl = trimmedUrl
+            } catch (e: Exception) {
+                // Silently fail for background auto-fetch
+            } finally {
                 isFetchingPreview = false
             }
         }
@@ -585,7 +607,7 @@ fun AddLinkSheet(
                 }
 
                 // ── Fetching indicator ────────────────────────
-                AnimatedVisibility(visible = isFetchingMetadata) {
+                AnimatedVisibility(visible = isFetchingMetadata || isFetchingPreview) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -611,7 +633,7 @@ fun AddLinkSheet(
                             )
                         }
                     },
-                    enabled = url.isNotBlank() && !isFetchingMetadata,
+                    enabled = url.isNotBlank() && !isFetchingMetadata && !isFetchingPreview,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
