@@ -101,12 +101,16 @@ fun AddLinkSheet(
     val dateFormatter = remember { SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let {
-            context.contentResolver.takePersistableUriPermission(
-                it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             previewImageUrl = it.toString()
             imageLoadFailed = false
         }

@@ -461,6 +461,7 @@ fun HomeScreen(
                             allTags = state.allTags,
                             onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
                             onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
+                            onCreateFolder = viewModel::addFolder,
                             folderLockEnabled = state.folderLockEnabled
                         )
 
@@ -496,6 +497,7 @@ fun HomeScreen(
                             allTags = state.allTags,
                             onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
                             onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
+                            onCreateFolder = viewModel::addFolder,
                             folderLockEnabled = state.folderLockEnabled
                         )
                     }
@@ -783,6 +785,7 @@ fun LinksList(
     allTags: List<String> = emptyList(),
     onRefreshMetadata: (Link) -> Unit = {},
     onDeleteTagGlobally: (String) -> Unit = {},
+    onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
     folderLockEnabled: Boolean = false
 ) {
     LazyColumn(
@@ -811,6 +814,7 @@ fun LinksList(
                 allTags = allTags,
                 onRefreshMetadata = { onRefreshMetadata(link) },
                 onDeleteTagGlobally = { tag -> onDeleteTagGlobally(tag) },
+                onCreateFolder = onCreateFolder,
                 folderLockEnabled = folderLockEnabled,
                 modifier = Modifier
             )
@@ -840,6 +844,7 @@ fun LinksGrid(
     allTags: List<String> = emptyList(),
     onRefreshMetadata: (Link) -> Unit = {},
     onDeleteTagGlobally: (String) -> Unit = {},
+    onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
     folderLockEnabled: Boolean = false
 ) {
     LazyVerticalStaggeredGrid(
@@ -868,6 +873,7 @@ fun LinksGrid(
                 onSetTags = { tags -> onSetTags(link, tags) },
                 allTags = allTags,
                 onRefreshMetadata = { onRefreshMetadata(link) },
+                onCreateFolder = onCreateFolder,
                 folderLockEnabled = folderLockEnabled
             )
         }

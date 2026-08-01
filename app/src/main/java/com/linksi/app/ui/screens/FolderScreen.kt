@@ -1063,7 +1063,8 @@ fun FolderDetailScreen(
                             onFavoriteToggle = { viewModel.toggleFavorite(link) },
                             onDelete = { viewModel.deleteLink(link) },
                             onMoveToFolder = { folderId -> viewModel.moveToFolder(link, folderId) },
-                            onEdit = { viewModel.setEditingLink(link) }
+                            onEdit = { viewModel.setEditingLink(link) },
+                            onCreateFolder = viewModel::addFolder
                         )
                     }
                     item { Spacer(Modifier.height(80.dp)) }

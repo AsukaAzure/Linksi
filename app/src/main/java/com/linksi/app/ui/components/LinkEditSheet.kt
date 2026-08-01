@@ -48,13 +48,17 @@ fun LinkEditSheet(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let {
-            context.contentResolver.takePersistableUriPermission(
-                it,
-                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             previewImageUrl = it.toString()
         }
     }
@@ -167,7 +171,7 @@ fun LinkEditSheet(
                         .weight(1f)
                         .clip(RoundedCornerShape(14.dp))
                         .height(52.dp)
-                        .clickable { imagePickerLauncher.launch("image/*") }  // opens gallery
+                        .clickable { imagePickerLauncher.launch(arrayOf("image/*")) }  // opens gallery
                 ) {
                     Row(
                         modifier = Modifier.fillMaxSize(),
