@@ -174,12 +174,12 @@ fun AddLinkSheet(
         sheetState = sheetState,
         dragHandle = null,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
+        windowInsets = WindowInsets(0, 0, 0, 0)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
         ) {
@@ -648,6 +648,8 @@ fun AddLinkSheet(
 
                 Spacer(Modifier.height(8.dp))
             }
+            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+            Spacer(Modifier.height(16.dp))
         }
     }
 

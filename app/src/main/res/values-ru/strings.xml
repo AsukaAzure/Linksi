@@ -298,6 +298,8 @@
     <string name="close">Закрыть</string>
     <string name="refresh">Обновить</string>
     <string name="notification_title">📖 Пора почитать!</string>
+    <string name="notification_channel_name">Напоминания о ссылках</string>
+    <string name="notification_channel_desc">Уведомления о сохраненных ссылках</string>
     <string name="no_api_key_for">API ключ не установлен для %1$s</string>
     <string name="error_invalid_request">Неверный запрос. Пожалуйста, проверьте ваш API ключ.</string>
     <string name="error_insufficient_credits">Недостаточно средств на вашем счету AI.</string>
@@ -329,4 +331,24 @@
     <string name="locked_folders">Заблокированные папки</string>
     <string name="locked_folders_subtitle">Ссылки в заблокированных папках скрыты с главного экрана</string>
     <string name="no_folders_created">Папки еще не созданы</string>
+
+    <string name="universal_lock">Универсальная блокировка</string>
+    <string name="universal_lock_desc">Включить блокировку приложения и блокировку папок</string>
+    <string name="app_security">Безопасность приложения</string>
+    <string name="cannot_read_file">Не удалось прочитать файл</string>
+    <string name="not_a_linksi_file">Файл не является экспортом Linksi</string>
+
+    <!-- Корзина -->
+    <string name="trash_bin">Корзина</string>
+    <string name="trash_bin_subtitle">Хранение удаленных ссылок в течение 30 дней</string>
+    <string name="moved_to_bin">Перемещено в корзину</string>
+    <string name="restore">Восстановить</string>
+    <string name="permanently_delete">Удалить навсегда</string>
+    <string name="empty_bin">Очистить корзину</string>
+    <string name="empty_bin_confirm">Вы уверены, что хотите навсегда удалить все ссылки из корзины?</string>
+    <string name="bin_auto_delete_hint">Объекты в корзине будут автоматически удалены через 30 дней.</string>
+    <string name="no_links_in_bin">Корзина пуста</string>
+    <string name="restored_links">Восстановлено ссылок: %1$d</string>
+    <string name="link_restored">Ссылка восстановлена</string>
+    <string name="links_permanently_deleted">Навсегда удалено ссылок: %1$d</string>
 </resources>

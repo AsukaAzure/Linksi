@@ -300,6 +300,8 @@
     <string name="close">Cerrar</string>
     <string name="refresh">Actualizar</string>
     <string name="notification_title">📖 ¡Hora de leer!</string>
+    <string name="notification_channel_name">Recordatorios de enlaces</string>
+    <string name="notification_channel_desc">Notificaciones para enlaces guardados</string>
     <string name="no_api_key_for">No se ha establecido ninguna clave API para %1$s</string>
     <string name="error_invalid_request">Solicitud no válida. Compruebe su clave API.</string>
     <string name="error_insufficient_credits">Créditos insuficientes en su cuenta de IA.</string>
@@ -332,4 +334,24 @@
     <string name="locked_folders">Carpetas bloqueadas</string>
     <string name="locked_folders_subtitle">Los enlaces en carpetas bloqueadas están ocultos de la pantalla de inicio</string>
     <string name="no_folders_created">Aún no se han creado carpetas</string>
+
+    <string name="universal_lock">Bloqueo universal</string>
+    <string name="universal_lock_desc">Activa tanto el Bloqueo de Aplicación como el Bloqueo de Carpetas</string>
+    <string name="app_security">Seguridad de la aplicación</string>
+    <string name="cannot_read_file">No se puede leer el archivo</string>
+    <string name="not_a_linksi_file">No es un archivo de exportación de Linksi</string>
+
+    <!-- Papelera -->
+    <string name="trash_bin">Papelera</string>
+    <string name="trash_bin_subtitle">Mantiene los enlaces eliminados durante 30 días</string>
+    <string name="moved_to_bin">Movido a la Papelera</string>
+    <string name="restore">Restaurar</string>
+    <string name="permanently_delete">Eliminar permanentemente</string>
+    <string name="empty_bin">Vaciar Papelera</string>
+    <string name="empty_bin_confirm">¿Estás seguro de que quieres eliminar permanentemente todos los enlaces de la Papelera?</string>
+    <string name="bin_auto_delete_hint">Los elementos de la Papelera se eliminarán automáticamente después de 30 días.</string>
+    <string name="no_links_in_bin">La Papelera está vacía</string>
+    <string name="restored_links">Restaurados %1$d enlaces</string>
+    <string name="link_restored">Enlace restaurado</string>
+    <string name="links_permanently_deleted">Eliminados permanentemente %1$d enlaces</string>
 </resources>

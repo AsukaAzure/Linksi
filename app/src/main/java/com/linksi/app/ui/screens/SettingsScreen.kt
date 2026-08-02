@@ -654,11 +654,15 @@ fun LockDelayPickerSheet(
     onDelaySelected: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        windowInsets = WindowInsets(0, 0, 0, 0)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
         ) {
             Text(
                 stringResource(id = com.linksi.app.R.string.lock_delay),
@@ -810,11 +814,15 @@ fun LanguagePickerSheet(
     onLanguageSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        windowInsets = WindowInsets(0, 0, 0, 0)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
         ) {
             Text(
                 stringResource(id = com.linksi.app.R.string.select_language),

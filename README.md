@@ -17,9 +17,12 @@ A Material 3 Android app to save, organize, and rediscover links. Appears in the
 - Sort by date, title, domain — filter by favorites or unread
 - Reminder to notify your saved links
 - Bulk select, move, and delete
+- Trash Bin for deleted links with 30-day retention
+- AI Link Organizer to automatically categorize links into folders
 - Inbuilt browser for quick view
-- Import and export links as JSON or CSV
+- Import and export links as JSON, CSV, or HTML
 - Import browser bookmarks from Chrome, Firefox, or Safari
+- Security: App Lock and Folder Lock (PIN/Biometrics)
 - Material You dynamic color with dark mode support
 
 ---
@@ -121,12 +124,15 @@ The output will be at `app/release/app-release.apk`. You will need a signing con
 ## Roadmap
 
 - [x] Folder Structure
-- [x] Import/Export
+- [x] Import/Export (JSON, CSV, HTML)
 - [x] Appearance in share page
 - [x] In App Browser
 - [x] Reminder
-- [ ] Nested folders & Password manager
-- [ ] AI Intigration to organize the links
+- [x] Trash Bin (30-day retention)
+- [x] AI Integration to organize links
+- [x] Security (App Lock & Folder Lock)
+- [ ] Nested folders
+- [ ] Multi-device sync
 
 ---
 

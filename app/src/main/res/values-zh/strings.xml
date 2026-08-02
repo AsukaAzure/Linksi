@@ -298,6 +298,8 @@
     <string name="close">关闭</string>
     <string name="refresh">刷新</string>
     <string name="notification_title">📖 该阅读了！</string>
+    <string name="notification_channel_name">链接提醒</string>
+    <string name="notification_channel_desc">已保存链接的通知</string>
     <string name="no_api_key_for">未为 %1$s 设置 API 密钥</string>
     <string name="error_invalid_request">请求无效。请检查您的 API 密钥。</string>
     <string name="error_insufficient_credits">您的 AI 账户余额不足。</string>
@@ -329,4 +331,24 @@
     <string name="locked_folders">锁定文件夹</string>
     <string name="locked_folders_subtitle">已锁定文件夹中的链接将在主屏幕中隐藏</string>
     <string name="no_folders_created">尚未创建文件夹</string>
+
+    <string name="universal_lock">通用锁</string>
+    <string name="universal_lock_desc">同时启用应用锁和文件夹锁功能</string>
+    <string name="app_security">应用安全</string>
+    <string name="cannot_read_file">无法读取文件</string>
+    <string name="not_a_linksi_file">不是 Linksi 导出文件</string>
+
+    <!-- 回收站 -->
+    <string name="trash_bin">回收站</string>
+    <string name="trash_bin_subtitle">将已删除的链接保留 30 天</string>
+    <string name="moved_to_bin">已移动到回收站</string>
+    <string name="restore">恢复</string>
+    <string name="permanently_delete">永久删除</string>
+    <string name="empty_bin">清空回收站</string>
+    <string name="empty_bin_confirm">您确定要永久删除回收站中的所有链接吗？</string>
+    <string name="bin_auto_delete_hint">回收站中的项目将在 30 天后自动删除。</string>
+    <string name="no_links_in_bin">回收站为空</string>
+    <string name="restored_links">已恢复 %1$d 个链接</string>
+    <string name="link_restored">链接已恢复</string>
+    <string name="links_permanently_deleted">已永久删除 %1$d 个链接</string>
 </resources>

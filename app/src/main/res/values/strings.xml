@@ -300,6 +300,8 @@
     <string name="close">Close</string>
     <string name="refresh">Refresh</string>
     <string name="notification_title">📖 Time to read!</string>
+    <string name="notification_channel_name">Link Reminders</string>
+    <string name="notification_channel_desc">Notifications for saved links</string>
     <string name="no_api_key_for">No API key set for %1$s</string>
     <string name="error_invalid_request">Invalid request. Please check your API key.</string>
     <string name="error_insufficient_credits">Insufficient credits in your AI account.</string>

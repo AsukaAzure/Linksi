@@ -11,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -610,8 +612,14 @@ fun SortBottomSheet(
     onSortSelect: (SortOption) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.padding(bottom = 32.dp)) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        windowInsets = WindowInsets(0, 0, 0, 0)
+    ) {
+        Column(
+            modifier = Modifier
+                .navigationBarsPadding()
+        ) {
             Text(
                 stringResource(R.string.sort_by),
                 style = MaterialTheme.typography.titleMedium,

@@ -26,6 +26,7 @@ data class HomeUiState(
     val filterOption: FilterOption = FilterOption.ALL,
     val sortOption: SortOption = SortOption.DATE_NEWEST,
     val isLoading: Boolean = false,
+    val isRefreshingMetadata: Boolean = false,
     val isFetchingMetadata: Boolean = false,
     val isAddingLink: Boolean = false,
     val showAddLinkDialog: Boolean = false,
@@ -315,7 +316,7 @@ class HomeViewModel @Inject constructor(
 
     fun refreshLinkMetadata(link: Link) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isRefreshingMetadata = true) }
             try {
                 val meta = MetadataFetcher.fetch(link.url)
                 val updatedLink = link.copy(
@@ -328,14 +329,14 @@ class HomeViewModel @Inject constructor(
                 repository.updateLink(updatedLink)
                 _uiState.update {
                     it.copy(
-                        isLoading = false,
+                        isRefreshingMetadata = false,
                         snackbarMessage = context.getString(R.string.metadata_refreshed)
                     )
                 }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        isLoading = false,
+                        isRefreshingMetadata = false,
                         snackbarMessage = context.getString(R.string.metadata_refresh_failed)
                     )
                 }
@@ -529,8 +530,8 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun createNotificationChannel(context: Context) {
-        val name = "Link Reminders"
-        val descriptionText = "Notifications for saved links"
+        val name = context.getString(R.string.notification_channel_name)
+        val descriptionText = context.getString(R.string.notification_channel_desc)
         val importance = NotificationManager.IMPORTANCE_DEFAULT
         val channel = NotificationChannel("link_reminders", name, importance).apply {
             description = descriptionText

@@ -474,7 +474,8 @@ fun HomeScreen(
                             onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
                             onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
                             onCreateFolder = viewModel::addFolder,
-                            folderLockEnabled = state.folderLockEnabled
+                            folderLockEnabled = state.folderLockEnabled,
+                            isRefreshingMetadata = state.isRefreshingMetadata
                         )
 
                         ViewMode.GRID -> LinksGrid(
@@ -510,7 +511,8 @@ fun HomeScreen(
                             onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
                             onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
                             onCreateFolder = viewModel::addFolder,
-                            folderLockEnabled = state.folderLockEnabled
+                            folderLockEnabled = state.folderLockEnabled,
+                            isRefreshingMetadata = state.isRefreshingMetadata
                         )
                     }
                 }
@@ -798,7 +800,8 @@ fun LinksList(
     onRefreshMetadata: (Link) -> Unit = {},
     onDeleteTagGlobally: (String) -> Unit = {},
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
-    folderLockEnabled: Boolean = false
+    folderLockEnabled: Boolean = false,
+    isRefreshingMetadata: Boolean = false
 ) {
     LazyColumn(
         state = listState,
@@ -828,6 +831,7 @@ fun LinksList(
                 onDeleteTagGlobally = { tag -> onDeleteTagGlobally(tag) },
                 onCreateFolder = onCreateFolder,
                 folderLockEnabled = folderLockEnabled,
+                isRefreshingMetadata = isRefreshingMetadata,
                 modifier = Modifier
             )
         }
@@ -857,7 +861,8 @@ fun LinksGrid(
     onRefreshMetadata: (Link) -> Unit = {},
     onDeleteTagGlobally: (String) -> Unit = {},
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
-    folderLockEnabled: Boolean = false
+    folderLockEnabled: Boolean = false,
+    isRefreshingMetadata: Boolean = false
 ) {
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Fixed(2),
@@ -886,7 +891,8 @@ fun LinksGrid(
                 allTags = allTags,
                 onRefreshMetadata = { onRefreshMetadata(link) },
                 onCreateFolder = onCreateFolder,
-                folderLockEnabled = folderLockEnabled
+                folderLockEnabled = folderLockEnabled,
+                isRefreshingMetadata = isRefreshingMetadata
             )
         }
         item { Spacer(Modifier.height(80.dp)) }

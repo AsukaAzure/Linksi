@@ -81,6 +81,7 @@ fun LinkCard(
     onDeleteTagGlobally: (String) -> Unit = {},
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
     folderLockEnabled: Boolean = false,
+    isRefreshingMetadata: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -382,6 +383,7 @@ fun LinkCard(
                                     onSetTags = { tags -> onSetTags(tags) },
                                     allTags = allTags,
                                     onDeleteTagGlobally = onDeleteTagGlobally,
+                                    isRefreshingMetadata = isRefreshingMetadata
                                 )
                             }
                         }
@@ -557,6 +559,7 @@ fun LinkGridCard(
     onRefreshMetadata: () -> Unit = {},
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
     folderLockEnabled: Boolean = false,
+    isRefreshingMetadata: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -851,6 +854,7 @@ fun LinkGridCard(
             onSetExpiry = { time -> onSetExpiry(time) },
             onSetTags = { tags -> onSetTags(tags) },
             allTags = allTags,
+            isRefreshingMetadata = isRefreshingMetadata
         )
     }
 }
@@ -876,6 +880,7 @@ fun LinkOptionsSheet(
     allTags: List<String> = emptyList(),
     onRefreshMetadata: (Link) -> Unit = {},
     onDeleteTagGlobally: (String) -> Unit = {},
+    isRefreshingMetadata: Boolean = false,
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -1108,17 +1113,24 @@ fun LinkOptionsSheet(
                             modifier = Modifier
                                 .size(56.dp)
                                 .clip(RoundedCornerShape(16.dp))
-                                .clickable {
+                                .clickable(enabled = !isRefreshingMetadata) {
                                     onRefreshMetadata(link)
-                                    dismiss()
                                 }
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Outlined.Refresh, null,
-                                    Modifier.size(22.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                if (isRefreshingMetadata) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Outlined.Refresh, null,
+                                        Modifier.size(22.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
