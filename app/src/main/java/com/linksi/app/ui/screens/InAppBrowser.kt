@@ -29,6 +29,8 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import android.content.Intent
 import android.net.Uri
+import android.app.Activity
+import android.view.WindowManager
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -40,6 +42,7 @@ import com.linksi.app.R
 fun InAppBrowser(
     url: String,
     title: String = "",
+    isGlobalScreenshotProtectionEnabled: Boolean = false,
     onScrollChanged: (Int) -> Unit = {},
     onDrag: (Float) -> Unit = {},      // add
     onDragEnd: () -> Unit = {},
@@ -53,6 +56,18 @@ fun InAppBrowser(
     var canGoForward by remember { mutableStateOf(false) }
     var webView by remember { mutableStateOf<WebView?>(null) }
     var dragOffset by remember { mutableStateOf(0f) }
+
+    val activity = LocalContext.current as? Activity
+    DisposableEffect(isGlobalScreenshotProtectionEnabled) {
+        if (isGlobalScreenshotProtectionEnabled) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            if (!isGlobalScreenshotProtectionEnabled) {
+                activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
+    }
 
     BackHandler {
         if (canGoBack) webView?.goBack()

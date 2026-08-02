@@ -612,8 +612,11 @@ fun SortBottomSheet(
     onSortSelect: (SortOption) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
         windowInsets = WindowInsets(0, 0, 0, 0)
     ) {
         Column(

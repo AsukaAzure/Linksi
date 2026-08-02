@@ -22,7 +22,8 @@ data class Link(
     val expiresAt: Long? = null,
     val tags: List<String> = emptyList(),
     val inBin: Boolean = false,
-    val deletedAt: Long? = null
+    val deletedAt: Long? = null,
+    val preventScreenshot: Boolean = false
 ) : Parcelable
 
 @Parcelize

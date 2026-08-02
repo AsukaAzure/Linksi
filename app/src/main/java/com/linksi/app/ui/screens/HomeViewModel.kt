@@ -49,7 +49,8 @@ data class HomeUiState(
     val folderSortOption: FolderSortOption = FolderSortOption.NAME_AZ,
     val homeViewMode : ViewMode = ViewMode.LIST,
     val folderLockEnabled: Boolean = false,
-    val trashBinEnabled: Boolean = true
+    val trashBinEnabled: Boolean = true,
+    val globalPreventScreenshot: Boolean = false
 )
 
 @HiltViewModel
@@ -95,7 +96,8 @@ class HomeViewModel @Inject constructor(
                             FolderSortOption.valueOf(it)
                         } ?: FolderSortOption.NAME_AZ,
                         folderLockEnabled = prefs[SECURITY_FOLDER_LOCK_ENABLED] ?: false,
-                        trashBinEnabled = prefs[TRASH_BIN_ENABLED] ?: true
+                        trashBinEnabled = prefs[TRASH_BIN_ENABLED] ?: true,
+                        globalPreventScreenshot = prefs[GLOBAL_PREVENT_SCREENSHOT] ?: false
                     )
                 }
             }

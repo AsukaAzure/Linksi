@@ -577,6 +577,7 @@ fun HomeScreen(
                         InAppBrowser(
                             url = url,
                             title = browserTitle,
+                            isGlobalScreenshotProtectionEnabled = state.globalPreventScreenshot,
                             onDrag = { dragAmount ->
                                 offsetY = (offsetY + dragAmount).coerceAtLeast(0f)
                             },

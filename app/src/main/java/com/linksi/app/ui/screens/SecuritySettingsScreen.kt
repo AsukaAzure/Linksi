@@ -74,6 +74,30 @@ fun SecuritySettingsScreen(
                             )
                         }
                     )
+
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.global_prevent_screenshot)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.global_prevent_screenshot_desc),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Outlined.NoPhotography, null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = state.globalPreventScreenshot,
+                                onCheckedChange = { viewModel.setGlobalPreventScreenshot(it) }
+                            )
+                        }
+                    )
                 }
             }
 

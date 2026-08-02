@@ -354,4 +354,6 @@
     <string name="restored_links">Restored %1$d links</string>
     <string name="link_restored">Link restored</string>
     <string name="links_permanently_deleted">Permanently deleted %1$d links</string>
+    <string name="global_prevent_screenshot">App-wide Screenshot Protection</string>
+    <string name="global_prevent_screenshot_desc">Disable screenshots and screen recording throughout the entire app</string>
 </resources>

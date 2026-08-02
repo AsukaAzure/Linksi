@@ -22,7 +22,8 @@ data class LinkEntity(
     val expiresAt: Long? = null,
     val tags: String = "",
     val inBin: Boolean = false,
-    val deletedAt: Long? = null
+    val deletedAt: Long? = null,
+    val preventScreenshot: Boolean = false
 )
 
 @Entity(tableName = "folders")

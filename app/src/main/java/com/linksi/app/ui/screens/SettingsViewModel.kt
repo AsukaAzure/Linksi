@@ -54,7 +54,8 @@ data class SettingsUiState(
     val folders: List<com.linksi.app.domain.model.Folder> = emptyList(),
     val universalLock: Boolean = false,
     val folderLockEnabled: Boolean = false,
-    val trashBinEnabled: Boolean = true
+    val trashBinEnabled: Boolean = true,
+    val globalPreventScreenshot: Boolean = false
 )
 
 @HiltViewModel
@@ -106,7 +107,8 @@ class SettingsViewModel @Inject constructor(
                         pin = prefs[SECURITY_PIN] ?: "",
                         universalLock = prefs[SECURITY_UNIVERSAL_LOCK] ?: false,
                         folderLockEnabled = prefs[SECURITY_FOLDER_LOCK_ENABLED] ?: false,
-                        trashBinEnabled = prefs[TRASH_BIN_ENABLED] ?: true
+                        trashBinEnabled = prefs[TRASH_BIN_ENABLED] ?: true,
+                        globalPreventScreenshot = prefs[GLOBAL_PREVENT_SCREENSHOT] ?: false
                     )
                 }
             }
@@ -459,6 +461,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             context.dataStore.edit { it[TRASH_BIN_ENABLED] = enabled }
             _uiState.update { it.copy(trashBinEnabled = enabled) }
+        }
+    }
+
+    fun setGlobalPreventScreenshot(enabled: Boolean) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[GLOBAL_PREVENT_SCREENSHOT] = enabled }
+            _uiState.update { it.copy(globalPreventScreenshot = enabled) }
         }
     }
 

@@ -33,3 +33,4 @@ val SECURITY_FOLDER_LOCK_ENABLED = booleanPreferencesKey("security_folder_lock_e
 val LAST_APP_PAUSE_TIME = longPreferencesKey("last_app_pause_time")
 val SKIP_UPDATE_UNTIL = longPreferencesKey("skip_update_until")
 val TRASH_BIN_ENABLED = booleanPreferencesKey("trash_bin_enabled")
+val GLOBAL_PREVENT_SCREENSHOT = booleanPreferencesKey("global_prevent_screenshot")

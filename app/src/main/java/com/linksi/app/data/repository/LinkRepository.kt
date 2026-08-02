@@ -170,7 +170,8 @@ class LinkRepository @Inject constructor(
         expiresAt = entity.expiresAt,
         tags = entity.tags.split(",").filter { it.isNotBlank() },
         inBin = entity.inBin,
-        deletedAt = entity.deletedAt
+        deletedAt = entity.deletedAt,
+        preventScreenshot = entity.preventScreenshot
     )
 
     private fun toEntity(link: Link) = LinkEntity(
@@ -191,7 +192,8 @@ class LinkRepository @Inject constructor(
         expiresAt = link.expiresAt,
         tags = link.tags.joinToString(","),
         inBin = link.inBin,
-        deletedAt = link.deletedAt
+        deletedAt = link.deletedAt,
+        preventScreenshot = link.preventScreenshot
     )
 
     private fun toFolder(entity: FolderEntity) = Folder(

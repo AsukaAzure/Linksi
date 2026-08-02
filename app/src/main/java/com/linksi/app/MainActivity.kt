@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.os.LocaleListCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
+import android.view.WindowManager
 import com.linksi.app.ui.screens.HomeScreen
 import com.linksi.app.ui.screens.LockScreen
 import com.linksi.app.ui.screens.OnboardingScreen
@@ -37,6 +38,13 @@ import kotlinx.coroutines.withContext
 class MainActivity : AppCompatActivity() {
 
     private var isLocked by mutableStateOf(false)
+
+    data class SecurityPrefs(
+        val lockEnabled: Boolean,
+        val biometricEnabled: Boolean,
+        val pin: String,
+        val preventScreenshot: Boolean
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -58,10 +66,11 @@ class MainActivity : AppCompatActivity() {
 
             val securityPrefs by remember {
                 context.dataStore.data.map { prefs ->
-                    Triple(
-                        prefs[SECURITY_LOCK_ENABLED] ?: false,
-                        prefs[SECURITY_BIOMETRIC_ENABLED] ?: false,
-                        prefs[SECURITY_PIN] ?: ""
+                    SecurityPrefs(
+                        lockEnabled = prefs[SECURITY_LOCK_ENABLED] ?: false,
+                        biometricEnabled = prefs[SECURITY_BIOMETRIC_ENABLED] ?: false,
+                        pin = prefs[SECURITY_PIN] ?: "",
+                        preventScreenshot = prefs[GLOBAL_PREVENT_SCREENSHOT] ?: false
                     )
                 }
             }.collectAsState(initial = null)
@@ -69,6 +78,15 @@ class MainActivity : AppCompatActivity() {
             // Keep splash screen visible until we have all values
             splashScreen.setKeepOnScreenCondition {
                 appLanguage == null || onboardingComplete == null || securityPrefs == null
+            }
+
+            // Apply global screenshot prevention
+            LaunchedEffect(securityPrefs?.preventScreenshot) {
+                if (securityPrefs?.preventScreenshot == true) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
             }
 
             // Check if we should lock on startup
@@ -101,8 +119,8 @@ class MainActivity : AppCompatActivity() {
                 ) {
                     if (isLocked && securityPrefs != null) {
                         LockScreen(
-                            savedPin = securityPrefs!!.third,
-                            isBiometricEnabled = securityPrefs!!.second,
+                            savedPin = securityPrefs!!.pin,
+                            isBiometricEnabled = securityPrefs!!.biometricEnabled,
                             onUnlock = { isLocked = false }
                         )
                     } else {

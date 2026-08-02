@@ -656,6 +656,7 @@ fun LinkGridCard(
                                 Icon(Icons.Filled.PushPin, null,
                                     Modifier.size(10.dp),
                                     tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(4.dp))
                             }
                             if (!link.isRead) {
                                 Box(

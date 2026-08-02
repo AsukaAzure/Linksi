@@ -654,8 +654,11 @@ fun LockDelayPickerSheet(
     onDelaySelected: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
         windowInsets = WindowInsets(0, 0, 0, 0)
     ) {
         Column(
@@ -814,8 +817,11 @@ fun LanguagePickerSheet(
     onLanguageSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
         windowInsets = WindowInsets(0, 0, 0, 0)
     ) {
         Column(

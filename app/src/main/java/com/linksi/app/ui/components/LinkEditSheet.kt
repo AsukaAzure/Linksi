@@ -287,7 +287,7 @@ fun LinkEditSheet(
                     .heightIn(min = 100.dp)
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             // ── Save button ───────────────────────────────────
             Button(
