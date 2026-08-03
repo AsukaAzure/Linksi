@@ -55,7 +55,8 @@ data class SettingsUiState(
     val universalLock: Boolean = false,
     val folderLockEnabled: Boolean = false,
     val trashBinEnabled: Boolean = true,
-    val globalPreventScreenshot: Boolean = false
+    val globalPreventScreenshot: Boolean = false,
+    val exportIncludeLocked: Boolean = false
 )
 
 @HiltViewModel
@@ -108,7 +109,8 @@ class SettingsViewModel @Inject constructor(
                         universalLock = prefs[SECURITY_UNIVERSAL_LOCK] ?: false,
                         folderLockEnabled = prefs[SECURITY_FOLDER_LOCK_ENABLED] ?: false,
                         trashBinEnabled = prefs[TRASH_BIN_ENABLED] ?: true,
-                        globalPreventScreenshot = prefs[GLOBAL_PREVENT_SCREENSHOT] ?: false
+                        globalPreventScreenshot = prefs[GLOBAL_PREVENT_SCREENSHOT] ?: false,
+                        exportIncludeLocked = prefs[EXPORT_INCLUDE_LOCKED] ?: false
                     )
                 }
             }
@@ -205,8 +207,11 @@ class SettingsViewModel @Inject constructor(
     fun exportJson(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
-                val links = repository.getAllLinks().first()
-                val folders = repository.getAllFolders().first()
+                val includeLocked = _uiState.value.exportIncludeLocked
+                val links = repository.getAllLinks(!includeLocked).first()
+                val folders = repository.getAllFolders().first().let { 
+                    if (!includeLocked) it.filter { f -> !f.isLocked } else it
+                }
                 val json = exportLinksToJson(links, folders)
                 context.contentResolver.openOutputStream(uri)?.use {
                     it.write(json.toByteArray())
@@ -221,7 +226,7 @@ class SettingsViewModel @Inject constructor(
     fun exportCsv(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
-                val links = repository.getAllLinks().first()
+                val links = repository.getAllLinks(!_uiState.value.exportIncludeLocked).first()
                 val csv = exportLinksToCsv(links)
                 context.contentResolver.openOutputStream(uri)?.use {
                     it.write(csv.toByteArray())
@@ -236,7 +241,7 @@ class SettingsViewModel @Inject constructor(
     fun exportHtml(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
-                val links = repository.getAllLinks().first()
+                val links = repository.getAllLinks(!_uiState.value.exportIncludeLocked).first()
                 val html = exportLinksToHtml(links)
                 context.contentResolver.openOutputStream(uri)?.use {
                     it.write(html.toByteArray())
@@ -468,6 +473,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             context.dataStore.edit { it[GLOBAL_PREVENT_SCREENSHOT] = enabled }
             _uiState.update { it.copy(globalPreventScreenshot = enabled) }
+        }
+    }
+
+    fun setExportIncludeLocked(enabled: Boolean) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[EXPORT_INCLUDE_LOCKED] = enabled }
+            _uiState.update { it.copy(exportIncludeLocked = enabled) }
         }
     }
 

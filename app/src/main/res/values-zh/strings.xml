@@ -236,6 +236,8 @@
     <string name="exported_links_csv">已导出 %1$d 个链接为 CSV</string>
     <string name="exported_links_html">已导出 %1$d 个链接为 HTML</string>
     <string name="export_failed">导出失败：%1$s</string>
+    <string name="include_locked_links">包含已锁定的链接</string>
+    <string name="include_locked_links_subtitle">在导出中包含来自加密/锁定文件夹的链接</string>
     <string name="import_message_with_duplicates">已导入 %1$d 个链接 • 已跳过 %2$d 个重复项</string>
     <string name="import_message_success">已导入 %1$d 个链接</string>
     <string name="import_failed_msg">导入失败：%1$s</string>

@@ -18,6 +18,8 @@ import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.TableChart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,6 +29,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -46,7 +50,8 @@ fun ImportExportScreen(
     exportCsvLauncher: androidx.activity.result.ActivityResultLauncher<String>,
     exportHtmlLauncher: androidx.activity.result.ActivityResultLauncher<String>,
     importLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
-    exportFileName: (String) -> String
+    exportFileName: (String) -> String,
+    onToggleIncludeLocked: (Boolean) -> Unit
 ) {
     BackHandler { onBack() }
 
@@ -77,6 +82,19 @@ fun ImportExportScreen(
             item { SectionHeader(stringResource(R.string.export), Icons.Outlined.FileDownload) }
             item {
                 SettingsCard {
+                    SettingsItem(
+                        icon = if (state.exportIncludeLocked) Icons.Outlined.LockOpen else Icons.Outlined.Lock,
+                        title = stringResource(R.string.include_locked_links),
+                        subtitle = stringResource(R.string.include_locked_links_subtitle),
+                        onClick = { onToggleIncludeLocked(!state.exportIncludeLocked) },
+                        trailingContent = {
+                            Switch(
+                                checked = state.exportIncludeLocked,
+                                onCheckedChange = onToggleIncludeLocked
+                            )
+                        }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsItem(
                         icon = Icons.Outlined.FileDownload,
                         title = stringResource(R.string.export_json_title),

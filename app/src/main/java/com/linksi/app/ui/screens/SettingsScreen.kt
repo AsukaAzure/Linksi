@@ -540,7 +540,8 @@ fun SettingsScreen(
             exportCsvLauncher = exportCsvLauncher,
             exportHtmlLauncher = exportHtmlLauncher,
             importLauncher = importLauncher,
-            exportFileName = ::exportFileName
+            exportFileName = ::exportFileName,
+            onToggleIncludeLocked = viewModel::setExportIncludeLocked
         )
     }
 

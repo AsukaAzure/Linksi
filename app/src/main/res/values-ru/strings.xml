@@ -236,6 +236,8 @@
     <string name="exported_links_csv">Экспортировано %1$d ссылок в CSV</string>
     <string name="exported_links_html">Экспортировано %1$d ссылок в HTML</string>
     <string name="export_failed">Ошибка экспорта: %1$s</string>
+    <string name="include_locked_links">Включить заблокированные ссылки</string>
+    <string name="include_locked_links_subtitle">Включить ссылки из зашифрованных/заблокированных папок в экспорт</string>
     <string name="import_message_with_duplicates">Импортировано %1$d ссылок • %2$d дубликатов пропущено</string>
     <string name="import_message_success">Импортировано %1$d ссылок</string>
     <string name="import_failed_msg">Ошибка импорта: %1$s</string>

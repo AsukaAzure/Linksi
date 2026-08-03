@@ -238,6 +238,8 @@
     <string name="exported_links_csv">Exportados %1$d enlaces como CSV</string>
     <string name="exported_links_html">Exportados %1$d enlaces como HTML</string>
     <string name="export_failed">Error en la exportación: %1$s</string>
+    <string name="include_locked_links">Incluir enlaces bloqueados</string>
+    <string name="include_locked_links_subtitle">Incluir enlaces de carpetas cifradas/bloqueadas en las exportaciones</string>
     <string name="import_message_with_duplicates">Importados %1$d enlaces • %2$d duplicados omitidos</string>
     <string name="import_message_success">Importados %1$d enlaces</string>
     <string name="import_failed_msg">Error en la importación: %1$s</string>
