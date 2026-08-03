@@ -48,6 +48,7 @@ data class HomeUiState(
     val folderViewMode: FolderViewMode = FolderViewMode.LIST,
     val folderSortOption: FolderSortOption = FolderSortOption.NAME_AZ,
     val homeViewMode : ViewMode = ViewMode.LIST,
+    val folderLinksViewMode: ViewMode = ViewMode.LIST,
     val folderLockEnabled: Boolean = false,
     val trashBinEnabled: Boolean = true,
     val globalPreventScreenshot: Boolean = false
@@ -95,6 +96,9 @@ class HomeViewModel @Inject constructor(
                         folderSortOption = prefs[FOLDER_SORT_OPTION]?.let {
                             FolderSortOption.valueOf(it)
                         } ?: FolderSortOption.NAME_AZ,
+                        folderLinksViewMode = prefs[FOLDER_LINKS_VIEW_MODE]?.let {
+                            runCatching { ViewMode.valueOf(it) }.getOrNull()
+                        } ?: ViewMode.LIST,
                         folderLockEnabled = prefs[SECURITY_FOLDER_LOCK_ENABLED] ?: false,
                         trashBinEnabled = prefs[TRASH_BIN_ENABLED] ?: true,
                         globalPreventScreenshot = prefs[GLOBAL_PREVENT_SCREENSHOT] ?: false
@@ -441,7 +445,7 @@ class HomeViewModel @Inject constructor(
     fun hideAddFolderDialog() { _uiState.update { it.copy(showAddFolderDialog = false) } }
     fun setEditingLink(link: Link?) { _uiState.update { it.copy(editingLink = link) } }
 
-    private fun sortLinks(links: List<Link>, sort: SortOption): List<Link> {
+    fun sortLinks(links: List<Link>, sort: SortOption): List<Link> {
         val pinned = links.filter { it.isPinned }.sortedByDescending { it.createdAt }
         val unpinned = links.filter { !it.isPinned }
         val sortedUnpinned = when (sort) {
@@ -529,6 +533,10 @@ class HomeViewModel @Inject constructor(
 
     fun setHomeViewMode(mode: ViewMode) {
         viewModelScope.launch { context.dataStore.edit { it[HOME_VIEW_MODE] = mode.name } }
+    }
+
+    fun setFolderLinksViewMode(mode: ViewMode) {
+        viewModelScope.launch { context.dataStore.edit { it[FOLDER_LINKS_VIEW_MODE] = mode.name } }
     }
 
     private fun createNotificationChannel(context: Context) {

@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "linksi_settings")
 val FOLDER_VIEW_MODE = stringPreferencesKey("folder_view_mode")
 val FOLDER_SORT_OPTION = stringPreferencesKey("folder_sort_option")
+val FOLDER_LINKS_VIEW_MODE = stringPreferencesKey("folder_links_view_mode")
 val HOME_VIEW_MODE = stringPreferencesKey("home_view_mode")
 val HOME_SORT_OPTION = stringPreferencesKey("home_sort_option")
 val AI_ENABLED = booleanPreferencesKey("ai_enabled")

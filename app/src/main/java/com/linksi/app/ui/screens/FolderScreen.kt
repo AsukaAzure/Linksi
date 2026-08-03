@@ -26,12 +26,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link
+import com.linksi.app.domain.model.SortOption
 import com.linksi.app.R
 import com.linksi.app.ui.components.AddFolderDialog
 import com.linksi.app.ui.components.EditFolderDialog
 import com.linksi.app.ui.components.FolderPickerDialog
 import com.linksi.app.ui.components.LinkCard
 import com.linksi.app.ui.components.OptionsFullRow
+import com.linksi.app.ui.components.SortBottomSheet
 import com.linksi.app.ui.components.iconFromName
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
@@ -48,6 +50,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -807,12 +810,15 @@ fun FolderDetailScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    val viewMode = state.folderLinksViewMode
+    var showSortMenu by remember { mutableStateOf(false) }
+
     BackHandler(enabled = isSelectionMode) {
         selectedIds = emptySet()
     }
 
-    val folderLinks = remember(state.links, folder.id, searchQuery) {
-        state.links
+    val folderLinks = remember(state.links, folder.id, searchQuery, state.sortOption) {
+        val filtered = state.links
             .filter { it.folderId == folder.id }
             .filter {
                 if (searchQuery.isBlank()) true
@@ -820,6 +826,7 @@ fun FolderDetailScreen(
                         it.url.contains(searchQuery, ignoreCase = true) ||
                         it.domain.contains(searchQuery, ignoreCase = true)
             }
+        viewModel.sortLinks(filtered, state.sortOption)
     }
 
     Scaffold(
@@ -846,6 +853,21 @@ fun FolderDetailScreen(
                             else onBack()
                         }) {
                             Icon(Icons.Outlined.ArrowBack, stringResource(id = R.string.back))
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            viewModel.setFolderLinksViewMode(
+                                if (viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST
+                            )
+                        }) {
+                            Icon(
+                                if (viewMode == ViewMode.LIST) Icons.Outlined.GridView else Icons.Outlined.ViewList,
+                                stringResource(id = R.string.toggle_view)
+                            )
+                        }
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.Outlined.Sort, stringResource(id = R.string.sort))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -1067,48 +1089,101 @@ fun FolderDetailScreen(
                     )
                 }
             } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(folderLinks, key = { it.id }) { link ->
-                        LinkCard(
-                            link = link,
-                            isSelected = selectedIds.contains(link.id),
-                            isSelectionMode = isSelectionMode,
-                            onLongPress = {
+                when (viewMode) {
+                    ViewMode.LIST -> LinksList(
+                        links = folderLinks,
+                        folders = state.folders,
+                        selectedIds = selectedIds,
+                        isSelectionMode = isSelectionMode,
+                        onLongPress = { id ->
+                            selectedIds = if (selectedIds.contains(id)) selectedIds - id else selectedIds + id
+                        },
+                        onLinkClick = { link ->
+                            if (isSelectionMode) {
                                 selectedIds = if (selectedIds.contains(link.id))
                                     selectedIds - link.id
                                 else
                                     selectedIds + link.id
-                            },
-                            folders = state.folders,
-                            folderLockEnabled = state.folderLockEnabled,
-                            onClick = {
-                                if (isSelectionMode) {
-                                    selectedIds = if (selectedIds.contains(link.id))
-                                        selectedIds - link.id
-                                    else
-                                        selectedIds + link.id
+                            } else {
+                                viewModel.markAsRead(link, true)
+                                if (state.useInAppBrowser) {
+                                    onOpenBrowser(link.url, link.title)
                                 } else {
-                                    viewModel.markAsRead(link, true)
-                                    if (viewModel.uiState.value.useInAppBrowser) {
-                                        onOpenBrowser(link.url, link.title)
-                                    } else {
-                                        uriHandler.openUri(link.url)
-                                    }
+                                    uriHandler.openUri(link.url)
                                 }
-                            },
-                            onFavoriteToggle = { viewModel.toggleFavorite(link) },
-                            onDelete = { viewModel.deleteLink(link) },
-                            onMoveToFolder = { folderId -> viewModel.moveToFolder(link, folderId) },
-                            onEdit = { viewModel.setEditingLink(link) },
-                            onCreateFolder = viewModel::addFolder
-                        )
-                    }
-                    item { Spacer(Modifier.height(80.dp)) }
+                            }
+                        },
+                        onFavoriteToggle = viewModel::toggleFavorite,
+                        onDelete = viewModel::deleteLink,
+                        onMoveToFolder = { link, folderId -> viewModel.moveToFolder(link, folderId) },
+                        onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
+                        onFolderClick = { f -> viewModel.selectFolder(f.id) },
+                        onPin = viewModel::setPinned,
+                        onSetNote = { link, note -> viewModel.setNote(link, note) },
+                        onSetReminder = { link, time -> viewModel.setReminder(link, time) },
+                        onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
+                        onSetTags = { link, tags -> viewModel.setTags(link, tags) },
+                        allTags = state.allTags,
+                        onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
+                        onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
+                        onCreateFolder = viewModel::addFolder,
+                        folderLockEnabled = state.folderLockEnabled,
+                        isRefreshingMetadata = state.isRefreshingMetadata
+                    )
+
+                    ViewMode.GRID -> LinksGrid(
+                        links = folderLinks,
+                        folders = state.folders,
+                        selectedIds = selectedIds,
+                        isSelectionMode = isSelectionMode,
+                        onLongPress = { id ->
+                            selectedIds = if (selectedIds.contains(id)) selectedIds - id else selectedIds + id
+                        },
+                        onLinkClick = { link ->
+                            if (isSelectionMode) {
+                                selectedIds = if (selectedIds.contains(link.id))
+                                    selectedIds - link.id
+                                else
+                                    selectedIds + link.id
+                            } else {
+                                viewModel.markAsRead(link, true)
+                                if (state.useInAppBrowser) {
+                                    onOpenBrowser(link.url, link.title)
+                                } else {
+                                    uriHandler.openUri(link.url)
+                                }
+                            }
+                        },
+                        onFavoriteToggle = viewModel::toggleFavorite,
+                        onDelete = viewModel::deleteLink,
+                        onMoveToFolder = { link, folderId -> viewModel.moveToFolder(link, folderId) },
+                        onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
+                        onFolderClick = { f -> viewModel.selectFolder(f.id) },
+                        onPin = viewModel::setPinned,
+                        onSetNote = { link, note -> viewModel.setNote(link, note) },
+                        onSetReminder = { link, time -> viewModel.setReminder(link, time) },
+                        onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
+                        onSetTags = { link, tags -> viewModel.setTags(link, tags) },
+                        allTags = state.allTags,
+                        onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
+                        onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
+                        onCreateFolder = viewModel::addFolder,
+                        folderLockEnabled = state.folderLockEnabled,
+                        isRefreshingMetadata = state.isRefreshingMetadata
+                    )
                 }
             }
         }
+    }
+
+    if (showSortMenu) {
+        SortBottomSheet(
+            currentSort = state.sortOption,
+            onSortSelect = {
+                viewModel.setSort(it)
+                showSortMenu = false
+            },
+            onDismiss = { showSortMenu = false }
+        )
     }
 }
