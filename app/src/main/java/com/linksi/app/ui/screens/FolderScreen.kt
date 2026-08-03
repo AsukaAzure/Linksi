@@ -66,6 +66,7 @@ fun FoldersScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFolder by remember { mutableStateOf<Folder?>(null) }
     var folderToUnlock by remember { mutableStateOf<Folder?>(null) }
+    var folderToDelete by remember { mutableStateOf<Folder?>(null) }
 
     val context = LocalContext.current
     val securityPrefs by remember {
@@ -112,10 +113,17 @@ fun FoldersScreen(
                 }
             },
             onAddFolder = viewModel::showAddFolderDialog,
-            onDeleteFolder = { viewModel.deleteFolder(it) },
+            onDeleteFolder = { folder ->
+                if (state.folderLockEnabled && folder.isLocked && securityPrefs?.first?.isNotEmpty() == true) {
+                    folderToDelete = folder
+                } else {
+                    viewModel.deleteFolder(folder)
+                }
+            },
             onBack = onBack,
             viewModel = viewModel,
-            folderLockEnabled = state.folderLockEnabled
+            folderLockEnabled = state.folderLockEnabled,
+            isPinSet = securityPrefs?.first?.isNotEmpty() == true
         )
 
         AnimatedVisibility(
@@ -157,6 +165,34 @@ fun FoldersScreen(
                     // Close button for auth
                     IconButton(
                         onClick = { folderToUnlock = null },
+                        modifier = Modifier.padding(16.dp).align(Alignment.TopStart)
+                    ) {
+                        Icon(Icons.Outlined.Close, stringResource(R.string.cancel))
+                    }
+                }
+            }
+        }
+
+        // ── Authentication Overlay for Deletion ────────────────
+        AnimatedVisibility(
+            visible = folderToDelete != null,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it })
+        ) {
+            folderToDelete?.let { folder ->
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                    LockScreen(
+                        savedPin = securityPrefs?.first ?: "",
+                        isBiometricEnabled = securityPrefs?.second ?: false,
+                        onUnlock = {
+                            viewModel.deleteFolder(folder)
+                            folderToDelete = null
+                        }
+                    )
+
+                    // Close button for auth
+                    IconButton(
+                        onClick = { folderToDelete = null },
                         modifier = Modifier.padding(16.dp).align(Alignment.TopStart)
                     ) {
                         Icon(Icons.Outlined.Close, stringResource(R.string.cancel))
@@ -244,7 +280,8 @@ fun FolderListScreen(
     onDeleteFolder: (Folder) -> Unit,
     onBack: () -> Unit,
     viewModel: HomeViewModel,
-    folderLockEnabled: Boolean
+    folderLockEnabled: Boolean,
+    isPinSet: Boolean = false
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -368,7 +405,8 @@ fun FolderListScreen(
                                             if (swipeConfirmed) {
                                                 swipeConfirmed = false
                                                 onDeleteFolder(folder)
-                                                true
+                                                // If it's locked and locking is enabled, snap back while auth shows
+                                                !(folderLockEnabled && folder.isLocked && isPinSet)
                                             } else false
                                         }
                                         else -> false
