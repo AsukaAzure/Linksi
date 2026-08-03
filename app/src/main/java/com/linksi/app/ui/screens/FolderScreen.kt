@@ -1045,6 +1045,7 @@ fun FolderDetailScreen(
                                     selectedIds + link.id
                             },
                             folders = state.folders,
+                            folderLockEnabled = state.folderLockEnabled,
                             onClick = {
                                 if (isSelectionMode) {
                                     selectedIds = if (selectedIds.contains(link.id))

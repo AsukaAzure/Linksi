@@ -699,7 +699,7 @@ fun ShareReceiverSheet(
 
     if (showFolderPicker) {
         FolderPickerDialog(
-            folders = state.folders,
+            folders = if (state.folderLockEnabled) state.folders.filter { !it.isLocked } else state.folders,
             currentFolderId = selectedFolderId,
             onSelect = { folderId ->
                 selectedFolderId = folderId
