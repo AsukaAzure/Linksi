@@ -14,7 +14,7 @@ import java.util.*
 fun exportLinksToJson(links: List<Link>, folders: List<Folder>): String {
     val root = JSONObject()
     root.put("app", "Linksi")
-    root.put("version", 1)
+    root.put("version", 12)
     root.put("exportedAt", System.currentTimeMillis())
 
     val foldersArr = JSONArray()
@@ -24,6 +24,8 @@ fun exportLinksToJson(links: List<Link>, folders: List<Folder>): String {
             put("name", folder.name)
             put("icon", folder.icon)
             put("color", folder.color)
+            put("createdAt", folder.createdAt)
+            put("isLocked", folder.isLocked)
         })
     }
     root.put("folders", foldersArr)
@@ -40,7 +42,16 @@ fun exportLinksToJson(links: List<Link>, folders: List<Folder>): String {
             put("folderId", link.folderId ?: JSONObject.NULL)
             put("isFavorite", link.isFavorite)
             put("isRead", link.isRead)
+            put("isPinned", link.isPinned)
             put("createdAt", link.createdAt)
+            put("reminderAt", link.reminderAt ?: JSONObject.NULL)
+            put("expiresAt", link.expiresAt ?: JSONObject.NULL)
+            put("deletedAt", link.deletedAt ?: JSONObject.NULL)
+            put("previewImageUrl", link.previewImageUrl)
+            put("note", link.note)
+            put("inBin", link.inBin)
+            put("preventScreenshot", link.preventScreenshot)
+            put("tags", JSONArray(link.tags))
         })
     }
     root.put("links", linksArr)
@@ -71,7 +82,9 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
                 id = 0, // reset ID, will be re-inserted
                 name = f.getString("name"),
                 icon = f.optString("icon", "folder"),
-                color = f.optString("color", "#6750A4")
+                color = f.optString("color", "#6750A4"),
+                createdAt = f.optLong("createdAt", System.currentTimeMillis()),
+                isLocked = f.optBoolean("isLocked", false)
             ))
         }
     }
@@ -80,6 +93,15 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
     val linksArr = root.getJSONArray("links")
     for (i in 0 until linksArr.length()) {
         val l = linksArr.getJSONObject(i)
+        
+        val tags = mutableListOf<String>()
+        val tagsArr = l.optJSONArray("tags")
+        if (tagsArr != null) {
+            for (j in 0 until tagsArr.length()) {
+                tags.add(tagsArr.getString(j))
+            }
+        }
+
         links.add(Link(
             id = 0,
             url = l.getString("url"),
@@ -90,7 +112,16 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
             folderId = null, // re-mapped after folder insert
             isFavorite = l.optBoolean("isFavorite"),
             isRead = l.optBoolean("isRead"),
-            createdAt = l.optLong("createdAt", System.currentTimeMillis())
+            isPinned = l.optBoolean("isPinned"),
+            createdAt = l.optLong("createdAt", System.currentTimeMillis()),
+            reminderAt = if (l.isNull("reminderAt")) null else l.optLong("reminderAt"),
+            expiresAt = if (l.isNull("expiresAt")) null else l.optLong("expiresAt"),
+            deletedAt = if (l.isNull("deletedAt")) null else l.optLong("deletedAt"),
+            previewImageUrl = l.optString("previewImageUrl"),
+            note = l.optString("note"),
+            inBin = l.optBoolean("inBin"),
+            preventScreenshot = l.optBoolean("preventScreenshot"),
+            tags = tags
         ))
     }
 
@@ -125,12 +156,13 @@ fun importFromBrowserHtml(context: Context, uri: Uri): ImportResult {
 // ── Export as CSV ─────────────────────────────────────────────
 fun exportLinksToCsv(links: List<Link>): String {
     val sb = StringBuilder()
-    sb.appendLine("url,title,description,domain,tags,isFavorite,isRead,createdAt")
+    sb.appendLine("url,title,description,domain,tags,isFavorite,isRead,isPinned,createdAt,note,previewImageUrl")
     links.forEach { link ->
         sb.appendLine(
             "${csvEscape(link.url)},${csvEscape(link.title)},${csvEscape(link.description)}," +
-                    "${csvEscape(link.domain)}," +
-                    "${link.isFavorite},${link.isRead},${link.createdAt}"
+                    "${csvEscape(link.domain)},${csvEscape(link.tags.joinToString(";"))}," +
+                    "${link.isFavorite},${link.isRead},${link.isPinned},${link.createdAt}," +
+                    "${csvEscape(link.note)},${csvEscape(link.previewImageUrl)}"
         )
     }
     return sb.toString()

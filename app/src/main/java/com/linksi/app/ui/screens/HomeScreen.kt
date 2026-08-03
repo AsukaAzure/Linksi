@@ -213,20 +213,13 @@ fun HomeScreen(
                     onClick = viewModel::showAddLinkDialog,
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = CircleShape,
                     modifier = Modifier
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Filled.Add, null, Modifier.size(20.dp))
-                        Text(
-                            stringResource(id = com.linksi.app.R.string.save_link), style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = stringResource(id = com.linksi.app.R.string.save_link)
+                    )
                 }
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -922,10 +915,13 @@ fun EmptyState(hasSearch: Boolean, onAddLink: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (!hasSearch) {
-                Button(onClick = onAddLink) {
-                    Icon(Icons.Filled.Add, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(id = com.linksi.app.R.string.save_link))
+                Button(
+                    onClick = onAddLink,
+                    modifier = Modifier.size(56.dp),
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Icon(Icons.Filled.Add, null, Modifier.size(24.dp))
                 }
             }
         }
