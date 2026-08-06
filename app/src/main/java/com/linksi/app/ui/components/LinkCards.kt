@@ -512,7 +512,7 @@ fun LinkCard(
 
         if (showFolderPicker) {
             FolderPickerDialog(
-                folders = if (folderLockEnabled) folders.filter { !it.isLocked } else folders,
+                folders = folders,
                 currentFolderId = link.folderId,
                 onSelect = { folderId -> onMoveToFolder(folderId); showFolderPicker = false },
                 onDismiss = { showFolderPicker = false },
@@ -800,7 +800,7 @@ fun LinkGridCard(
 
     if (showFolderPicker) {
         FolderPickerDialog(
-            folders = if (folderLockEnabled) folders.filter { !it.isLocked } else folders,
+            folders = folders,
             currentFolderId = link.folderId,
             onSelect = { folderId -> onMoveToFolder(folderId); showFolderPicker = false },
             onDismiss = { showFolderPicker = false },

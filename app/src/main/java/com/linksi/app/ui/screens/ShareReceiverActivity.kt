@@ -2,7 +2,7 @@ package com.linksi.app.ui.screens
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,7 +48,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @AndroidEntryPoint
-class ShareReceiverActivity : ComponentActivity() {
+class ShareReceiverActivity : AppCompatActivity() {
 
     private val viewModel: HomeViewModel by viewModels()
 
@@ -699,7 +699,7 @@ fun ShareReceiverSheet(
 
     if (showFolderPicker) {
         FolderPickerDialog(
-            folders = if (state.folderLockEnabled) state.folders.filter { !it.isLocked } else state.folders,
+            folders = state.folders,
             currentFolderId = selectedFolderId,
             onSelect = { folderId ->
                 selectedFolderId = folderId

@@ -340,7 +340,7 @@ fun HomeScreen(
 
                                 if (showFolderPicker) {
                                     FolderPickerDialog(
-                                        folders = if (state.folderLockEnabled) state.folders.filter { !it.isLocked } else state.folders,
+                                        folders = state.folders,
                                         currentFolderId = null,
                                         onSelect = { folderId ->
                                             viewModel.moveSelectedToFolder(folderId)

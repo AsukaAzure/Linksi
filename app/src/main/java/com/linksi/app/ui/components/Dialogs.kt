@@ -1,28 +1,22 @@
 package com.linksi.app.ui.components
 
-import android.Manifest
-import android.app.AlertDialog
-import android.app.Dialog
-import android.content.pm.PackageManager
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -32,340 +26,264 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.room.util.TableInfo
-import androidx.compose.ui.res.stringResource
-import com.linksi.app.R
-import com.linksi.app.domain.model.*
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
-import java.text.SimpleDateFormat
-import java.util.*
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.fragment.app.FragmentActivity
+import com.linksi.app.R
+import com.linksi.app.domain.model.Folder
+import com.linksi.app.domain.model.SortOption
+import com.linksi.app.utils.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 
 data class FolderIconOption(
     val name: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
+    val icon: ImageVector
 )
 
-val FOLDER_ICONS = listOf(
+val folderIcons = listOf(
     FolderIconOption("folder", Icons.Outlined.Folder),
-    FolderIconOption("work", Icons.Outlined.Work),
-    FolderIconOption("bookmark", Icons.Outlined.Bookmark),
-    FolderIconOption("star", Icons.Outlined.Star),
-    FolderIconOption("heart", Icons.Outlined.FavoriteBorder),
-    FolderIconOption("code", Icons.Outlined.Code),
-    FolderIconOption("terminal", Icons.Outlined.Terminal),
-    FolderIconOption("database", Icons.Outlined.Storage),
-    FolderIconOption("web", Icons.Outlined.Language),
-    FolderIconOption("ai", Icons.Outlined.AutoAwesome),
-    FolderIconOption("cloud", Icons.Outlined.Cloud),
-    FolderIconOption("security", Icons.Outlined.Lock),
-    FolderIconOption("bug", Icons.Outlined.BugReport),
-    FolderIconOption("analytics", Icons.Outlined.Analytics),
-    FolderIconOption("tech", Icons.Outlined.Laptop),
-    FolderIconOption("mobile", Icons.Outlined.PhoneAndroid),
-    FolderIconOption("school", Icons.Outlined.School),
-    FolderIconOption("book", Icons.Outlined.AutoStories),
-    FolderIconOption("writing", Icons.Outlined.EditNote),
-    FolderIconOption("design", Icons.Outlined.Brush),
-    FolderIconOption("photo", Icons.Outlined.Photo),
-    FolderIconOption("camera", Icons.Outlined.PhotoCamera),
-    FolderIconOption("video", Icons.Outlined.VideoCameraBack),
+    FolderIconOption("work", Icons.Outlined.WorkOutline),
+    FolderIconOption("home", Icons.Outlined.Home),
+    FolderIconOption("star", Icons.Outlined.StarOutline),
+    FolderIconOption("favorite", Icons.Outlined.FavoriteBorder),
+    FolderIconOption("bookmark", Icons.Outlined.BookmarkBorder),
+    FolderIconOption("book", Icons.Outlined.Book),
     FolderIconOption("movie", Icons.Outlined.Movie),
     FolderIconOption("music", Icons.Outlined.MusicNote),
-    FolderIconOption("audio", Icons.Outlined.Mic),
-    FolderIconOption("game", Icons.Outlined.SportsEsports),
-    FolderIconOption("shopping", Icons.Outlined.ShoppingCart),
-    FolderIconOption("finance", Icons.Outlined.AttachMoney),
-    FolderIconOption("wallet", Icons.Outlined.AccountBalanceWallet),
+    FolderIconOption("game", Icons.Outlined.Gamepad),
+    FolderIconOption("code", Icons.Outlined.Code),
+    FolderIconOption("school", Icons.Outlined.School),
     FolderIconOption("travel", Icons.Outlined.Flight),
     FolderIconOption("food", Icons.Outlined.Restaurant),
     FolderIconOption("health", Icons.Outlined.HealthAndSafety),
-    FolderIconOption("fitness", Icons.Outlined.FitnessCenter),
-    FolderIconOption("news", Icons.Outlined.Newspaper),
-    FolderIconOption("social", Icons.Outlined.Group),
-    FolderIconOption("events", Icons.Outlined.Event),
-    FolderIconOption("idea", Icons.Outlined.Lightbulb),
-    FolderIconOption("home", Icons.Outlined.Home),
-    FolderIconOption("personal", Icons.Outlined.Person),
-    FolderIconOption("map", Icons.Outlined.Map),
-    FolderIconOption("messaging", Icons.Outlined.Chat),
-    FolderIconOption("email", Icons.Outlined.Mail),
-    FolderIconOption("productivity", Icons.Outlined.TaskAlt),
-    FolderIconOption("rocket", Icons.Outlined.RocketLaunch),
-    FolderIconOption("tool", Icons.Outlined.Build),
-    FolderIconOption("history", Icons.Outlined.History),
-    FolderIconOption("archive", Icons.Outlined.Archive),
-    FolderIconOption("science", Icons.Outlined.Science),
-    FolderIconOption("nature", Icons.Outlined.Terrain),
+    FolderIconOption("finance", Icons.Outlined.Payments),
+    FolderIconOption("shopping", Icons.Outlined.ShoppingCart),
+    FolderIconOption("camera", Icons.Outlined.PhotoCamera),
+    FolderIconOption("lightbulb", Icons.Outlined.Lightbulb),
+    FolderIconOption("palette", Icons.Outlined.Palette),
     FolderIconOption("pets", Icons.Outlined.Pets),
+    FolderIconOption("fitness", Icons.Outlined.FitnessCenter)
 )
 
-fun iconFromName(name: String) =
-    FOLDER_ICONS.find { it.name == name }?.icon ?: Icons.Outlined.Folder
+val folderColors = listOf(
+    "#6750A4", // Deep Purple (Default)
+    "#F44336", // Red
+    "#E91E63", // Pink
+    "#9C27B0", // Purple
+    "#3F51B5", // Indigo
+    "#2196F3", // Blue
+    "#03A9F4", // Light Blue
+    "#00BCD4", // Cyan
+    "#009688", // Teal
+    "#4CAF50", // Green
+    "#8BC34A", // Light Green
+    "#CDDC39", // Lime
+    "#FFEB3B", // Yellow
+    "#FFC107", // Amber
+    "#FF9800", // Orange
+    "#FF5722", // Deep Orange
+    "#795548", // Brown
+    "#607D8B", // Blue Grey
+    "#000000"  // Black
+)
 
-// ─────────────────────────────────────────────────────────────
-// Add Link Dialog
-// ─────────────────────────────────────────────────────────────
 @Composable
-fun AddLinkDialog(
-    folders: List<Folder>,
-    isFetchingMetadata: Boolean,
-    onDismiss: () -> Unit,
-    onConfirm: (url: String, folderId: Long?, reminderAt: Long?) -> Unit,
-    onCreateFolder: (name: String, icon: String, color: String) -> Unit = { _, _, _ -> },
-) {
-    var url by remember { mutableStateOf("") }
-    var selectedFolderId by remember { mutableStateOf<Long?>(null) }
-    var showCreateFolder by remember { mutableStateOf(false) }
-    var reminderAt by remember { mutableStateOf<Long?>(null) }
-    val startingShape =
-        RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
-    val middleShape =
-        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-    val endingShape =
-        RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Filled.Link, null) },
-        title = { Text(stringResource(R.string.save_link)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = url,
-                    onValueChange = { url = it },
-                    label = { Text(stringResource(R.string.url)) },
-                    placeholder = { Text("https://example.com") },
-                    leadingIcon = { Icon(Icons.Outlined.Link, null) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Uri,
-                        imeAction = ImeAction.Done
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Folder picker
-                // AFTER
-                Text(stringResource(R.string.folders), style = MaterialTheme.typography.labelMedium)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    item {
-                        FilterChip(
-                            shape = startingShape,
-                            selected = selectedFolderId == null,
-                            onClick = { selectedFolderId = null },
-                            label = { Text("📥 " + stringResource(R.string.inbox)) }
-                        )
-                    }
-                    items(folders.filter { !it.isLocked }) { folder ->
-                        FilterChip(
-                            shape = middleShape,
-                            selected = selectedFolderId == folder.id,
-                            onClick = { selectedFolderId = folder.id },
-                            label = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        iconFromName(folder.icon), null,
-                                        Modifier.size(14.dp),
-                                        tint = Color(android.graphics.Color.parseColor(folder.color))
-                                    )
-                                    Text(folder.name)
-                                }
-                            }
-                        )
-                    }
-
-                    item {
-                        FilterChip(
-                            shape = endingShape,
-                            selected = false,
-                            onClick = { showCreateFolder = true },
-                            label = { Text(stringResource(R.string.new_folder)) },
-                            leadingIcon = {
-                                Icon(Icons.Filled.Add, null, Modifier.size(14.dp))
-                            }
-                        )
-                    }
-                }
-
-                if (showCreateFolder) {
-                    AddFolderDialog(
-                        onDismiss = { showCreateFolder = false },
-                        onConfirm = { name, icon, color ->
-                            onCreateFolder(name, icon, color)
-                            showCreateFolder = false
-                        }
-                    )
-                }
-
-                ReminderPicker(
-                    reminderAt = reminderAt,
-                    onReminderSet = { reminderAt = it }
-                )
-
-                if (isFetchingMetadata) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                        Text(stringResource(R.string.fetching_preview), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (url.isNotBlank()) onConfirm(
-                        url.trim(),
-                        selectedFolderId,
-                        reminderAt
-                    )
-                },
-                enabled = url.isNotBlank() && !isFetchingMetadata
-            ) {
-                Text(stringResource(R.string.save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        }
-    )
+fun iconFromName(name: String): ImageVector {
+    return folderIcons.find { it.name == name }?.icon ?: Icons.Outlined.Folder
 }
-
-val FOLDER_COLORS = listOf(
-    "#6366F1",
-    "#8B5CF6",
-    "#EC4899",
-    "#EF4444",
-    "#F59E0B",
-    "#10B981",
-    "#06B6D4",
-    "#3B82F6",
-    "#84CC16",
-    "#F97316"
-)
 
 @Composable
 fun AddFolderDialog(
     onDismiss: () -> Unit,
-    onConfirm: (name: String, emoji: String, color: String) -> Unit
+    onConfirm: (String, String, String) -> Unit,
+    initialName: String = "",
+    initialIcon: String = "folder",
+    initialColor: String = "#6750A4",
+    title: String = stringResource(R.string.new_folder)
 ) {
-    var name by remember { mutableStateOf("") }
-    var selectedIcon by remember { mutableStateOf("folder") }
-    var selectedColor by remember { mutableStateOf(FOLDER_COLORS[0]) }
+    var name by remember { mutableStateOf(initialName) }
+    var selectedIcon by remember { mutableStateOf(initialIcon) }
+    var selectedColor by remember { mutableStateOf(initialColor) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Filled.CreateNewFolder, null) },
-        title = { Text(stringResource(R.string.new_folder)) },
+        title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.folder_name)) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (name.isNotBlank()) onConfirm(name, selectedIcon, selectedColor)
+                    })
                 )
 
-                Text(stringResource(R.string.icon), style = MaterialTheme.typography.labelMedium)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(FOLDER_ICONS) { option ->
+                Text(
+                    stringResource(R.string.icon),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    items(folderIcons) { iconOption ->
+                        val isSelected = selectedIcon == iconOption.name
                         Surface(
+                            onClick = { selectedIcon = iconOption.name },
                             shape = CircleShape,
-                            color = if (selectedIcon == option.name)
-                                MaterialTheme.colorScheme.primaryContainer
-                            else
-                                MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clickable { selectedIcon = option.name }
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    option.icon, null,
-                                    Modifier.size(20.dp),
-                                    tint = if (selectedIcon == option.name)
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    iconOption.icon,
+                                    null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
                     }
                 }
 
-                Text(stringResource(R.string.color), style = MaterialTheme.typography.labelMedium)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(FOLDER_COLORS) { color ->
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color(android.graphics.Color.parseColor(color)))
-                                .then(
-                                    if (color == selectedColor)
-                                        Modifier.border(
-                                            2.dp,
-                                            MaterialTheme.colorScheme.onSurface,
-                                            CircleShape
-                                        )
-                                    else Modifier
-                                )
-                                .clickable { selectedColor = color }
-                        )
+                Text(
+                    stringResource(R.string.color),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    items(folderColors) { colorHex ->
+                        val color = Color(android.graphics.Color.parseColor(colorHex))
+                        val isSelected = selectedColor == colorHex
+                        Surface(
+                            onClick = { selectedColor = colorHex },
+                            shape = CircleShape,
+                            color = color,
+                            modifier = Modifier.size(40.dp),
+                            border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+                            else null
+                        ) {
+                            if (isSelected) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        null,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = if (colorHex == "#FFFFFF" || colorHex == "#FFEB3B") Color.Black else Color.White
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
         },
         confirmButton = {
             Button(
-                onClick = {
-                    if (name.isNotBlank()) onConfirm(
-                        name.trim(),
-                        selectedIcon,
-                        selectedColor
-                    )
-                },
+                onClick = { onConfirm(name, selectedIcon, selectedColor) },
                 enabled = name.isNotBlank()
             ) {
-                Text(stringResource(R.string.create))
+                Text(stringResource(R.string.save))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
     )
 }
 
-// ─────────────────────────────────────────────────────────────
-// Folder Picker Dialog
-// ─────────────────────────────────────────────────────────────
+@Composable
+fun EditFolderDialog(
+    folder: Folder,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String) -> Unit
+) {
+    AddFolderDialog(
+        onDismiss = onDismiss,
+        onConfirm = onConfirm,
+        initialName = folder.name,
+        initialIcon = folder.icon,
+        initialColor = folder.color,
+        title = stringResource(R.string.edit_folder)
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SortBottomSheet(
+    currentSort: SortOption,
+    onSortSelect: (SortOption) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp)
+        ) {
+            Text(
+                stringResource(R.string.sort_by),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+            )
+            HorizontalDivider()
+
+            val options = listOf(
+                SortOption.DATE_NEWEST to (stringResource(R.string.newest_first) to Icons.Outlined.Schedule),
+                SortOption.DATE_OLDEST to (stringResource(R.string.oldest_first) to Icons.Outlined.Schedule),
+                SortOption.TITLE_AZ to (stringResource(R.string.title_az) to Icons.Outlined.SortByAlpha),
+                SortOption.TITLE_ZA to (stringResource(R.string.title_za) to Icons.Outlined.SortByAlpha),
+                SortOption.DOMAIN to (stringResource(R.string.by_domain) to Icons.Outlined.Language)
+            )
+
+            options.forEach { (option, pair) ->
+                val (label, icon) = pair
+                ListItem(
+                    headlineContent = { Text(label) },
+                    leadingContent = { Icon(icon, null) },
+                    trailingContent = {
+                        if (option == currentSort) {
+                            Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    },
+                    modifier = Modifier.clickable {
+                        onSortSelect(option)
+                        onDismiss()
+                    }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun FolderPickerDialog(
     folders: List<Folder>,
@@ -374,9 +292,21 @@ fun FolderPickerDialog(
     onDismiss: () -> Unit,
     onCreateFolder: ((String, String, String) -> Unit)? = null
 ) {
+    val context = LocalContext.current
+    val securityPrefs by remember {
+        context.dataStore.data.map { prefs ->
+            Triple(
+                prefs[SECURITY_PIN] ?: "",
+                prefs[SECURITY_BIOMETRIC_ENABLED] ?: false,
+                prefs[SECURITY_FOLDER_LOCK_ENABLED] ?: false
+            )
+        }
+    }.collectAsState(initial = Triple("", false, false))
+
     var visible by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
-    val scope = rememberCoroutineScope()
+    var folderToUnlock by remember { mutableStateOf<Folder?>(null) }
+    var showPinVerify by remember { mutableStateOf(false) }
 
     // Trigger enter animation on first frame
     LaunchedEffect(Unit) { visible = true }
@@ -399,14 +329,38 @@ fun FolderPickerDialog(
         visible = false
     }
 
+    fun handleFolderClick(folder: Folder) {
+        val (savedPin, biometricEnabled, folderLockEnabled) = securityPrefs
+        if (folderLockEnabled && folder.isLocked && savedPin.isNotEmpty()) {
+            folderToUnlock = folder
+            if (biometricEnabled && SecurityManager.canUseBiometric(context)) {
+                SecurityManager.showBiometricPrompt(
+                    activity = context as FragmentActivity,
+                    title = context.getString(R.string.unlock_folder),
+                    subtitle = folder.name,
+                    onSuccess = { select(folder.id) },
+                    onError = { showPinVerify = true }
+                )
+            } else {
+                showPinVerify = true
+            }
+        } else {
+            if (folder.id == currentFolderId) {
+                select(null)
+            } else {
+                select(folder.id)
+            }
+        }
+    }
+
     BackHandler { dismiss() }
 
     Dialog(
         onDismissRequest = { dismiss() },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,  // handled by BackHandler
-            dismissOnClickOutside = false  // handled manually below
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
         )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -498,7 +452,7 @@ fun FolderPickerDialog(
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                             )
 
-                            // ── Existing folders ──────────────────────────────
+                            // Existing folders
                             folders.forEach { folder ->
                                 val isCurrentFolder = folder.id == currentFolderId
                                 FolderPickerItem(
@@ -521,16 +475,10 @@ fun FolderPickerDialog(
                                     },
                                     name = folder.name,
                                     isSelected = isCurrentFolder,
+                                    isLocked = folder.isLocked,
                                     color = Color(android.graphics.Color.parseColor(folder.color)),
                                     subtitle = if (isCurrentFolder) stringResource(R.string.tap_to_remove) else null,
-                                    onClick = {
-                                        if (isCurrentFolder) {
-                                            // Tapping current folder removes the link from it
-                                            select(null)
-                                        } else {
-                                            select(folder.id)
-                                        }
-                                    }
+                                    onClick = { handleFolderClick(folder) }
                                 )
                             }
 
@@ -550,6 +498,130 @@ fun FolderPickerDialog(
             }
         }
     }
+
+    if (showPinVerify && folderToUnlock != null) {
+        PinVerifyDialog(
+            savedPin = securityPrefs.first,
+            onSuccess = {
+                showPinVerify = false
+                select(folderToUnlock?.id)
+            },
+            onDismiss = {
+                showPinVerify = false
+                folderToUnlock = null
+            }
+        )
+    }
+}
+
+@Composable
+fun PinVerifyDialog(
+    savedPin: String,
+    onSuccess: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var enteredPin by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf(false) }
+
+    LaunchedEffect(enteredPin) {
+        if (enteredPin.length == 4) {
+            if (enteredPin == savedPin) {
+                onSuccess()
+            } else {
+                error = true
+                delay(500)
+                enteredPin = ""
+                error = false
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.enter_pin)) },
+        text = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    repeat(4) { index ->
+                        val isFilled = index < enteredPin.length
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (error) MaterialTheme.colorScheme.error
+                                    else if (isFilled) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant
+                                )
+                        )
+                    }
+                }
+
+                val numpad = listOf(
+                    listOf("1", "2", "3"),
+                    listOf("4", "5", "6"),
+                    listOf("7", "8", "9"),
+                    listOf("", "0", "backspace")
+                )
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    numpad.forEach { row ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            row.forEach { item ->
+                                when (item) {
+                                    "backspace" -> {
+                                        IconButton(
+                                            onClick = { if (enteredPin.isNotEmpty()) enteredPin = enteredPin.dropLast(1) },
+                                            modifier = Modifier.size(48.dp)
+                                        ) {
+                                            Icon(Icons.Outlined.Backspace, null)
+                                        }
+                                    }
+                                    "" -> {
+                                        Spacer(modifier = Modifier.size(48.dp))
+                                    }
+                                    else -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .clip(CircleShape)
+                                                .clickable { if (enteredPin.length < 4) enteredPin += item }
+                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = item,
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable
@@ -559,7 +631,8 @@ fun FolderPickerItem(
     isSelected: Boolean,
     color: Color,
     onClick: () -> Unit,
-    subtitle: String? = null
+    subtitle: String? = null,
+    isLocked: Boolean = false
 ) {
     Surface(
         color = if (isSelected)
@@ -578,11 +651,23 @@ fun FolderPickerItem(
         ) {
             icon()
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (isLocked) {
+                        Spacer(Modifier.width(6.dp))
+                        Icon(
+                            Icons.Outlined.Lock,
+                            null,
+                            Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
                 if (subtitle != null) {
                     Text(
                         subtitle,
@@ -601,466 +686,3 @@ fun FolderPickerItem(
         }
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// Sort Bottom Sheet
-// ─────────────────────────────────────────────────────────────
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SortBottomSheet(
-    currentSort: SortOption,
-    onSortSelect: (SortOption) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        windowInsets = WindowInsets(0, 0, 0, 0)
-    ) {
-        Column(
-            modifier = Modifier
-                .navigationBarsPadding()
-        ) {
-            Text(
-                stringResource(R.string.sort_by),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-            )
-            SortOption.values().forEach { option ->
-                ListItem(
-                    headlineContent = { Text(option.label()) },
-                    leadingContent = { Icon(option.icon(), null) },
-                    trailingContent = {
-                        if (option == currentSort) Icon(
-                            Icons.Filled.Check,
-                            null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    modifier = Modifier.clickable { onSortSelect(option) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SortOption.label() = when (this) {
-    SortOption.DATE_NEWEST -> stringResource(R.string.newest_first)
-    SortOption.DATE_OLDEST -> stringResource(R.string.oldest_first)
-    SortOption.TITLE_AZ -> stringResource(R.string.title_az)
-    SortOption.TITLE_ZA -> stringResource(R.string.title_za)
-    SortOption.DOMAIN -> stringResource(R.string.by_domain)
-}
-
-private fun SortOption.icon() = when (this) {
-    SortOption.DATE_NEWEST, SortOption.DATE_OLDEST -> Icons.Outlined.Schedule
-    SortOption.TITLE_AZ, SortOption.TITLE_ZA -> Icons.Outlined.SortByAlpha
-    SortOption.DOMAIN -> Icons.Outlined.Language
-}
-
-@Composable
-fun EditLinkDialog(
-    link: Link,
-    folders: List<Folder>,
-    onDismiss: () -> Unit,
-    onConfirm: (Link) -> Unit
-) {
-    var url by remember { mutableStateOf(link.url) }
-    var title by remember { mutableStateOf(link.title) }
-    var description by remember { mutableStateOf(link.description) }
-    var reminderAt by remember { mutableStateOf(link.reminderAt) }
-    var selectedFolderId by remember {
-        mutableStateOf(link.folderId)
-    }
-    val startingShape =
-        RoundedCornerShape(
-            topStart = 20.dp,
-            topEnd = 4.dp,
-            bottomStart = 20.dp,
-            bottomEnd = 4.dp
-        )
-    val middleShape =
-        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-    val endingShape = RoundedCornerShape(
-        topStart = 4.dp,
-        topEnd = 20.dp,
-        bottomStart = 4.dp,
-        bottomEnd = 20.dp
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Outlined.Edit, null) },
-        title = { Text(stringResource(R.string.edit_link_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = url, onValueChange = { url = it },
-                    label = { Text(stringResource(R.string.url)) }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = title, onValueChange = { title = it },
-                    label = { Text(stringResource(R.string.title)) }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = description, onValueChange = { description = it },
-                    label = { Text(stringResource(R.string.description)) }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (folders.isNotEmpty()) {
-                    Text(stringResource(R.string.folders), style = MaterialTheme.typography.labelMedium)
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        item {
-                            FilterChip(
-                                shape = startingShape,
-                                selected = selectedFolderId == null,
-                                onClick = { selectedFolderId = null },
-                                label = { Text("📥 " + stringResource(R.string.inbox)) })
-                        }
-                        itemsIndexed(folders.filter { !it.isLocked }) { index, folder ->
-                            val currentShape = if (index == folders.filter { !it.isLocked }.lastIndex){
-                                endingShape
-                            } else {
-                                middleShape
-                            }
-                            FilterChip(
-                                shape = currentShape,
-                                selected = selectedFolderId == folder.id,
-                                onClick = { selectedFolderId = folder.id },
-                                label = {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Icon(
-                                            iconFromName(folder.icon),
-                                            null,
-                                            Modifier.size(14.dp),
-                                            tint = Color(
-                                                android.graphics.Color.parseColor(
-                                                    folder.color
-                                                )
-                                            )
-                                        )
-                                        Text(folder.name)
-                                    }
-                                })
-                        }
-                    }
-                }
-                ReminderPicker(reminderAt = reminderAt, onReminderSet = { reminderAt = it })
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                onConfirm(
-                    link.copy(
-                        url = url.trim(),
-                        title = title.trim(),
-                        description = description.trim(),
-                        folderId = selectedFolderId,
-                        reminderAt = reminderAt
-                    )
-                )
-            }, enabled = url.isNotBlank()) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ReminderPicker(
-    reminderAt: Long?,
-    onReminderSet: (Long?) -> Unit
-) {
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
-    var selectedDate by remember { mutableStateOf<Long?>(null) }
-    val context = LocalContext.current
-    val dateFormatter =
-        remember { SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault()) }
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-
-    }
-
-    fun setReminderWithPermissionCheck(time: Long) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val granted = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-
-            if (!granted) {
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-        onReminderSet(time)
-    }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Icon(
-            Icons.Outlined.Notifications, null,
-            Modifier.size(18.dp),
-            tint = if (reminderAt != null) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        if (reminderAt != null) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        dateFormatter.format(Date(reminderAt)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(
-                        onClick = { onReminderSet(null) },
-                        modifier = Modifier.size(18.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.Close, null, Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-            }
-        } else {
-            val suggestions = listOf(
-                stringResource(R.string.one_hour) to (System.currentTimeMillis() + 3_600_000L),
-                stringResource(R.string.tonight) to todayAt(21, 0),
-                stringResource(R.string.tomorrow) to tomorrowAt(9, 0),
-                stringResource(R.string.weekend) to nextWeekendAt(9, 0),
-            )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                val startingShape =
-                    RoundedCornerShape(
-                        topStart = 20.dp,
-                        topEnd = 4.dp,
-                        bottomStart = 20.dp,
-                        bottomEnd = 4.dp
-                    )
-                val middleShape =
-                    RoundedCornerShape(
-                        topStart = 4.dp,
-                        topEnd = 4.dp,
-                        bottomStart = 4.dp,
-                        bottomEnd = 4.dp
-                    )
-                val endingShape =
-                    RoundedCornerShape(
-                        topStart = 4.dp,
-                        topEnd = 20.dp,
-                        bottomStart = 4.dp,
-                        bottomEnd = 20.dp
-                    )
-                items(suggestions) { (label, time) ->
-                    SuggestionChip(
-                        shape = if (label == stringResource(R.string.one_hour)) startingShape else middleShape,
-                        onClick = { setReminderWithPermissionCheck(time) },
-                        label = { Text(label, style = MaterialTheme.typography.labelSmall) }
-                    )
-                }
-                item {
-                    SuggestionChip(
-                        shape = endingShape,
-                        onClick = { showDatePicker = true },
-                        label = { Text(stringResource(R.string.custom), style = MaterialTheme.typography.labelSmall) }
-                    )
-                }
-            }
-        }
-    }
-
-    if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = System.currentTimeMillis()
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    selectedDate = datePickerState.selectedDateMillis
-                    showDatePicker = false
-                    showTimePicker = true
-                }) { Text(stringResource(R.string.next)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        ) { DatePicker(state = datePickerState) }
-    }
-
-    if (showTimePicker) {
-        val timePickerState = rememberTimePickerState(initialHour = 9, initialMinute = 0)
-        AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            title = { Text(stringResource(R.string.pick_time)) },
-            text = { TimePicker(state = timePickerState) },
-            confirmButton = {
-                TextButton(onClick = {
-                    val date = selectedDate ?: System.currentTimeMillis()
-                    val cal = Calendar.getInstance().apply {
-                        timeInMillis = date
-                        set(Calendar.HOUR_OF_DAY, timePickerState.hour)
-                        set(Calendar.MINUTE, timePickerState.minute)
-                        set(Calendar.SECOND, 0)
-                    }
-                    setReminderWithPermissionCheck(cal.timeInMillis)
-                    showTimePicker = false
-                }) { Text(stringResource(R.string.set)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        )
-    }
-}
-
-private fun todayAt(hour: Int, minute: Int): Long {
-    return Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, hour)
-        set(Calendar.MINUTE, minute)
-        set(Calendar.SECOND, 0)
-        if (timeInMillis < System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
-    }.timeInMillis
-}
-
-private fun tomorrowAt(hour: Int, minute: Int): Long {
-    return Calendar.getInstance().apply {
-        add(Calendar.DAY_OF_YEAR, 1)
-        set(Calendar.HOUR_OF_DAY, hour)
-        set(Calendar.MINUTE, minute)
-        set(Calendar.SECOND, 0)
-    }.timeInMillis
-}
-
-private fun nextWeekendAt(hour: Int, minute: Int): Long {
-    return Calendar.getInstance().apply {
-        while (get(Calendar.DAY_OF_WEEK) != Calendar.SATURDAY) {
-            add(Calendar.DAY_OF_YEAR, 1)
-        }
-        set(Calendar.HOUR_OF_DAY, hour)
-        set(Calendar.MINUTE, minute)
-        set(Calendar.SECOND, 0)
-    }.timeInMillis
-}
-
-@Composable
-fun EditFolderDialog(
-    folder: Folder,
-    onDismiss: () -> Unit,
-    onConfirm: (name: String, icon: String, color: String) -> Unit
-) {
-    var name by remember { mutableStateOf(folder.name) }
-    var selectedIcon by remember { mutableStateOf(folder.icon) }
-    var selectedColor by remember { mutableStateOf(folder.color) }
-    var iconSearch by remember { mutableStateOf("") }
-
-    val filteredIcons = remember(iconSearch) {
-        if (iconSearch.isBlank()) FOLDER_ICONS
-        else FOLDER_ICONS.filter { it.name.contains(iconSearch, ignoreCase = true) }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Outlined.Edit, null) },
-        title = { Text(stringResource(R.string.edit_folder)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text(stringResource(R.string.folder_name)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Text(stringResource(R.string.icon), style = MaterialTheme.typography.labelMedium)
-
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(5),
-                    modifier = Modifier.height(160.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filteredIcons) { option ->
-                        Surface(
-                            shape = CircleShape,
-                            color = if (selectedIcon == option.name)
-                                MaterialTheme.colorScheme.primaryContainer
-                            else
-                                MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(50.dp))
-                                .clickable { selectedIcon = option.name }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    option.icon, null,
-                                    Modifier.size(20.dp),
-                                    tint = if (selectedIcon == option.name)
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Text(stringResource(R.string.color), style = MaterialTheme.typography.labelMedium)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(FOLDER_COLORS) { color ->
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color(android.graphics.Color.parseColor(color)))
-                                .then(
-                                    if (color == selectedColor)
-                                        Modifier.border(
-                                            2.dp,
-                                            MaterialTheme.colorScheme.onSurface,
-                                            CircleShape
-                                        )
-                                    else Modifier
-                                )
-                                .clickable { selectedColor = color }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.isNotBlank()) onConfirm(name.trim(), selectedIcon, selectedColor)
-                },
-                enabled = name.isNotBlank()
-            ) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
-    )
-}
-

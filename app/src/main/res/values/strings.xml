@@ -332,6 +332,7 @@
     <string name="pin_must_be_4_digits">PIN must be 4 digits</string>
     <string name="pin_saved">PIN saved</string>
     <string name="unlock">Unlock</string>
+    <string name="unlock_folder">Unlock Folder</string>
     <string name="authenticate">Authenticate to unlock Linksi</string>
     <string name="locked_folders">Locked Folders</string>
     <string name="locked_folders_subtitle">Links in locked folders are hidden from the home screen</string>
