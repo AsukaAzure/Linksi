@@ -53,12 +53,13 @@ fun SettingsScreen(
     var showImportExport by remember { mutableStateOf(false) }
     var showLanguagePicker by remember { mutableStateOf(false) }
     var showAiSettings by remember { mutableStateOf(false) }
+    var showThemeSettings by remember { mutableStateOf(false) }
     var showSecuritySettings by remember { mutableStateOf(false) }
     var showSecurityAuth by remember { mutableStateOf(false) }
     var showTrashBin by remember { mutableStateOf(false) }
 
     // Handle system back button
-    BackHandler(enabled = !showAiOrganizer && !showImportExport && !showAiSettings && !showSecuritySettings && !showSecurityAuth && !showTrashBin) {
+    BackHandler(enabled = !showAiOrganizer && !showImportExport && !showAiSettings && !showThemeSettings && !showSecuritySettings && !showSecurityAuth && !showTrashBin) {
         onBack()
     }
 
@@ -213,6 +214,26 @@ fun SettingsScreen(
                             Switch(
                                 checked = state.useInAppBrowser,
                                 onCheckedChange = { viewModel.toggleInAppBrowser(it) }
+                            )
+                        }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    SettingsItem(
+                        icon = Icons.Outlined.Palette,
+                        title = stringResource(id = com.linksi.app.R.string.theme),
+                        subtitle = when(state.themeMode) {
+                            "light" -> stringResource(id = com.linksi.app.R.string.light)
+                            "dark" -> stringResource(id = com.linksi.app.R.string.dark)
+                            else -> stringResource(id = com.linksi.app.R.string.system)
+                        },
+                        onClick = { showThemeSettings = true },
+                        trailingContent = {
+                            Icon(
+                                Icons.Outlined.ChevronRight, null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     )
@@ -453,6 +474,24 @@ fun SettingsScreen(
                 showLanguagePicker = false
             },
             onDismiss = { showLanguagePicker = false }
+        )
+    }
+
+    // ── Theme Settings overlay ──────────────────────────────
+    AnimatedVisibility(
+        visible = showThemeSettings,
+        enter = slideInHorizontally(initialOffsetX = { it }),
+        exit = slideOutHorizontally(targetOffsetX = { it })
+    ) {
+        BackHandler { showThemeSettings = false }
+        ThemeSettingsScreen(
+            currentThemeMode = state.themeMode,
+            useAmoled = state.useAmoled,
+            useDynamicColor = state.useDynamicColor,
+            onThemeSelected = { viewModel.setThemeMode(it) },
+            onAmoledToggled = { viewModel.setAmoledEnabled(it) },
+            onDynamicColorToggled = { viewModel.setDynamicColorEnabled(it) },
+            onBack = { showThemeSettings = false }
         )
     }
 

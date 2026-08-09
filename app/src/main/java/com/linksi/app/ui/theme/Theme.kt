@@ -1,79 +1,102 @@
 package com.linksi.app.ui.theme
 
+import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// ── Linksi Brand Palette ─────────────────────────────────────
-val LinksiBrandOrange = Color(0xFFF59E0B)      // Amber-500
-val LinksiBrandAmber  = Color(0xFFD97706)      // Amber-600
-val LinksiBrandWarm   = Color(0xFF78350F)      // Amber-900
-val LinksiAccentRed   = Color(0xFFEF4444)      // Red-500
-val LinksiAccentGold  = Color(0xFFFBBF24)      // Amber-400
-
+// ── Clean Neutral Color Schemes (No Amber/Brown) ──────────
 private val DarkColorScheme = darkColorScheme(
-    primary          = Color(0xFFFFB74D),
-    onPrimary        = Color(0xFF4E2600),
-    primaryContainer = Color(0xFF703800),
-    onPrimaryContainer = Color(0xFFFFDCC0),
-    secondary        = Color(0xFFFFD54F),
-    onSecondary      = Color(0xFF452700),
-    secondaryContainer = Color(0xFF623A00),
-    onSecondaryContainer = Color(0xFFFFE08D),
-    tertiary         = Color(0xFFFFAB91),
-    tertiaryContainer= Color(0xFF7A2A14),
-    background       = Color(0xFF1D1B16),
-    onBackground     = Color(0xFFEAE1D4),
-    surface          = Color(0xFF1D1B16),
-    onSurface        = Color(0xFFEAE1D4),
-    surfaceVariant   = Color(0xFF4F4539),
-    onSurfaceVariant = Color(0xFFD3C4B4),
-    outline          = Color(0xFF9C8F80),
-    surfaceTint      = Color(0xFFFFB74D),
-    error            = Color(0xFFFFB4AB),
-    errorContainer   = Color(0xFF93000A),
+    primary          = Color(0xFFD1E4FF), // Light Blue-White for high contrast icons/text
+    onPrimary        = Color(0xFF003258),
+    primaryContainer = Color(0xFF00497D),
+    onPrimaryContainer = Color(0xFFD1E4FF),
+    secondary        = Color(0xFFD1E4FF),
+    onSecondary      = Color(0xFF003258),
+    tertiary         = Color(0xFFD1E4FF),
+    background       = Color(0xFF0F0F0F), // Clean Neutral Dark
+    surface          = Color(0xFF0F0F0F),
+    onBackground     = Color.White,       // Pure white text/icons
+    onSurface        = Color.White,       // Pure white text/icons
+    surfaceVariant   = Color(0xFF1E1E1E), // Dark Gray for cards
+    onSurfaceVariant = Color(0xFFE2E2E2),
+    outline          = Color(0xFF444444),
+    surfaceTint      = Color.Transparent, // Disables color harmonic blending
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary          = Color(0xFF8B5000),
-    onPrimary        = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFFFDCC0),
-    onPrimaryContainer = Color(0xFF2D1600),
-    secondary        = Color(0xFF825500),
-    onSecondary      = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFFFDDB3),
-    onSecondaryContainer = Color(0xFF291800),
-    tertiary         = Color(0xFF98452E),
-    tertiaryContainer= Color(0xFFFFDAD2),
-    background       = Color(0xFFFFF8F1),
-    onBackground     = Color(0xFF1F1B16),
-    surface          = Color(0xFFFFF8F1),
-    onSurface        = Color(0xFF1F1B16),
-    surfaceVariant   = Color(0xFFF0E0CF),
-    onSurfaceVariant = Color(0xFF4F4539),
-    outline          = Color(0xFF817567),
-    surfaceTint      = Color(0xFF8B5000),
+    primary          = Color(0xFF0061A4), // Professional Blue
+    onPrimary        = Color.White,
+    primaryContainer = Color(0xFFD1E4FF),
+    onPrimaryContainer = Color(0xFF001D36),
+    secondary        = Color(0xFF0061A4),
+    onSecondary      = Color.White,
+    tertiary         = Color(0xFF0061A4),
+    background       = Color(0xFFFAFAFA), // Clean Neutral Light
+    surface          = Color(0xFFFAFAFA),
+    onBackground     = Color(0xFF1A1C1E),
+    onSurface        = Color(0xFF1A1C1E),
+    surfaceVariant   = Color(0xFFF2F2F2), // Light Gray for cards
+    onSurfaceVariant = Color(0xFF444444),
+    outline          = Color(0xFFC4C4C4),
+    surfaceTint      = Color.Transparent,
 )
 
 @Composable
 fun LinksTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    themeMode: String = "system",
+    useDynamicColor: Boolean = true,
+    useAmoled: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (themeMode) {
+        "light" -> false
+        "dark" -> true
+        else -> isSystemInDarkTheme()
+    }
+
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            val dynamicScheme = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (darkTheme && useAmoled) {
+                dynamicScheme.copy(
+                    background = Color.Black,
+                    surface = Color.Black,
+                    surfaceVariant = Color(0xFF121212)
+                )
+            } else {
+                dynamicScheme
+            }
         }
-        darkTheme -> DarkColorScheme
+        darkTheme -> {
+            if (useAmoled) {
+                DarkColorScheme.copy(
+                    background = Color.Black,
+                    surface = Color.Black,
+                    surfaceVariant = Color(0xFF121212)
+                )
+            } else {
+                DarkColorScheme
+            }
+        }
         else -> LightColorScheme
+    }
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
     }
 
     MaterialTheme(

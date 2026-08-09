@@ -604,16 +604,17 @@ fun HomeScreen(
 //    }
 
     if (state.showAddLinkDialog) {
-                                        AddLinkSheet(
-                                            folders = if (state.folderLockEnabled) state.folders.filter { !it.isLocked } else state.folders,
-                                            allTags = state.allTags,
-                                            isFetchingMetadata = state.isFetchingMetadata,
+        AddLinkSheet(
+            folders = state.folders,
+            allTags = state.allTags,
+            isFetchingMetadata = state.isFetchingMetadata,
 //            isInTour = isInTour,
 //            tourStep = tourStep,
 //            onTourNext = { nextStep() },
 //            snackbarMessage = state.snackbarMessage,
             onDismiss = viewModel::hideAddLinkDialog,
             onCreateFolder = { name, icon, color -> viewModel.addFolder(name, icon, color) },
+            folderLockEnabled = state.folderLockEnabled,
             onConfirm = { url, folderId, reminderAt, note, tags, expiresAt,
                           titleOverride, descriptionOverride, previewImageOverride ->
                 viewModel.addLink(

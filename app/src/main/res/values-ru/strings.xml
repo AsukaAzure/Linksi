@@ -14,6 +14,17 @@
     <string name="back">Назад</string>
     <string name="general">Общие</string>
     <string name="language">Язык</string>
+    <string name="theme">Тема</string>
+    <string name="theme_mode">Режим темы</string>
+    <string name="theme_mode_subtitle">Выберите предпочтительный внешний вид</string>
+    <string name="amoled_mode">Режим AMOLED</string>
+    <string name="amoled_mode_subtitle">Использовать чистый черный цвет для темного фона</string>
+    <string name="dynamic_color">Динамический цвет</string>
+    <string name="dynamic_color_subtitle">Использовать цвета ваших обоев (Android 12+)</string>
+    <string name="select_theme">Выбрать тему</string>
+    <string name="light">Светлая</string>
+    <string name="dark">Темная</string>
+    <string name="system">Системная</string>
     <string name="select_language">Выберите язык</string>
     <string name="system_default">Системный по умолчанию</string>
 

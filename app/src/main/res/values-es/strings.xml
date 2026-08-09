@@ -14,6 +14,17 @@
     <string name="back">Atrás</string>
     <string name="general">General</string>
     <string name="language">Idioma</string>
+    <string name="theme">Tema</string>
+    <string name="theme_mode">Modo de tema</string>
+    <string name="theme_mode_subtitle">Elige tu apariencia preferida</string>
+    <string name="amoled_mode">Modo AMOLED</string>
+    <string name="amoled_mode_subtitle">Usa negro puro para los fondos del tema oscuro</string>
+    <string name="dynamic_color">Color dinámico</string>
+    <string name="dynamic_color_subtitle">Usa colores de tu fondo de pantalla (Android 12+)</string>
+    <string name="select_theme">Seleccionar tema</string>
+    <string name="light">Claro</string>
+    <string name="dark">Oscuro</string>
+    <string name="system">Sistema</string>
     <string name="select_language">Seleccionar idioma</string>
 <!--    <string name="english">Inglés</string>-->
 <!--    <string name="spanish">Español</string>-->

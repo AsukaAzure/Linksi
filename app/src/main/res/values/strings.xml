@@ -14,6 +14,17 @@
     <string name="back">Back</string>
     <string name="general">General</string>
     <string name="language">Language</string>
+    <string name="theme">Theme</string>
+    <string name="theme_mode">Theme Mode</string>
+    <string name="theme_mode_subtitle">Choose your preferred appearance</string>
+    <string name="amoled_mode">AMOLED Mode</string>
+    <string name="amoled_mode_subtitle">Use pure black for dark theme backgrounds</string>
+    <string name="dynamic_color">Dynamic Color</string>
+    <string name="dynamic_color_subtitle">Use colors from your system wallpaper (Android 12+)</string>
+    <string name="select_theme">Select Theme</string>
+    <string name="light">Light</string>
+    <string name="dark">Dark</string>
+    <string name="system">System</string>
     <string name="select_language">Select language</string>
 <!--    <string name="english">English</string>-->
 <!--    <string name="spanish">Spanish</string>-->

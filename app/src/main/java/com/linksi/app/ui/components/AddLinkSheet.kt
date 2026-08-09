@@ -61,6 +61,7 @@ fun AddLinkSheet(
     isFetchingMetadata: Boolean = false,
     onDismiss: () -> Unit,
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
+    folderLockEnabled: Boolean = false,
     onConfirm: (
         url: String,
         folderId: Long?,
@@ -354,8 +355,10 @@ fun AddLinkSheet(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Icon(
-                            if (selectedFolder != null) Icons.Outlined.Folder
-                            else Icons.Outlined.FolderOpen,
+                            if (selectedFolder != null) {
+                                if (folderLockEnabled && selectedFolder.isLocked) Icons.Outlined.Lock
+                                else iconFromName(selectedFolder.icon)
+                            } else Icons.Outlined.FolderOpen,
                             null, Modifier.size(22.dp),
                             tint = if (selectedFolder != null)
                                 Color(android.graphics.Color.parseColor(selectedFolder.color))

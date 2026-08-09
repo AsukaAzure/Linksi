@@ -303,6 +303,8 @@ fun FolderPickerDialog(
         }
     }.collectAsState(initial = Triple("", false, false))
 
+    val (savedPin, biometricEnabled, folderLockEnabled) = securityPrefs
+
     var visible by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var folderToUnlock by remember { mutableStateOf<Folder?>(null) }
@@ -330,7 +332,6 @@ fun FolderPickerDialog(
     }
 
     fun handleFolderClick(folder: Folder) {
-        val (savedPin, biometricEnabled, folderLockEnabled) = securityPrefs
         if (folderLockEnabled && folder.isLocked && savedPin.isNotEmpty()) {
             folderToUnlock = folder
             if (biometricEnabled && SecurityManager.canUseBiometric(context)) {
@@ -475,7 +476,7 @@ fun FolderPickerDialog(
                                     },
                                     name = folder.name,
                                     isSelected = isCurrentFolder,
-                                    isLocked = folder.isLocked,
+                                    isLocked = folder.isLocked && folderLockEnabled,
                                     color = Color(android.graphics.Color.parseColor(folder.color)),
                                     subtitle = if (isCurrentFolder) stringResource(R.string.tap_to_remove) else null,
                                     onClick = { handleFolderClick(folder) }

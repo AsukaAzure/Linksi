@@ -14,6 +14,17 @@
     <string name="back">返回</string>
     <string name="general">常规</string>
     <string name="language">语言</string>
+    <string name="theme">主题</string>
+    <string name="theme_mode">主题模式</string>
+    <string name="theme_mode_subtitle">选择您喜欢的外观</string>
+    <string name="amoled_mode">AMOLED 模式</string>
+    <string name="amoled_mode_subtitle">在深色主题背景下使用纯黑色</string>
+    <string name="dynamic_color">动态配色</string>
+    <string name="dynamic_color_subtitle">基于壁纸生成主题颜色 (Android 12+)</string>
+    <string name="select_theme">选择主题</string>
+    <string name="light">浅色</string>
+    <string name="dark">深色</string>
+    <string name="system">系统默认</string>
     <string name="select_language">选择语言</string>
     <string name="system_default">系统默认</string>
 

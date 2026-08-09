@@ -47,6 +47,9 @@ data class SettingsUiState(
     val modelStatus: SettingsViewModel.ModelStatus = SettingsViewModel.ModelStatus.UNKNOWN,
     val isTestingModel: Boolean = false,
     val selectedLanguage: String = "",
+    val themeMode: String = "system",
+    val useAmoled: Boolean = false,
+    val useDynamicColor: Boolean = true,
     val isSecurityEnabled: Boolean = false,
     val isBiometricEnabled: Boolean = false,
     val lockDelay: Long = 0L, // 0 means immediate
@@ -102,6 +105,9 @@ class SettingsViewModel @Inject constructor(
                         selectedModelId  = prefs[AI_SELECTED_MODEL] ?: "claude35sonnet",
                         apiKeys          = keys,
                         selectedLanguage = prefs[APP_LANGUAGE] ?: "",
+                        themeMode        = prefs[APP_THEME] ?: "system",
+                        useAmoled        = prefs[APP_AMOLED] ?: false,
+                        useDynamicColor  = prefs[APP_DYNAMIC_COLOR] ?: true,
                         isSecurityEnabled = prefs[SECURITY_LOCK_ENABLED] ?: false,
                         isBiometricEnabled = prefs[SECURITY_BIOMETRIC_ENABLED] ?: false,
                         lockDelay = prefs[SECURITY_LOCK_DELAY] ?: 0L,
@@ -385,6 +391,27 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             context.dataStore.edit { it[APP_LANGUAGE] = languageCode }
             _uiState.update { it.copy(selectedLanguage = languageCode) }
+        }
+    }
+
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[APP_THEME] = mode }
+            _uiState.update { it.copy(themeMode = mode) }
+        }
+    }
+
+    fun setAmoledEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[APP_AMOLED] = enabled }
+            _uiState.update { it.copy(useAmoled = enabled) }
+        }
+    }
+
+    fun setDynamicColorEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[APP_DYNAMIC_COLOR] = enabled }
+            _uiState.update { it.copy(useDynamicColor = enabled) }
         }
     }
 

@@ -23,6 +23,9 @@ val AI_KEY_GEMINI = stringPreferencesKey("ai_key_gemini")
 val AI_KEY_DEEPSEEK = stringPreferencesKey("ai_key_deepseek")
 val AI_KEY_GROK = stringPreferencesKey("ai_key_grok")
 val APP_LANGUAGE = stringPreferencesKey("app_language")
+val APP_THEME = stringPreferencesKey("app_theme") // Values: "system", "light", "dark"
+val APP_AMOLED = booleanPreferencesKey("app_amoled")
+val APP_DYNAMIC_COLOR = booleanPreferencesKey("app_dynamic_color")
 
 // Security Settings
 val SECURITY_LOCK_ENABLED = booleanPreferencesKey("security_lock_enabled")

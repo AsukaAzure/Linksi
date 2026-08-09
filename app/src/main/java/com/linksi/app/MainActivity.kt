@@ -64,6 +64,18 @@ class MainActivity : AppCompatActivity() {
                 isOnboardingComplete(context)
             }.collectAsState(initial = null)
 
+            val themeMode by remember {
+                context.dataStore.data.map { it[APP_THEME] ?: "system" }
+            }.collectAsState(initial = "system")
+
+            val useAmoled by remember {
+                context.dataStore.data.map { it[APP_AMOLED] ?: false }
+            }.collectAsState(initial = false)
+
+            val useDynamicColor by remember {
+                context.dataStore.data.map { it[APP_DYNAMIC_COLOR] ?: true }
+            }.collectAsState(initial = true)
+
             val securityPrefs by remember {
                 context.dataStore.data.map { prefs ->
                     SecurityPrefs(
@@ -112,7 +124,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            LinksTheme {
+            LinksTheme(
+                themeMode = themeMode,
+                useDynamicColor = useDynamicColor,
+                useAmoled = useAmoled
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
