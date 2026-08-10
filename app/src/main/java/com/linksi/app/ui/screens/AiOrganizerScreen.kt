@@ -39,6 +39,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.text.selection.SelectionContainer
 import com.linksi.app.R
 import com.linksi.app.domain.model.*
+import com.linksi.app.ui.components.ExpressiveSettingsCard
+import com.linksi.app.ui.components.IconContainer
 import com.linksi.app.ui.components.iconFromName
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -149,182 +151,228 @@ fun AiOrganizerIdle(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.ai_organizer)) },
+                title = { },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Outlined.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp),
+                .padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(
+                top = padding.calculateTopPadding(),
+                bottom = padding.calculateBottomPadding() + 24.dp
+            ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Hero section
-            AiHeroArt(Modifier.size(100.dp))
-
-            Text(
-                stringResource(R.string.ai_link_organizer),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                stringResource(R.string.ai_hero_desc),
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // Current model info
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // Expressive Header
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        Icons.Outlined.SmartToy, null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.model),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            selectedModel?.name ?: stringResource(R.string.none_selected),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = when {
-                            !isReady -> MaterialTheme.colorScheme.errorContainer
-                            modelStatus == SettingsViewModel.ModelStatus.ACTIVE -> Color(0xFF22C55E).copy(alpha = 0.2f)
-                            modelStatus == SettingsViewModel.ModelStatus.ERROR -> MaterialTheme.colorScheme.errorContainer
-                            else -> MaterialTheme.colorScheme.primaryContainer
-                        },
-                        modifier = Modifier.clickable {
-                            if (isReady && !isTestingModel) onTestModel()
-                        }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            if (isTestingModel) {
-                                CircularProgressIndicator(
-                                    Modifier.size(12.dp),
-                                    strokeWidth = 1.5.dp,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(RoundedCornerShape(32.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                                    )
                                 )
-                                Text(stringResource(R.string.testing),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            } else {
-                                when {
-                                    !isReady -> Text(stringResource(R.string.no_api_key),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer)
-                                    modelStatus == SettingsViewModel.ModelStatus.ACTIVE -> {
-                                        Icon(Icons.Outlined.CheckCircle, null,
-                                            Modifier.size(12.dp),
-                                            tint = Color(0xFF22C55E))
-                                        Text(stringResource(R.string.active),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFF22C55E))
-                                    }
-                                    modelStatus == SettingsViewModel.ModelStatus.ERROR -> {
-                                        Icon(Icons.Outlined.Error, null,
-                                            Modifier.size(12.dp),
-                                            tint = MaterialTheme.colorScheme.error)
-                                        Text(stringResource(R.string.failed),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.error)
-                                    }
-                                    else -> Text(stringResource(R.string.check),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer)
-                                }
-                            }
-                        }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AiHeroArt(Modifier.size(64.dp))
                     }
+                    Spacer(Modifier.height(20.dp))
+                    Text(
+                        stringResource(R.string.ai_link_organizer),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        stringResource(R.string.ai_hero_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                    )
                 }
             }
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Outlined.Layers, null,
-                            tint = MaterialTheme.colorScheme.primary)
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.links_per_batch),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium)
+
+            // Current model info
+            item {
+                ExpressiveSettingsCard {
+                    ListItem(
+                        headlineContent = { 
                             Text(
-                                stringResource(R.string.batch_size_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                stringResource(R.string.model),
+                                fontWeight = FontWeight.SemiBold
+                            ) 
+                        },
+                        supportingContent = {
+                            Text(
+                                selectedModel?.name ?: stringResource(R.string.none_selected),
+                                style = MaterialTheme.typography.labelMedium
                             )
-                        }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(4, 8, 16, 32).forEach { size ->
+                        },
+                        leadingContent = {
+                            IconContainer(Icons.Outlined.SmartToy)
+                        },
+                        trailingContent = {
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (state.batchSize == size)
-                                    MaterialTheme.colorScheme.primaryContainer
-                                else
-                                    MaterialTheme.colorScheme.surface,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { onSetBatchSize(size) }
+                                shape = RoundedCornerShape(12.dp),
+                                color = when {
+                                    !isReady -> MaterialTheme.colorScheme.errorContainer
+                                    modelStatus == SettingsViewModel.ModelStatus.ACTIVE -> Color(0xFF22C55E).copy(alpha = 0.2f)
+                                    modelStatus == SettingsViewModel.ModelStatus.ERROR -> MaterialTheme.colorScheme.errorContainer
+                                    else -> MaterialTheme.colorScheme.primaryContainer
+                                },
+                                modifier = Modifier.clickable {
+                                    if (isReady && !isTestingModel) onTestModel()
+                                }
                             ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.padding(vertical = 10.dp)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Text(
-                                        "$size",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (state.batchSize == size)
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        else
-                                            MaterialTheme.colorScheme.onSurface
+                                    if (isTestingModel) {
+                                        CircularProgressIndicator(
+                                            Modifier.size(12.dp),
+                                            strokeWidth = 1.5.dp,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Text(stringResource(R.string.testing),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    } else {
+                                        when {
+                                            !isReady -> Text(stringResource(R.string.no_api_key),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onErrorContainer)
+                                            modelStatus == SettingsViewModel.ModelStatus.ACTIVE -> {
+                                                Icon(Icons.Outlined.CheckCircle, null,
+                                                    Modifier.size(12.dp),
+                                                    tint = Color(0xFF22C55E))
+                                                Text(stringResource(R.string.active),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = Color(0xFF22C55E))
+                                            }
+                                            modelStatus == SettingsViewModel.ModelStatus.ERROR -> {
+                                                Icon(Icons.Outlined.Error, null,
+                                                    Modifier.size(12.dp),
+                                                    tint = MaterialTheme.colorScheme.error)
+                                                Text(stringResource(R.string.failed),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.error)
+                                            }
+                                            else -> Text(stringResource(R.string.check),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            IconContainer(Icons.Outlined.Layers)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.links_per_batch),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    stringResource(R.string.batch_size_desc),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        val batchOptions = listOf(4, 8, 16, 32)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            batchOptions.forEachIndexed { index, size ->
+                                val isSelected = state.batchSize == size
+                                
+                                // Animate shapes for "Expressive" feel
+                                val cornerPercent by animateIntAsState(
+                                    targetValue = if (isSelected) 50 else 25,
+                                    animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessLow),
+                                    label = "corner_anim"
+                                )
+
+                                val shape = remember(index, isSelected, cornerPercent) {
+                                    val topStart = if (index == 0 || isSelected) cornerPercent else 15
+                                    val bottomStart = if (index == 0 || isSelected) cornerPercent else 15
+                                    val topEnd = if (index == batchOptions.size - 1 || isSelected) cornerPercent else 15
+                                    val bottomEnd = if (index == batchOptions.size - 1 || isSelected) cornerPercent else 15
+                                    
+                                    RoundedCornerShape(
+                                        topStartPercent = topStart,
+                                        bottomStartPercent = bottomStart,
+                                        topEndPercent = topEnd,
+                                        bottomEndPercent = bottomEnd
                                     )
+                                }
+
+                                Surface(
+                                    onClick = { onSetBatchSize(size) },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp),
+                                    shape = shape,
+                                    color = if (isSelected) 
+                                        MaterialTheme.colorScheme.primary 
+                                    else 
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    contentColor = if (isSelected) 
+                                        MaterialTheme.colorScheme.onPrimary 
+                                    else 
+                                        MaterialTheme.colorScheme.onSurface
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = size.toString(),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -335,71 +383,74 @@ fun AiOrganizerIdle(
             // Last session info
             if (state.hasRevertableSession) {
                 state.lastSession?.let { session ->
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    item {
+                        ExpressiveSettingsCard(
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                Icons.Outlined.History, null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            ListItem(
+                                headlineContent = { 
+                                    Text(
+                                        stringResource(R.string.last_organized),
+                                        fontWeight = FontWeight.SemiBold
+                                    ) 
+                                },
+                                supportingContent = {
+                                    Text(
+                                        stringResource(
+                                            R.string.last_organized_stats,
+                                            session.movedLinks.size,
+                                            SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+                                                .format(Date(session.timestamp))
+                                        ),
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                },
+                                leadingContent = {
+                                    IconContainer(Icons.Outlined.History, color = MaterialTheme.colorScheme.secondary)
+                                },
+                                trailingContent = {
+                                    TextButton(onClick = onRevert) {
+                                        Text(stringResource(R.string.revert))
+                                    }
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    stringResource(R.string.last_organized),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                                Text(
-                                    stringResource(
-                                        R.string.last_organized_stats,
-                                        session.movedLinks.size,
-                                        SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
-                                            .format(Date(session.timestamp))
-                                    ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                            TextButton(onClick = onRevert) {
-                                Text(stringResource(R.string.revert))
-                            }
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.weight(1f))
+            item { Spacer(Modifier.height(16.dp)) }
 
             // Organize button
-            Button(
-                onClick = onStartOrganize,
-                enabled = isReady,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(Icons.Outlined.AutoAwesome, null, Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.organize_with_ai),
-                    style = MaterialTheme.typography.titleMedium
-                )
+            item {
+                Button(
+                    onClick = onStartOrganize,
+                    enabled = isReady,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Icon(Icons.Outlined.AutoAwesome, null, Modifier.size(24.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        stringResource(R.string.organize_with_ai),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             if (!isReady) {
-                Text(
-                    stringResource(R.string.ai_settings_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                item {
+                    Text(
+                        stringResource(R.string.ai_settings_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -416,8 +467,15 @@ fun AiScopeSelector(
 ) {
     AlertDialog(
         onDismissRequest = onCancel,
-        icon = { Icon(Icons.Outlined.FilterList, null) },
-        title = { Text(stringResource(R.string.what_to_organize)) },
+        icon = { 
+            IconContainer(Icons.Outlined.FilterList, color = MaterialTheme.colorScheme.primary)
+        },
+        title = { 
+            Text(
+                stringResource(R.string.what_to_organize),
+                fontWeight = FontWeight.Bold
+            ) 
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ScopeOption(
@@ -437,13 +495,17 @@ fun AiScopeSelector(
             }
         },
         confirmButton = {
-            Button(onClick = onConfirm) {
+            Button(
+                onClick = onConfirm,
+                shape = RoundedCornerShape(12.dp)
+            ) {
                 Text(stringResource(R.string.generate_plan))
             }
         },
         dismissButton = {
             TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
-        }
+        },
+        shape = RoundedCornerShape(28.dp)
     )
 }
 
@@ -456,39 +518,37 @@ fun ScopeOption(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         color = if (isSelected)
             MaterialTheme.colorScheme.primaryContainer
         else
-            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .then(
                 if (isSelected) Modifier.border(
-                    1.dp,
+                    2.dp,
                     MaterialTheme.colorScheme.primary,
-                    RoundedCornerShape(12.dp)
+                    RoundedCornerShape(16.dp)
                 ) else Modifier
             )
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(
-                icon, null,
-                tint = if (isSelected)
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                else
-                    MaterialTheme.colorScheme.onSurfaceVariant
+            IconContainer(
+                icon = icon,
+                enabled = isSelected,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
                     color = if (isSelected)
                         MaterialTheme.colorScheme.onPrimaryContainer
                     else
@@ -507,7 +567,7 @@ fun ScopeOption(
                 Icon(
                     Icons.Outlined.CheckCircle, null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -517,17 +577,6 @@ fun ScopeOption(
 // ── Generating ────────────────────────────────────────────────
 @Composable
 fun AiGeneratingScreen(onCancel: () -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
-
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -537,12 +586,27 @@ fun AiGeneratingScreen(onCancel: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(24.dp),
             modifier = Modifier.padding(32.dp)
         ) {
-            AiHeroArt(Modifier.size(100.dp))
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(RoundedCornerShape(40.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                AiHeroArt(Modifier.size(80.dp))
+            }
 
             Text(
                 stringResource(R.string.ai_analyzing),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center
             )
 
@@ -556,8 +620,10 @@ fun AiGeneratingScreen(onCancel: () -> Unit) {
             LinearProgressIndicator(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(4.dp)),
-                color = MaterialTheme.colorScheme.primary
+                    .height(8.dp)
+                    .clip(CircleShape),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
             )
 
             Spacer(Modifier.height(16.dp))
@@ -584,7 +650,7 @@ fun AiPreviewScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.review_ai_plan)) },
+                title = { Text(stringResource(R.string.review_ai_plan), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
                         Icon(Icons.Outlined.Close, stringResource(R.string.cancel))
@@ -596,32 +662,39 @@ fun AiPreviewScreen(
             )
         },
         bottomBar = {
-            Surface(tonalElevation = 3.dp) {
+            Surface(
+                tonalElevation = 8.dp,
+                shadowElevation = 8.dp,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // Summary
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         SummaryChip(
                             label = "${plan.linkPlans.size} " + stringResource(R.string.total_links).lowercase(),
-                            icon = Icons.Outlined.Link
+                            icon = Icons.Outlined.Link,
+                            modifier = Modifier.weight(1f)
                         )
                         SummaryChip(
                             label = "${grouped.size} " + stringResource(R.string.folders_title).lowercase(),
-                            icon = Icons.Outlined.Folder
+                            icon = Icons.Outlined.Folder,
+                            modifier = Modifier.weight(1f)
                         )
                         if (plan.newFolders.isNotEmpty()) {
                             SummaryChip(
                                 label = "${plan.newFolders.size} " + stringResource(R.string.new_folder).lowercase(),
                                 icon = Icons.Outlined.CreateNewFolder,
-                                highlight = true
+                                highlight = true,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -632,16 +705,18 @@ fun AiPreviewScreen(
                     ) {
                         OutlinedButton(
                             onClick = onCancel,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f).height(56.dp),
+                            shape = RoundedCornerShape(16.dp)
                         ) { Text(stringResource(R.string.cancel)) }
 
                         Button(
                             onClick = onApply,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f).height(56.dp),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
-                            Icon(Icons.Outlined.Check, null, Modifier.size(16.dp))
+                            Icon(Icons.Outlined.Check, null, Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.apply_plan))
+                            Text(stringResource(R.string.apply_plan), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -660,22 +735,20 @@ fun AiPreviewScreen(
             if (plan.newFolders.isNotEmpty()) {
                 item {
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
                     ) {
                         Row(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Outlined.CreateNewFolder, null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                            IconContainer(Icons.Outlined.CreateNewFolder)
                             Column {
                                 Text(
                                     stringResource(R.string.new_folders_created),
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
@@ -711,7 +784,7 @@ fun AiPreviewScreen(
                 }
             }
 
-            item { Spacer(Modifier.height(8.dp)) }
+            item { Spacer(Modifier.height(80.dp)) }
         }
     }
 }
@@ -725,94 +798,98 @@ fun FolderPreviewGroup(
     linkPlans: List<LinkOrganizePlan>
 ) {
     var expanded by remember { mutableStateOf(true) }
+    val folderColor = try { Color(android.graphics.Color.parseColor(color)) } catch(e:Exception) { MaterialTheme.colorScheme.primary }
 
-    Column {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+    ) {
         // Folder header
         Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { expanded = !expanded }
         ) {
             Row(
-                modifier = Modifier.padding(12.dp),
+                modifier = Modifier.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color(android.graphics.Color.parseColor(color)).copy(alpha = 0.15f),
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            iconFromName(icon), null,
-                            tint = Color(android.graphics.Color.parseColor(color)),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-                Text(
-                    folderName,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f)
+                IconContainer(
+                    icon = iconFromName(icon),
+                    color = folderColor
                 )
-                if (isNew) {
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        folderName,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (isNew) {
                         Text(
-                            stringResource(R.string.all).uppercase(),
+                            stringResource(R.string.new_folder),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
-                Text(
-                    "${linkPlans.size}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                ) {
+                    Text(
+                        "${linkPlans.size}",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+                
                 Icon(
                     if (expanded) Icons.Outlined.ExpandLess
                     else Icons.Outlined.ExpandMore,
                     null,
-                    Modifier.size(18.dp),
+                    Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
         // Links in this folder
-        AnimatedVisibility(visible = expanded) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
             Column(
-                modifier = Modifier.padding(start = 12.dp, top = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 linkPlans.forEach { lp ->
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
-                            modifier = Modifier.padding(10.dp),
+                            modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Icon(
                                 Icons.Outlined.Link, null,
-                                Modifier.size(14.dp),
+                                Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     lp.link.title.ifBlank { lp.link.url },
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -822,7 +899,7 @@ fun FolderPreviewGroup(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Text(
-                                            stringResource(R.string.from_folder, lp.currentFolderName),
+                                            lp.currentFolderName,
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -834,7 +911,8 @@ fun FolderPreviewGroup(
                                         Text(
                                             folderName,
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
@@ -851,30 +929,35 @@ fun FolderPreviewGroup(
 fun SummaryChip(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    highlight: Boolean = false
+    highlight: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = if (highlight)
             MaterialTheme.colorScheme.primaryContainer
         else
-            MaterialTheme.colorScheme.surfaceVariant
+            MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        Column(
+            modifier = Modifier.padding(vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                icon, null, Modifier.size(14.dp),
+                icon, null, Modifier.size(18.dp),
                 tint = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(Modifier.height(4.dp))
             Text(
                 label,
                 style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
                 color = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer
-                else MaterialTheme.colorScheme.onSurfaceVariant
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -886,23 +969,35 @@ fun AiApplyingScreen(progress: Int, total: Int) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
             modifier = Modifier.padding(32.dp)
         ) {
-            CircularProgressIndicator(
-                progress = { if (total > 0) progress.toFloat() / total else 0f },
-                modifier = Modifier.size(80.dp),
-                strokeWidth = 6.dp
-            )
+            Box(contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    progress = { if (total > 0) progress.toFloat() / total else 0f },
+                    modifier = Modifier.size(120.dp),
+                    strokeWidth = 8.dp,
+                    strokeCap = StrokeCap.Round,
+                    trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                )
+                Text(
+                    "${if(total > 0) (progress.toFloat()/total * 100).toInt() else 0}%",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            
             Text(
                 stringResource(R.string.organizing),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold
             )
             Text(
                 stringResource(R.string.organizing_progress, progress, total),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -925,11 +1020,12 @@ fun AnimatedCheckmark(modifier: Modifier = Modifier) {
 
     Box(
         modifier = modifier
-            .size(100.dp)
-            .background(containerColor, CircleShape),
+            .size(120.dp)
+            .clip(RoundedCornerShape(40.dp))
+            .background(containerColor),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.size(48.dp)) {
+        Canvas(modifier = Modifier.size(60.dp)) {
             val width = size.width
             val height = size.height
 
@@ -948,7 +1044,7 @@ fun AnimatedCheckmark(modifier: Modifier = Modifier) {
                 path = segmentPath,
                 color = primaryColor,
                 style = Stroke(
-                    width = 6.dp.toPx(),
+                    width = 8.dp.toPx(),
                     cap = StrokeCap.Round,
                     join = StrokeJoin.Round
                 )
@@ -962,29 +1058,38 @@ fun AiDoneScreen(onBack: () -> Unit, onRevert: () -> Unit, onOrganizeAgain: () -
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
             modifier = Modifier.padding(32.dp)
         ) {
             AnimatedCheckmark()
             Text(
                 stringResource(R.string.links_organized),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center
             )
             Text(
                 stringResource(R.string.links_organized_desc),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
+            
+            Button(
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(stringResource(R.string.done), fontWeight = FontWeight.Bold)
+            }
+            
             OutlinedButton(
                 onClick = onRevert,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(Icons.Outlined.Undo, null, Modifier.size(16.dp))
+                Icon(Icons.Outlined.Undo, null, Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.undo_organization))
             }
@@ -1021,7 +1126,7 @@ fun ModelPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
@@ -1033,12 +1138,12 @@ fun ModelPickerSheet(
             // Title
             Text(
                 stringResource(R.string.select_ai_model),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
             )
 
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             // Provider tabs
             val providers = AiProvider.values().toList()
@@ -1051,19 +1156,20 @@ fun ModelPickerSheet(
             )
 
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(providers) { provider ->
                     FilterChip(
                         selected = selectedProvider == provider,
                         onClick = { selectedProvider = provider },
-                        label = { Text(providerNames[provider] ?: provider.name) }
+                        label = { Text(providerNames[provider] ?: provider.name) },
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             }
 
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             // Models for selected provider
             val providerModels = models.filter { it.provider == selectedProvider }
@@ -1071,14 +1177,15 @@ fun ModelPickerSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     stringResource(R.string.models),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 4.dp)
                 )
 
                 AnimatedContent(
@@ -1089,15 +1196,15 @@ fun ModelPickerSheet(
                     },
                     label = "provider_models"
                 ) { provider ->
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         models.filter { it.provider == provider }.forEach { model ->
                             val isSelected = model.id == currentModelId
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 color = if (isSelected)
                                     MaterialTheme.colorScheme.primaryContainer
                                 else
-                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
@@ -1106,21 +1213,22 @@ fun ModelPickerSheet(
                                     }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(
-                                        horizontal = 16.dp,
-                                        vertical = 14.dp
-                                    ),
+                                    modifier = Modifier.padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
+                                    IconContainer(
+                                        icon = Icons.Outlined.SmartToy,
+                                        enabled = isSelected
+                                    )
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             model.name,
                                             style = MaterialTheme.typography.bodyLarge,
                                             fontWeight = if (isSelected)
-                                                FontWeight.SemiBold
+                                                FontWeight.Bold
                                             else
-                                                FontWeight.Normal,
+                                                FontWeight.Medium,
                                             color = if (isSelected)
                                                 MaterialTheme.colorScheme.onPrimaryContainer
                                             else
@@ -1138,7 +1246,7 @@ fun ModelPickerSheet(
                                     if (isSelected) {
                                         Icon(
                                             Icons.Outlined.CheckCircle, null,
-                                            Modifier.size(20.dp),
+                                            Modifier.size(24.dp),
                                             tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
@@ -1168,14 +1276,15 @@ fun AnimatedCross(modifier: Modifier = Modifier) {
 
     Box(
         modifier = modifier
-            .size(100.dp)
-            .background(containerColor, CircleShape),
+            .size(120.dp)
+            .clip(RoundedCornerShape(40.dp))
+            .background(containerColor),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.size(48.dp)) {
+        Canvas(modifier = Modifier.size(60.dp)) {
             val width = size.width
             val height = size.height
-            val strokeWidth = 6.dp.toPx()
+            val strokeWidth = 8.dp.toPx()
 
             // Line 1: \
             val path1 = androidx.compose.ui.graphics.Path().apply {
@@ -1235,7 +1344,7 @@ fun AiErrorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.something_went_wrong)) },
+                title = { },
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
                         Icon(Icons.Outlined.Close, stringResource(R.string.back))
@@ -1256,7 +1365,7 @@ fun AiErrorScreen(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
                 modifier = Modifier
                     .padding(32.dp)
                     .verticalScroll(rememberScrollState())
@@ -1264,13 +1373,13 @@ fun AiErrorScreen(
                 AnimatedCross()
                 Text(
                     stringResource(R.string.something_went_wrong),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
                     textAlign = TextAlign.Center
                 )
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     SelectionContainer {
@@ -1278,7 +1387,7 @@ fun AiErrorScreen(
                             message,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(20.dp),
                             textAlign = TextAlign.Start
                         )
                     }
@@ -1288,18 +1397,18 @@ fun AiErrorScreen(
                 
                 Button(
                     onClick = onRetry,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(Icons.Outlined.Refresh, null, Modifier.size(18.dp))
+                    Icon(Icons.Outlined.Refresh, null, Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.check_for_updates)) // Using an existing retry-like string
+                    Text(stringResource(R.string.check_for_updates), fontWeight = FontWeight.Bold)
                 }
                 
                 OutlinedButton(
                     onClick = onCancel,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(stringResource(R.string.go_back))
                 }
