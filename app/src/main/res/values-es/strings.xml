@@ -327,6 +327,8 @@
     <string name="security">Seguridad</string>
     <string name="app_lock">Bloqueo de aplicación</string>
     <string name="app_lock_subtitle">Protege tus enlaces con PIN o biometría</string>
+    <string name="app_locked">App Bloqueada</string>
+    <string name="enter_pin_to_unlock">Ingrese su PIN para continuar</string>
     <string name="biometric_unlock">Desbloqueo biométrico</string>
     <string name="biometric_unlock_subtitle">Usa huella digital o reconocimiento facial</string>
     <string name="lock_delay">Retraso de bloqueo</string>

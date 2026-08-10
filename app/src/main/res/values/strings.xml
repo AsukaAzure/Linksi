@@ -327,6 +327,8 @@
     <string name="security">Security</string>
     <string name="app_lock">App Lock</string>
     <string name="app_lock_subtitle">Protect your links with PIN or Biometrics</string>
+    <string name="app_locked">App Locked</string>
+    <string name="enter_pin_to_unlock">Enter your PIN to continue</string>
     <string name="biometric_unlock">Biometric Unlock</string>
     <string name="biometric_unlock_subtitle">Use fingerprint or face lock</string>
     <string name="lock_delay">Lock Delay</string>

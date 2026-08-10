@@ -324,6 +324,8 @@
     <string name="security">安全</string>
     <string name="app_lock">应用锁</string>
     <string name="app_lock_subtitle">使用 PIN 码或生物识别保护您的链接</string>
+    <string name="app_locked">应用已锁定</string>
+    <string name="enter_pin_to_unlock">输入 PIN 码以继续</string>
     <string name="biometric_unlock">生物识别解锁</string>
     <string name="biometric_unlock_subtitle">使用指纹或面部锁定</string>
     <string name="lock_delay">锁定延迟</string>
