@@ -41,6 +41,7 @@ data class SettingsUiState(
     val importProgress: Int = 0,
     val importTotal: Int = 0,
     val isImporting: Boolean = false,
+    val isImportMinimized: Boolean = false,
     val importPhase: String = "",
     val apiKeys: Map<AiProvider, String> = emptyMap(),
     val availableModels: List<com.linksi.app.domain.model.AiModel> = com.linksi.app.domain.model.AI_MODELS,
@@ -65,6 +66,7 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repository: LinkRepository,
+    private val backgroundImportManager: BackgroundImportManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
     enum class ModelStatus { UNKNOWN, ACTIVE, ERROR }
@@ -74,6 +76,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         observeModels()
+        observeImportProgress()
         viewModelScope.launch {
             combine(
                 repository.getAllLinks(),
@@ -132,6 +135,27 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
+
+    private fun observeImportProgress() {
+        viewModelScope.launch {
+            backgroundImportManager.progress.collect { p ->
+                _uiState.update {
+                    it.copy(
+                        isImporting = p.isImporting,
+                        importPhase = p.phase,
+                        importProgress = p.progress,
+                        importTotal = p.total,
+                        message = p.message ?: it.message,
+                        importResult = p.result,
+                        duplicateCount = p.duplicateCount,
+                        isImportMinimized = p.isMinimized
+                    )
+                }
+            }
+        }
+    }
+
+    fun minimizeImport() = backgroundImportManager.minimize()
 
     fun refreshModels() {
         viewModelScope.launch {
@@ -268,110 +292,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun importFile(context: Context, uri: Uri) {
-        viewModelScope.launch {
-            try {
-                _uiState.update { it.copy(isImporting = true, importPhase = context.getString(R.string.reading_file_phase)) }
-
-                val fileName = uri.path?.lowercase() ?: ""
-                val result = when {
-                    fileName.endsWith(".json") -> importFromLinksJson(context, uri)
-                    fileName.endsWith(".csv") -> importFromCsv(context, uri)
-                    else -> importFromBrowserHtml(context, uri)
-                }
-
-                // Insert folders first
-                val folderIdMap = mutableMapOf<Long, Long>()
-                result.folders.forEach { folder ->
-                    // Check if folder already exists by name
-                    val existing = repository.getFolderByName(folder.name)
-                    val newId = if (existing != null) {
-                        existing.id
-                    } else {
-                        // Reset ID to 0 to let Room generate a new one, avoiding clashes with temp IDs
-                        repository.insertFolder(folder.copy(id = 0))
-                    }
-                    folderIdMap[folder.id] = newId
-                }
-
-                // Insert links tracking duplicates
-                var importedCount = 0
-                var duplicateCount = 0
-                val insertedLinks = mutableListOf<Pair<Long, String>>() // id + url
-
-                _uiState.update { it.copy(
-                    importPhase = context.getString(R.string.importing_links_phase),
-                    importTotal = result.links.size,
-                    importProgress = 0
-                )}
-
-                result.links.forEachIndexed { index, link ->
-                    if (repository.isUrlAlreadySaved(link.url)) {
-                        duplicateCount++
-                    } else {
-                        val newId = repository.insertLink(
-                            link.copy(folderId = link.folderId?.let { folderIdMap[it] })
-                        )
-                        insertedLinks.add(newId to link.url)
-                        importedCount++
-                    }
-                    _uiState.update { it.copy(importProgress = index + 1) }
-                }
-
-                // ── Fetch metadata for all imported links ─────────
-                _uiState.update { it.copy(
-                    importPhase = context.getString(R.string.fetching_metadata_phase),
-                    importTotal = insertedLinks.size,
-                    importProgress = 0
-                )}
-
-                insertedLinks.forEachIndexed { index, (id, url) ->
-                    try {
-                        val existing = repository.getLinkById(id)
-                        // Only fetch if title is blank or equals domain — metadata missing
-                        val needsFetch = existing?.title.isNullOrBlank() ||
-                                existing?.title == existing?.domain ||
-                                existing?.previewImageUrl.isNullOrBlank()
-
-                        if (needsFetch) {
-                            val meta = MetadataFetcher.fetch(url)
-                            existing?.let {
-                                repository.updateLink(it.copy(
-                                    title = meta.title.ifBlank { it.title.ifBlank { extractDomain(url) } },
-                                    description = meta.description.ifBlank { it.description },
-                                    faviconUrl = meta.faviconUrl.ifBlank { it.faviconUrl },
-                                    previewImageUrl = meta.previewImageUrl,
-                                    domain = meta.domain.ifBlank { it.domain }
-                                ))
-                            }
-                        }
-                    } catch (e: Exception) { }
-                    _uiState.update { it.copy(importProgress = index + 1) }
-                }
-
-                val message = if (duplicateCount > 0) {
-                    context.getString(R.string.import_message_with_duplicates, importedCount, duplicateCount)
-                } else {
-                    context.getString(R.string.import_message_success, importedCount)
-                }
-
-                _uiState.update { it.copy(
-                    isImporting = false,
-                    importPhase = "",
-                    importProgress = 0,
-                    importTotal = 0,
-                    importResult = result.copy(count = importedCount),
-                    duplicateCount = duplicateCount,
-                    message = message
-                )}
-
-            } catch (e: Exception) {
-                _uiState.update { it.copy(
-                    isImporting = false,
-                    importPhase = "",
-                    message = context.getString(R.string.import_failed_msg, e.message)
-                )}
-            }
-        }
+        backgroundImportManager.startImport(uri)
     }
 
     fun setAiEnabled(enabled: Boolean) {
@@ -588,5 +509,5 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun clearMessage() = _uiState.update { it.copy(message = null) }
-    fun dismissImportResult() = _uiState.update { it.copy(importResult = null) }
+    fun dismissImportResult() = backgroundImportManager.dismiss()
 }

@@ -580,7 +580,9 @@ fun SettingsScreen(
             exportHtmlLauncher = exportHtmlLauncher,
             importLauncher = importLauncher,
             exportFileName = ::exportFileName,
-            onToggleIncludeLocked = viewModel::setExportIncludeLocked
+            onToggleIncludeLocked = viewModel::setExportIncludeLocked,
+            onMinimizeImport = viewModel::minimizeImport,
+            onDismissImportResult = viewModel::dismissImportResult
         )
     }
 

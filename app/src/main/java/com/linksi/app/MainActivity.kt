@@ -7,12 +7,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -24,9 +28,11 @@ import android.view.WindowManager
 import com.linksi.app.ui.screens.HomeScreen
 import com.linksi.app.ui.screens.LockScreen
 import com.linksi.app.ui.screens.OnboardingScreen
+import com.linksi.app.ui.components.SimpleProgressBar
 import com.linksi.app.ui.theme.LinksTheme
 import com.linksi.app.utils.*
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -36,6 +42,9 @@ import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var backgroundImportManager: BackgroundImportManager
 
     private var isLocked by mutableStateOf(false)
 
@@ -129,38 +138,86 @@ class MainActivity : AppCompatActivity() {
                 useDynamicColor = useDynamicColor,
                 useAmoled = useAmoled
             ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    if (isLocked && securityPrefs != null) {
-                        LockScreen(
-                            savedPin = securityPrefs!!.pin,
-                            isBiometricEnabled = securityPrefs!!.biometricEnabled,
-                            onUnlock = { isLocked = false }
-                        )
-                    } else {
-                        when (onboardingComplete) {
-                            null -> {
-                                // Empty box while splash screen is still covering
-                                Box(Modifier.fillMaxSize())
-                            }
-                            false -> {
-                                OnboardingScreen(
-                                    onFinish = {
-                                        scope.launch {
-                                            setOnboardingComplete(context)
+                val importProgress by backgroundImportManager.progress.collectAsState()
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        if (isLocked && securityPrefs != null) {
+                            LockScreen(
+                                savedPin = securityPrefs!!.pin,
+                                isBiometricEnabled = securityPrefs!!.biometricEnabled,
+                                onUnlock = { isLocked = false }
+                            )
+                        } else {
+                            when (onboardingComplete) {
+                                null -> {
+                                    // Empty box while splash screen is still covering
+                                    Box(Modifier.fillMaxSize())
+                                }
+
+                                false -> {
+                                    OnboardingScreen(
+                                        onFinish = {
+                                            scope.launch {
+                                                setOnboardingComplete(context)
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
+
+                                true -> {
+                                    HomeScreen()
+                                }
                             }
-                            true -> {
-                                HomeScreen()
+                        }
+
+                        UpdateCheckDialog()
+                    }
+
+                    // Global Import Progress Overlay
+                    if (importProgress.isImporting && importProgress.isMinimized) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .navigationBarsPadding()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f))
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        stringResource(R.string.background_import_running),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (importProgress.total > 0) {
+                                        Text(
+                                            "${importProgress.progress} / ${importProgress.total}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                SimpleProgressBar(
+                                    progress = if (importProgress.total > 0) importProgress.progress.toFloat() / importProgress.total else null,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
                         }
                     }
-
-                    UpdateCheckDialog()
                 }
             }
         }

@@ -254,6 +254,8 @@
     <string name="import_message_with_duplicates">Imported %1$d links • %2$d duplicates skipped</string>
     <string name="import_message_success">Imported %1$d links</string>
     <string name="import_failed_msg">Import failed: %1$s</string>
+    <string name="minimize">Minimize</string>
+    <string name="background_import_running">Importing in background…</string>
 
     <!-- Settings & Updates -->
     <string name="update_check_error">Could not check for updates: %1$s</string>

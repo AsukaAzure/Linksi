@@ -1,45 +1,21 @@
 package com.linksi.app.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.FileDownload
-import androidx.compose.material.icons.outlined.FileUpload
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.LockOpen
-import androidx.compose.material.icons.outlined.TableChart
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.linksi.app.R
+import com.linksi.app.ui.components.SimpleProgressBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +27,9 @@ fun ImportExportScreen(
     exportHtmlLauncher: androidx.activity.result.ActivityResultLauncher<String>,
     importLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
     exportFileName: (String) -> String,
-    onToggleIncludeLocked: (Boolean) -> Unit
+    onToggleIncludeLocked: (Boolean) -> Unit,
+    onMinimizeImport: () -> Unit,
+    onDismissImportResult: () -> Unit
 ) {
     BackHandler { onBack() }
 
@@ -140,7 +118,7 @@ fun ImportExportScreen(
 
             item { Spacer(Modifier.height(32.dp)) }
         }
-        if (state.isImporting) {
+        if (state.isImporting && !state.isImportMinimized) {
             AlertDialog(
                 onDismissRequest = { /* non-dismissable */ },
                 title = { Text(state.importPhase) },
@@ -148,11 +126,9 @@ fun ImportExportScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (state.importTotal > 0) {
                             val progress = state.importProgress.toFloat() / state.importTotal
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(4.dp))
+                            SimpleProgressBar(
+                                progress = progress,
+                                modifier = Modifier.fillMaxWidth()
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -170,7 +146,10 @@ fun ImportExportScreen(
                                 )
                             }
                         } else {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            SimpleProgressBar(
+                                progress = null,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
 
                         Text(
@@ -184,7 +163,11 @@ fun ImportExportScreen(
                         )
                     }
                 },
-                confirmButton = {}
+                confirmButton = {
+                    TextButton(onClick = onMinimizeImport) {
+                        Text(stringResource(R.string.minimize))
+                    }
+                }
             )
         }
     }
