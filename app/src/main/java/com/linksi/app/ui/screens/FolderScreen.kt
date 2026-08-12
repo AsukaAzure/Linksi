@@ -520,7 +520,8 @@ fun FolderListScreen(
     if (showSortMenu) {
         ModalBottomSheet(
             onDismissRequest = { showSortMenu = false },
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
             Column(
                 modifier = Modifier
@@ -604,6 +605,9 @@ fun FolderGridCard(
                 onClick = onClick,
                 onLongClick = { showMenu = true }
             ),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -661,7 +665,8 @@ fun FolderGridCard(
         ModalBottomSheet(
             onDismissRequest = { showMenu = false },
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            dragHandle = null
+            dragHandle = null,
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
             Column(
                 modifier = Modifier

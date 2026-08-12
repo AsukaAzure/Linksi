@@ -207,7 +207,7 @@ fun SettingsScreen(
                                 if (state.useInAppBrowser) Icons.Outlined.OpenInBrowser
                                 else Icons.Outlined.Launch,
                                 null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         },
                         trailingContent = {
@@ -215,7 +215,8 @@ fun SettingsScreen(
                                 checked = state.useInAppBrowser,
                                 onCheckedChange = { viewModel.toggleInAppBrowser(it) }
                             )
-                        }
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -282,7 +283,7 @@ fun SettingsScreen(
                         leadingContent = {
                             Icon(
                                 Icons.Outlined.Info, null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         },
                         trailingContent = {
@@ -317,10 +318,14 @@ fun SettingsScreen(
                                     )
                                 }
                             }
-                        }
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
 
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
 
                     ListItem(
                         headlineContent = {
@@ -343,7 +348,7 @@ fun SettingsScreen(
                                 if (state.updateAvailable) Icons.Outlined.Download
                                 else Icons.Outlined.Refresh,
                                 null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         },
                         modifier = Modifier.clickable {
@@ -356,7 +361,8 @@ fun SettingsScreen(
                             } else {
                                 viewModel.checkForUpdate()
                             }
-                        }
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }
             }
@@ -615,7 +621,7 @@ fun SectionHeader(
         Icon(
             icon, null,
             Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.primary
+            tint = MaterialTheme.colorScheme.onSurface
         )
         Text(
             title,
@@ -628,7 +634,13 @@ fun SectionHeader(
 
 @Composable
 fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(20.dp) // Pop-up style rounded corners
+    ) {
         Column(content = content)
     }
 }
@@ -645,10 +657,11 @@ fun SettingsItem(
         headlineContent = { Text(title) },
         supportingContent = { Text(subtitle, style = MaterialTheme.typography.bodySmall) },
         leadingContent = {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+            Icon(icon, null, tint = MaterialTheme.colorScheme.onSurface)
         },
         trailingContent = trailingContent,
-        modifier = androidx.compose.ui.Modifier.clickable(onClick = onClick)
+        modifier = androidx.compose.ui.Modifier.clickable(onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
     )
 }
 
@@ -703,7 +716,8 @@ fun LockDelayPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        windowInsets = WindowInsets(0, 0, 0, 0)
+        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -866,7 +880,8 @@ fun LanguagePickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        windowInsets = WindowInsets(0, 0, 0, 0)
+        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier

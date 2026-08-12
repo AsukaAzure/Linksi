@@ -70,7 +70,7 @@ fun LinksTheme(
                 dynamicScheme.copy(
                     background = Color.Black,
                     surface = Color.Black,
-                    surfaceVariant = Color(0xFF121212)
+                    surfaceVariant = Color(0xFF1E1E1E)
                 )
             } else {
                 dynamicScheme
@@ -81,7 +81,7 @@ fun LinksTheme(
                 DarkColorScheme.copy(
                     background = Color.Black,
                     surface = Color.Black,
-                    surfaceVariant = Color(0xFF121212)
+                    surfaceVariant = Color(0xFF1E1E1E)
                 )
             } else {
                 DarkColorScheme

@@ -41,7 +41,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.sp
@@ -197,7 +196,7 @@ fun LinkCard(
                 .clip(CardDefaults.elevatedShape) // VERY important
                 .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = rememberRipple(bounded = true),
+                    indication = ripple(),
                     onClick = onClick,
                     onLongClick = onLongPress
                 ),
@@ -573,7 +572,7 @@ fun LinkGridCard(
             .clip(CardDefaults.elevatedShape) // VERY important
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(bounded = true),
+                indication = ripple(),
                 onClick = onClick,
                 onLongClick = onLongPress
             ),
@@ -582,7 +581,7 @@ fun LinkGridCard(
             containerColor = if (isSelected)
                 MaterialTheme.colorScheme.secondaryContainer
             else
-                MaterialTheme.colorScheme.surface
+                MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Box {
@@ -1699,7 +1698,8 @@ fun NoteBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = null,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -1797,7 +1797,8 @@ fun ExpiryBottomSheet(
         sheetState = sheetState,
         dragHandle = null,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        scrimColor = Color.Black.copy(alpha = 0.3f)
+        scrimColor = Color.Black.copy(alpha = 0.3f),
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -2018,7 +2019,8 @@ fun TagManagerSheet(
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        windowInsets = WindowInsets.ime
+        contentWindowInsets = { WindowInsets.ime },
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
