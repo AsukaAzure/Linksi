@@ -50,6 +50,7 @@ data class HomeUiState(
     val homeViewMode : ViewMode = ViewMode.LIST,
     val folderLinksViewMode: ViewMode = ViewMode.LIST,
     val folderLockEnabled: Boolean = false,
+    val showQuickFilters: Boolean = true,
     val trashBinEnabled: Boolean = true,
     val globalPreventScreenshot: Boolean = false
 )
@@ -100,6 +101,7 @@ class HomeViewModel @Inject constructor(
                             runCatching { ViewMode.valueOf(it) }.getOrNull()
                         } ?: ViewMode.LIST,
                         folderLockEnabled = prefs[SECURITY_FOLDER_LOCK_ENABLED] ?: false,
+                        showQuickFilters = prefs[SHOW_QUICK_FILTERS] ?: true,
                         trashBinEnabled = prefs[TRASH_BIN_ENABLED] ?: true,
                         globalPreventScreenshot = prefs[GLOBAL_PREVENT_SCREENSHOT] ?: false
                     )

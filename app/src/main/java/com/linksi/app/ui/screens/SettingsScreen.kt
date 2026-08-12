@@ -488,9 +488,11 @@ fun SettingsScreen(
             currentThemeMode = state.themeMode,
             useAmoled = state.useAmoled,
             useDynamicColor = state.useDynamicColor,
+            showQuickFilters = state.showQuickFilters,
             onThemeSelected = { viewModel.setThemeMode(it) },
             onAmoledToggled = { viewModel.setAmoledEnabled(it) },
             onDynamicColorToggled = { viewModel.setDynamicColorEnabled(it) },
+            onQuickFiltersToggled = { viewModel.setShowQuickFilters(it) },
             onBack = { showThemeSettings = false }
         )
     }

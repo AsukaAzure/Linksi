@@ -26,6 +26,7 @@ val APP_LANGUAGE = stringPreferencesKey("app_language")
 val APP_THEME = stringPreferencesKey("app_theme") // Values: "system", "light", "dark"
 val APP_AMOLED = booleanPreferencesKey("app_amoled")
 val APP_DYNAMIC_COLOR = booleanPreferencesKey("app_dynamic_color")
+val SHOW_QUICK_FILTERS = booleanPreferencesKey("show_quick_filters")
 
 // Security Settings
 val SECURITY_LOCK_ENABLED = booleanPreferencesKey("security_lock_enabled")

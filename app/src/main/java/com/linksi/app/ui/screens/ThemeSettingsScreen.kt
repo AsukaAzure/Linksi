@@ -31,9 +31,11 @@ fun ThemeSettingsScreen(
     currentThemeMode: String,
     useAmoled: Boolean,
     useDynamicColor: Boolean,
+    showQuickFilters: Boolean,
     onThemeSelected: (String) -> Unit,
     onAmoledToggled: (Boolean) -> Unit,
     onDynamicColorToggled: (Boolean) -> Unit,
+    onQuickFiltersToggled: (Boolean) -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -202,6 +204,32 @@ fun ThemeSettingsScreen(
                         leadingContent = { IconContainer(Icons.Outlined.Contrast) },
                         trailingContent = {
                             Switch(checked = useAmoled, onCheckedChange = onAmoledToggled)
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+
+                    // Quick Filters Toggle
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                stringResource(id = R.string.show_quick_filters),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                stringResource(id = R.string.show_quick_filters_subtitle),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        },
+                        leadingContent = { IconContainer(Icons.Outlined.FilterList) },
+                        trailingContent = {
+                            Switch(checked = showQuickFilters, onCheckedChange = onQuickFiltersToggled)
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )

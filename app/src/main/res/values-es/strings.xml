@@ -21,6 +21,8 @@
     <string name="amoled_mode_subtitle">Usa negro puro para los fondos del tema oscuro</string>
     <string name="dynamic_color">Color dinámico</string>
     <string name="dynamic_color_subtitle">Usa colores de tu fondo de pantalla (Android 12+)</string>
+    <string name="show_quick_filters">Mostrar filtros rápidos</string>
+    <string name="show_quick_filters_subtitle">Mostrar Todos, Favoritos, No leídos y carpetas debajo de la barra de búsqueda</string>
     <string name="select_theme">Seleccionar tema</string>
     <string name="light">Claro</string>
     <string name="dark">Oscuro</string>

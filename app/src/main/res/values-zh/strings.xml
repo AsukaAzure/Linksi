@@ -21,6 +21,8 @@
     <string name="amoled_mode_subtitle">在深色主题背景下使用纯黑色</string>
     <string name="dynamic_color">动态配色</string>
     <string name="dynamic_color_subtitle">基于壁纸生成主题颜色 (Android 12+)</string>
+    <string name="show_quick_filters">显示快速过滤器</string>
+    <string name="show_quick_filters_subtitle">在搜索栏下方显示全部、收藏、未读和文件夹</string>
     <string name="select_theme">选择主题</string>
     <string name="light">浅色</string>
     <string name="dark">深色</string>

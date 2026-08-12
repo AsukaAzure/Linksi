@@ -21,6 +21,8 @@
     <string name="amoled_mode_subtitle">Использовать чистый черный цвет для темного фона</string>
     <string name="dynamic_color">Динамический цвет</string>
     <string name="dynamic_color_subtitle">Использовать цвета ваших обоев (Android 12+)</string>
+    <string name="show_quick_filters">Показать быстрые фильтры</string>
+    <string name="show_quick_filters_subtitle">Показать Все, Избранное, Непрочитанное и папки под строкой поиска</string>
     <string name="select_theme">Выбрать тему</string>
     <string name="light">Светлая</string>
     <string name="dark">Темная</string>

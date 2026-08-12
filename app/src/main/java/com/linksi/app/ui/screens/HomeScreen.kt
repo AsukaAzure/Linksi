@@ -399,14 +399,20 @@ fun HomeScreen(
                 }
 
                 // Folder chips + filter chips
-                FolderAndFilterRow(
-                    folders = if (state.folderLockEnabled) state.folders.filter { !it.isLocked } else state.folders,
-                    selectedFolderId = state.selectedFolderId,
-                    selectedFilter = state.filterOption,
-                    onFolderSelect = viewModel::selectFolder,
-                    onFilterSelect = viewModel::setFilter,
-                    folderLockEnabled = state.folderLockEnabled
-                )
+                AnimatedVisibility(
+                    visible = state.showQuickFilters,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    FolderAndFilterRow(
+                        folders = if (state.folderLockEnabled) state.folders.filter { !it.isLocked } else state.folders,
+                        selectedFolderId = state.selectedFolderId,
+                        selectedFilter = state.filterOption,
+                        onFolderSelect = viewModel::selectFolder,
+                        onFilterSelect = viewModel::setFilter,
+                        folderLockEnabled = state.folderLockEnabled
+                    )
+                }
 
                 // Stats bar
 //                if (state.links.isNotEmpty()) {
