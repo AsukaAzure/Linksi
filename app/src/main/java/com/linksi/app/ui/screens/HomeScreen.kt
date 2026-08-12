@@ -918,11 +918,15 @@ fun EmptyState(hasSearch: Boolean, onAddLink: () -> Unit) {
             if (!hasSearch) {
                 Button(
                     onClick = onAddLink,
-                    modifier = Modifier.size(56.dp),
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(0.dp)
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
                 ) {
-                    Icon(Icons.Filled.Add, null, Modifier.size(24.dp))
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = stringResource(id = com.linksi.app.R.string.save_link))
                 }
             }
         }

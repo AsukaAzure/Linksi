@@ -232,8 +232,12 @@ class SettingsViewModel @Inject constructor(
     fun exportCsv(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
-                val links = repository.getAllLinks(!_uiState.value.exportIncludeLocked).first()
-                val csv = exportLinksToCsv(links)
+                val includeLocked = _uiState.value.exportIncludeLocked
+                val links = repository.getAllLinks(!includeLocked).first()
+                val folders = repository.getAllFolders().first().let {
+                    if (!includeLocked) it.filter { f -> !f.isLocked } else it
+                }
+                val csv = exportLinksToCsv(links, folders)
                 context.contentResolver.openOutputStream(uri)?.use {
                     it.write(csv.toByteArray())
                 }
@@ -247,8 +251,12 @@ class SettingsViewModel @Inject constructor(
     fun exportHtml(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
-                val links = repository.getAllLinks(!_uiState.value.exportIncludeLocked).first()
-                val html = exportLinksToHtml(links)
+                val includeLocked = _uiState.value.exportIncludeLocked
+                val links = repository.getAllLinks(!includeLocked).first()
+                val folders = repository.getAllFolders().first().let {
+                    if (!includeLocked) it.filter { f -> !f.isLocked } else it
+                }
+                val html = exportLinksToHtml(links, folders)
                 context.contentResolver.openOutputStream(uri)?.use {
                     it.write(html.toByteArray())
                 }
@@ -267,13 +275,21 @@ class SettingsViewModel @Inject constructor(
                 val fileName = uri.path?.lowercase() ?: ""
                 val result = when {
                     fileName.endsWith(".json") -> importFromLinksJson(context, uri)
+                    fileName.endsWith(".csv") -> importFromCsv(context, uri)
                     else -> importFromBrowserHtml(context, uri)
                 }
 
                 // Insert folders first
                 val folderIdMap = mutableMapOf<Long, Long>()
                 result.folders.forEach { folder ->
-                    val newId = repository.insertFolder(folder)
+                    // Check if folder already exists by name
+                    val existing = repository.getFolderByName(folder.name)
+                    val newId = if (existing != null) {
+                        existing.id
+                    } else {
+                        // Reset ID to 0 to let Room generate a new one, avoiding clashes with temp IDs
+                        repository.insertFolder(folder.copy(id = 0))
+                    }
                     folderIdMap[folder.id] = newId
                 }
 

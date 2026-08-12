@@ -73,23 +73,21 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
     val root = JSONObject(json)
     if (root.optString("app") != "Linksi") throw Exception(context.getString(R.string.not_a_linksi_file))
 
-    val folders = mutableListOf<Folder>()
-    val foldersArr = root.optJSONArray("folders")
-    if (foldersArr != null) {
-        for (i in 0 until foldersArr.length()) {
-            val f = foldersArr.getJSONObject(i)
-            folders.add(Folder(
-                id = 0, // reset ID, will be re-inserted
+    val links = mutableListOf<Link>()
+    val folders = root.optJSONArray("folders")?.let { arr ->
+        (0 until arr.length()).map { i ->
+            val f = arr.getJSONObject(i)
+            Folder(
+                id = f.optLong("id", 0),
                 name = f.getString("name"),
                 icon = f.optString("icon", "folder"),
                 color = f.optString("color", "#6750A4"),
                 createdAt = f.optLong("createdAt", System.currentTimeMillis()),
                 isLocked = f.optBoolean("isLocked", false)
-            ))
+            )
         }
-    }
+    } ?: emptyList()
 
-    val links = mutableListOf<Link>()
     val linksArr = root.getJSONArray("links")
     for (i in 0 until linksArr.length()) {
         val l = linksArr.getJSONObject(i)
@@ -109,7 +107,7 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
             description = l.optString("description"),
             domain = l.optString("domain"),
             faviconUrl = l.optString("faviconUrl"),
-            folderId = null, // re-mapped after folder insert
+            folderId = if (l.isNull("folderId")) null else l.optLong("folderId"),
             isFavorite = l.optBoolean("isFavorite"),
             isRead = l.optBoolean("isRead"),
             isPinned = l.optBoolean("isPinned"),
@@ -134,42 +132,138 @@ fun importFromBrowserHtml(context: Context, uri: Uri): ImportResult {
         ?.bufferedReader()?.readText() ?: throw Exception(context.getString(R.string.cannot_read_file))
 
     val links = mutableListOf<Link>()
-    // Match <A HREF="url" ...>title</A>
-    val pattern = Regex("""<A\s+HREF="(https?://[^"]+)"[^>]*>([^<]+)</A>""",
-        RegexOption.IGNORE_CASE)
+    val folders = mutableListOf<Folder>()
+    
+    // Match <H3...>Folder Name</H3> or <A HREF="url"...>Title</A>
+    val pattern = Regex("""<(H3|A)(?:\s+HREF="([^"]+)")?[^>]*>([^<]+)</\1>""", RegexOption.IGNORE_CASE)
+    
+    var currentFolderId: Long? = null
+    var folderCounter = 1L
 
     pattern.findAll(html).forEach { match ->
-        val url = match.groupValues[1]
-        val title = match.groupValues[2].trim()
-        links.add(Link(
-            id = 0,
-            url = url,
-            title = title,
-            domain = extractDomain(url),
-            faviconUrl = "https://www.google.com/s2/favicons?domain=${extractDomain(url)}&sz=64"
-        ))
+        val tag = match.groupValues[1].uppercase()
+        val url = match.groupValues[2]
+        val text = match.groupValues[3].trim()
+
+        if (tag == "H3") {
+            // New folder
+            val folderName = text
+            if (folderName.isNotBlank() && folderName.lowercase() != "bookmarks bar" && folderName.lowercase() != "other bookmarks") {
+                val tempId = folderCounter++
+                folders.add(Folder(id = tempId, name = folderName))
+                currentFolderId = tempId
+            }
+        } else if (tag == "A" && url.isNotBlank()) {
+            links.add(Link(
+                id = 0,
+                url = url,
+                title = text,
+                folderId = currentFolderId,
+                domain = extractDomain(url),
+                faviconUrl = "https://www.google.com/s2/favicons?domain=${extractDomain(url)}&sz=64"
+            ))
+        }
     }
 
-    return ImportResult(links, emptyList(), "Browser", links.size)
+    return ImportResult(links, folders, "Browser", links.size)
 }
 
 // ── Export as CSV ─────────────────────────────────────────────
-fun exportLinksToCsv(links: List<Link>): String {
+fun exportLinksToCsv(links: List<Link>, folders: List<Folder>): String {
     val sb = StringBuilder()
-    sb.appendLine("url,title,description,domain,tags,isFavorite,isRead,isPinned,createdAt,note,previewImageUrl")
+    sb.appendLine("url,title,description,domain,tags,isFavorite,isRead,isPinned,createdAt,note,previewImageUrl,folder")
+    val folderMap = folders.associateBy { it.id }
     links.forEach { link ->
+        val folderName = link.folderId?.let { folderMap[it]?.name } ?: ""
         sb.appendLine(
             "${csvEscape(link.url)},${csvEscape(link.title)},${csvEscape(link.description)}," +
                     "${csvEscape(link.domain)},${csvEscape(link.tags.joinToString(";"))}," +
                     "${link.isFavorite},${link.isRead},${link.isPinned},${link.createdAt}," +
-                    "${csvEscape(link.note)},${csvEscape(link.previewImageUrl)}"
+                    "${csvEscape(link.note)},${csvEscape(link.previewImageUrl)},${csvEscape(folderName)}"
         )
     }
     return sb.toString()
 }
 
+// ── Import from CSV ───────────────────────────────────────────
+fun importFromCsv(context: Context, uri: Uri): ImportResult {
+    val csv = context.contentResolver.openInputStream(uri)
+        ?.bufferedReader()?.readText() ?: throw Exception(context.getString(R.string.cannot_read_file))
+
+    val lines = csv.lines().filter { it.isNotBlank() }
+    if (lines.isEmpty()) throw Exception(context.getString(R.string.cannot_read_file))
+
+    val header = lines[0].split(",")
+    val links = mutableListOf<Link>()
+    val folders = mutableListOf<Folder>()
+    val folderMap = mutableMapOf<String, Long>()
+    var folderCounter = 1L
+
+    for (i in 1 until lines.size) {
+        val parts = parseCsvLine(lines[i])
+        if (parts.size < header.size) continue
+
+        val linkData = header.zip(parts).toMap()
+        val folderName = linkData["folder"]?.trim() ?: ""
+        var folderId: Long? = null
+
+        if (folderName.isNotBlank()) {
+            folderId = folderMap[folderName]
+            if (folderId == null) {
+                folderId = folderCounter++
+                folderMap[folderName] = folderId
+                folders.add(Folder(id = folderId, name = folderName))
+            }
+        }
+
+        links.add(Link(
+            id = 0,
+            url = linkData["url"] ?: "",
+            title = linkData["title"] ?: "",
+            description = linkData["description"] ?: "",
+            domain = linkData["domain"] ?: extractDomain(linkData["url"] ?: ""),
+            tags = linkData["tags"]?.split(";")?.filter { it.isNotBlank() } ?: emptyList(),
+            isFavorite = linkData["isFavorite"]?.toBoolean() ?: false,
+            isRead = linkData["isRead"]?.toBoolean() ?: false,
+            isPinned = linkData["isPinned"]?.toBoolean() ?: false,
+            createdAt = linkData["createdAt"]?.toLongOrNull() ?: System.currentTimeMillis(),
+            note = linkData["note"] ?: "",
+            previewImageUrl = linkData["previewImageUrl"] ?: "",
+            folderId = folderId
+        ))
+    }
+
+    return ImportResult(links, folders, "CSV", links.size)
+}
+
+private fun parseCsvLine(line: String): List<String> {
+    val result = mutableListOf<String>()
+    var current = StringBuilder()
+    var inQuotes = false
+    var i = 0
+    while (i < line.length) {
+        val c = line[i]
+        if (c == '\"') {
+            if (inQuotes && i + 1 < line.length && line[i + 1] == '\"') {
+                current.append('\"')
+                i++
+            } else {
+                inQuotes = !inQuotes
+            }
+        } else if (c == ',' && !inQuotes) {
+            result.add(current.toString())
+            current = StringBuilder()
+        } else {
+            current.append(c)
+        }
+        i++
+    }
+    result.add(current.toString())
+    return result
+}
+
 // ── Export as HTML ────────────────────────────────────────────
-fun exportLinksToHtml(links: List<Link>): String {
+fun exportLinksToHtml(links: List<Link>, folders: List<Folder>): String {
     val sb = StringBuilder()
     sb.appendLine("<!DOCTYPE NETSCAPE-Bookmark-file-1>")
     sb.appendLine("<!-- This is an automatically generated file.")
@@ -179,15 +273,35 @@ fun exportLinksToHtml(links: List<Link>): String {
     sb.appendLine("<TITLE>Bookmarks</TITLE>")
     sb.appendLine("<H1>Bookmarks</H1>")
     sb.appendLine("<DL><p>")
-    sb.appendLine("    <DT><H3 ADD_DATE=\"${System.currentTimeMillis() / 1000}\" LAST_MODIFIED=\"${System.currentTimeMillis() / 1000}\">Linksi Export</H3>")
-    sb.appendLine("    <DL><p>")
 
-    links.forEach { link ->
-        val addDate = link.createdAt / 1000
-        sb.appendLine("        <DT><A HREF=\"${link.url}\" ADD_DATE=\"$addDate\">${link.title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</A>")
+    // Group by folder
+    val folderMap = folders.associateBy { it.id }
+    val grouped = links.groupBy { it.folderId }
+
+    // First, exports folders
+    folders.forEach { folder ->
+        val folderLinks = grouped[folder.id] ?: return@forEach
+        sb.appendLine("    <DT><H3 ADD_DATE=\"${folder.createdAt / 1000}\" LAST_MODIFIED=\"${System.currentTimeMillis() / 1000}\">${folder.name}</H3>")
+        sb.appendLine("    <DL><p>")
+        folderLinks.forEach { link ->
+            val addDate = link.createdAt / 1000
+            sb.appendLine("        <DT><A HREF=\"${link.url}\" ADD_DATE=\"$addDate\">${link.title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</A>")
+        }
+        sb.appendLine("    </DL><p>")
     }
 
-    sb.appendLine("    </DL><p>")
+    // Export uncategorized links
+    val uncategorized = grouped[null]
+    if (!uncategorized.isNullOrEmpty()) {
+        sb.appendLine("    <DT><H3 ADD_DATE=\"${System.currentTimeMillis() / 1000}\">Uncategorized</H3>")
+        sb.appendLine("    <DL><p>")
+        uncategorized.forEach { link ->
+            val addDate = link.createdAt / 1000
+            sb.appendLine("        <DT><A HREF=\"${link.url}\" ADD_DATE=\"$addDate\">${link.title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</A>")
+        }
+        sb.appendLine("    </DL><p>")
+    }
+
     sb.appendLine("</DL><p>")
     return sb.toString()
 }
