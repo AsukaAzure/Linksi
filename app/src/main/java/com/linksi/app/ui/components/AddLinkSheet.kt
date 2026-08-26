@@ -59,6 +59,7 @@ fun AddLinkSheet(
     folders: List<Folder>,
     allTags: List<String> = emptyList(),
     isFetchingMetadata: Boolean = false,
+    initialFolderId: Long? = null,
     onDismiss: () -> Unit,
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
     folderLockEnabled: Boolean = false,
@@ -80,7 +81,7 @@ fun AddLinkSheet(
     val clipboardManager = LocalClipboardManager.current
 
     var url by remember { mutableStateOf("") }
-    var selectedFolderId by remember { mutableStateOf<Long?>(null) }
+    var selectedFolderId by remember { mutableStateOf(initialFolderId) }
     var reminderAt by remember { mutableStateOf<Long?>(null) }
     var expiresAt by remember { mutableStateOf<Long?>(null) }
     var note by remember { mutableStateOf("") }

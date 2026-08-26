@@ -91,6 +91,7 @@
     <string name="folders_title">Папки</string>
     <string name="no_folders">Папок пока нет</string>
     <string name="create_folder">Создать папку</string>
+    <string name="sub_folders">Подпапки</string>
     <string name="toggle_view">Переключить вид</string>
     <string name="add_folder">Добавить папку</string>
     <string name="sort_folders">Сортировать папки</string>

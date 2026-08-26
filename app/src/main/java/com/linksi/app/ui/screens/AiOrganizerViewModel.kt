@@ -347,7 +347,8 @@ class AiOrganizerViewModel @Inject constructor(
                     Folder(
                         name = folderPlan.name,
                         icon = folderPlan.icon,
-                        color = folderPlan.color
+                        color = folderPlan.color,
+                        parentId = folderPlan.parentId
                     )
                 )
                 newFolderIdMap[folderPlan.name] = newId

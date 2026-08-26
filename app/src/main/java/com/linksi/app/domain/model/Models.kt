@@ -34,7 +34,8 @@ data class Folder(
     val color: String = "#6750A4",
     val createdAt: Long = System.currentTimeMillis(),
     val linkCount: Int = 0,
-    val isLocked: Boolean = false
+    val isLocked: Boolean = false,
+    val parentId: Long? = null
 ) : Parcelable
 
 enum class SortOption {

@@ -7,9 +7,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -32,6 +31,7 @@ import com.linksi.app.ui.components.AddFolderDialog
 import com.linksi.app.ui.components.EditFolderDialog
 import com.linksi.app.ui.components.FolderPickerDialog
 import com.linksi.app.ui.components.LinkCard
+import com.linksi.app.ui.components.LinkGridCard
 import com.linksi.app.ui.components.OptionsFullRow
 import com.linksi.app.ui.components.SortBottomSheet
 import com.linksi.app.ui.components.iconFromName
@@ -67,7 +67,7 @@ fun FoldersScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var selectedFolder by remember { mutableStateOf<Folder?>(null) }
+    var folderStack = remember { mutableStateListOf<Folder>() }
     var folderToUnlock by remember { mutableStateOf<Folder?>(null) }
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
 
@@ -77,29 +77,22 @@ fun FoldersScreen(
             (prefs[SECURITY_PIN] ?: "") to (prefs[SECURITY_BIOMETRIC_ENABLED] ?: false)
         }
     }.collectAsState(initial = null)
-    // Keep track of the folder even when selectedFolder becomes null to allow exit animation
-    val activeFolder = remember(selectedFolder) {
-        if (selectedFolder != null) selectedFolder else null
-    }
-    // We actually need to keep the last non-null folder for the exit animation
-    var lastFolder by remember { mutableStateOf<Folder?>(null) }
+
+    // Current folder is the top of the stack
+    val selectedFolder = folderStack.lastOrNull()
+    
     LaunchedEffect(selectedFolder) {
-        if (selectedFolder != null) {
-            lastFolder = selectedFolder
-            viewModel.selectFolder(selectedFolder?.id)
-        } else {
-            viewModel.selectFolder(null)
-        }
+        viewModel.selectFolder(selectedFolder?.id)
     }
 
     var browserUrl by remember { mutableStateOf<String?>(null) }
-    var browserTitle by remember { mutableStateOf("") }            // add
+    var browserTitle by remember { mutableStateOf("") }
 
     BackHandler {
         if (browserUrl != null) {
-            browserUrl = null  // handled by browser's own back
-        } else if (selectedFolder != null) {
-            selectedFolder = null
+            browserUrl = null
+        } else if (folderStack.isNotEmpty()) {
+            folderStack.removeAt(folderStack.size - 1)
         } else {
             onBack()
         }
@@ -108,11 +101,11 @@ fun FoldersScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         FolderListScreen(
             folders = state.folders,
-            onFolderClick = { 
-                if (state.folderLockEnabled && it.isLocked && securityPrefs?.first?.isNotEmpty() == true) {
-                    folderToUnlock = it
+            onFolderClick = { folder ->
+                if (state.folderLockEnabled && folder.isLocked && securityPrefs?.first?.isNotEmpty() == true) {
+                    folderToUnlock = folder
                 } else {
-                    selectedFolder = it 
+                    folderStack.add(folder)
                 }
             },
             onAddFolder = viewModel::showAddFolderDialog,
@@ -130,15 +123,30 @@ fun FoldersScreen(
         )
 
         AnimatedVisibility(
-            visible = selectedFolder != null,
+            visible = folderStack.isNotEmpty(),
             enter = slideInHorizontally(initialOffsetX = { it }),
             exit = slideOutHorizontally(targetOffsetX = { it })
         ) {
-            lastFolder?.let { folder ->
+            selectedFolder?.let { folder ->
                 FolderDetailScreen(
                     folder = folder,
+                    folderStack = folderStack.toList(),
                     viewModel = viewModel,
-                    onBack = { selectedFolder = null },
+                    onBack = { 
+                        if (folderStack.isNotEmpty()) folderStack.removeAt(folderStack.size - 1)
+                    },
+                    onBreadcrumbClick = { index ->
+                        while (folderStack.size > index + 1) {
+                            folderStack.removeAt(folderStack.size - 1)
+                        }
+                    },
+                    onSubFolderClick = { subFolder ->
+                         if (state.folderLockEnabled && subFolder.isLocked && securityPrefs?.first?.isNotEmpty() == true) {
+                            folderToUnlock = subFolder
+                        } else {
+                            folderStack.add(subFolder)
+                        }
+                    },
                     onOpenBrowser = { url, title ->
                         browserUrl = url
                         browserTitle = title
@@ -159,7 +167,7 @@ fun FoldersScreen(
                         savedPin = securityPrefs?.first ?: "",
                         isBiometricEnabled = securityPrefs?.second ?: false,
                         onUnlock = {
-                            selectedFolder = folder
+                            folderStack.add(folder)
                             viewModel.selectFolder(folder.id)
                             folderToUnlock = null
                         }
@@ -267,7 +275,8 @@ fun FoldersScreen(
         AddFolderDialog(
             onDismiss = viewModel::hideAddFolderDialog,
             onConfirm = { name, icon, color ->
-                viewModel.addFolder(name, icon, color)
+                // CRITICAL: Use the ID from the actual folder stack to ensure it goes inside
+                viewModel.addFolder(name, icon, color, folderStack.lastOrNull()?.id)
                 viewModel.hideAddFolderDialog()
             }
         )
@@ -802,8 +811,11 @@ fun FolderListItem(
 @Composable
 fun FolderDetailScreen(
     folder: Folder,
+    folderStack: List<Folder>,
     viewModel: HomeViewModel,
     onBack: () -> Unit,
+    onBreadcrumbClick: (Int) -> Unit,
+    onSubFolderClick: (Folder) -> Unit,
     onOpenBrowser: (url: String, title: String) -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -836,20 +848,50 @@ fun FolderDetailScreen(
 
     Scaffold(
         topBar = {
-            Column {
+            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
                 // Normal top bar — always visible
                 TopAppBar(
                     title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                iconFromName(folder.icon), null,
-                                Modifier.size(20.dp),
-                                tint = Color(android.graphics.Color.parseColor(folder.color))
-                            )
-                            Text(folder.name, style = MaterialTheme.typography.titleLarge)
+                        Column {
+                            // Breadcrumbs
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                item {
+                                    Text(
+                                        stringResource(R.string.folders_title),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.clickable { onBreadcrumbClick(-1) }
+                                    )
+                                }
+                                itemsIndexed(folderStack.dropLast(1)) { index, f ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Filled.ChevronRight, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            f.name,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.clickable { onBreadcrumbClick(index) }
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    iconFromName(folder.icon), null,
+                                    Modifier.size(20.dp),
+                                    tint = Color(android.graphics.Color.parseColor(folder.color))
+                                )
+                                Text(folder.name, style = MaterialTheme.typography.titleLarge)
+                            }
                         }
                     },
                     navigationIcon = {
@@ -861,6 +903,14 @@ fun FolderDetailScreen(
                         }
                     },
                     actions = {
+                        // Add link button
+                        IconButton(onClick = viewModel::showAddLinkDialog) {
+                            Icon(Icons.Outlined.AddLink, stringResource(id = R.string.save_link))
+                        }
+                        // Add subfolder button
+                        IconButton(onClick = viewModel::showAddFolderDialog) {
+                            Icon(Icons.Outlined.CreateNewFolder, stringResource(id = R.string.add_folder))
+                        }
                         IconButton(onClick = {
                             viewModel.setFolderLinksViewMode(
                                 if (viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST
@@ -991,7 +1041,7 @@ fun FolderDetailScreen(
 
                                 if (showFolderPicker) {
                                     FolderPickerDialog(
-                                        folders = state.folders.filter { it.id != folder.id },
+                                        folders = state.allFolders.filter { it.id != folder.id },
                                         currentFolderId = folder.id,
                                         onSelect = { folderId ->
                                             scope.launch {
@@ -1021,7 +1071,9 @@ fun FolderDetailScreen(
                                             showFolderPicker = false
                                         },
                                         onDismiss = { showFolderPicker = false },
-                                        onCreateFolder = { name, icon, color -> viewModel.addFolder(name, icon, color) }
+                                        onCreateFolder = { name, icon, color -> 
+                                            viewModel.addFolder(name, icon, color, folder.id) 
+                                        }
                                     )
                                 }
                             }
@@ -1076,6 +1128,34 @@ fun FolderDetailScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // Sub-folders Section
+            if (state.subFolders.isNotEmpty() && searchQuery.isBlank()) {
+                Text(
+                    stringResource(R.string.sub_folders),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                ) {
+                    items(state.subFolders, key = { it.id }) { subFolder ->
+                        Box(modifier = Modifier.width(160.dp)) {
+                            FolderGridCard(
+                                folder = subFolder,
+                                onClick = { onSubFolderClick(subFolder) },
+                                onEdit = { /* TODO */ },
+                                onDelete = { viewModel.deleteFolder(subFolder) },
+                                folderLockEnabled = state.folderLockEnabled
+                            )
+                        }
+                    }
+                }
+                HorizontalDivider(Modifier.padding(horizontal = 20.dp))
+            }
+
             Text(
                 stringResource(R.string.links_count, folderLinks.size),
                 style = MaterialTheme.typography.labelMedium,
@@ -1096,7 +1176,7 @@ fun FolderDetailScreen(
                 when (viewMode) {
                     ViewMode.LIST -> LinksList(
                         links = folderLinks,
-                        folders = state.folders,
+                        folders = state.allFolders,
                         selectedIds = selectedIds,
                         isSelectionMode = isSelectionMode,
                         onLongPress = { id ->
@@ -1137,7 +1217,7 @@ fun FolderDetailScreen(
 
                     ViewMode.GRID -> LinksGrid(
                         links = folderLinks,
-                        folders = state.folders,
+                        folders = state.allFolders,
                         selectedIds = selectedIds,
                         isSelectionMode = isSelectionMode,
                         onLongPress = { id ->

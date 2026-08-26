@@ -93,6 +93,7 @@
     <string name="folders_title">Folders</string>
     <string name="no_folders">No folders yet</string>
     <string name="create_folder">Create folder</string>
+    <string name="sub_folders">Sub-folders</string>
     <string name="toggle_view">Toggle view</string>
     <string name="add_folder">Add folder</string>
     <string name="sort_folders">Sort folders</string>

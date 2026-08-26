@@ -21,6 +21,8 @@ import com.linksi.app.R
 data class HomeUiState(
     val links: List<Link> = emptyList(),
     val folders: List<Folder> = emptyList(),
+    val subFolders: List<Folder> = emptyList(),
+    val allFolders: List<Folder> = emptyList(),
     val searchQuery: String = "",
     val selectedFolderId: Long? = null,  // null = "All"
     val filterOption: FilterOption = FilterOption.ALL,
@@ -69,7 +71,7 @@ class HomeViewModel @Inject constructor(
     init {
         createNotificationChannel(context)
         observeData()
-        loadFolders()
+        observeFolders()
         startExpiryChecker()
         loadAllTags()
 
@@ -142,10 +144,28 @@ class HomeViewModel @Inject constructor(
         val folderLockEnabled: Boolean
     )
 
-    private fun loadFolders() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeFolders() {
+        // Main folders list (filtered by parent for nesting)
         viewModelScope.launch {
-            repository.getAllFolders().collect { folders ->
-                _uiState.update { it.copy(folders = folders) }
+            _uiState.map { it.selectedFolderId }.distinctUntilChanged()
+                .flatMapLatest { folderId ->
+                    repository.getFoldersByParent(folderId)
+                }.collect { folders ->
+                    _uiState.update { 
+                        if (it.selectedFolderId == null) {
+                            it.copy(folders = folders, subFolders = emptyList())
+                        } else {
+                            it.copy(subFolders = folders)
+                        }
+                    }
+                }
+        }
+
+        // Full list for pickers
+        viewModelScope.launch {
+            repository.getAllFolders().collect { all ->
+                _uiState.update { it.copy(allFolders = all) }
             }
         }
     }
@@ -301,9 +321,9 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun addFolder(name: String, icon: String, color: String) {
+    fun addFolder(name: String, icon: String, color: String, parentId: Long? = null) {
         viewModelScope.launch {
-            val folder = Folder(name = name, icon = icon, color = color)
+            val folder = Folder(name = name, icon = icon, color = color, parentId = parentId)
             repository.insertFolder(folder)
         }
     }

@@ -8,7 +8,7 @@ import androidx.work.impl.Migration_1_2
 
 @Database(
     entities = [LinkEntity::class, FolderEntity::class],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class LinksDatabase : RoomDatabase() {
@@ -16,6 +16,36 @@ abstract class LinksDatabase : RoomDatabase() {
     abstract fun folderDao(): FolderDao
 
     companion object {
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create new table with parentId and proper constraints
+                database.execSQL("""
+                    CREATE TABLE folders_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name TEXT NOT NULL,
+                        icon TEXT NOT NULL DEFAULT 'folder',
+                        color TEXT NOT NULL DEFAULT '#6750A4',
+                        createdAt INTEGER NOT NULL,
+                        isLocked INTEGER NOT NULL DEFAULT 0,
+                        parentId INTEGER,
+                        FOREIGN KEY(parentId) REFERENCES folders(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """)
+                
+                // Copy existing data
+                database.execSQL("""
+                    INSERT INTO folders_new (id, name, icon, color, createdAt, isLocked, parentId)
+                    SELECT id, name, icon, color, createdAt, isLocked, NULL FROM folders
+                """)
+                
+                // Swap tables
+                database.execSQL("DROP TABLE folders")
+                database.execSQL("ALTER TABLE folders_new RENAME TO folders")
+                
+                // Create index
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_folders_parentId ON folders(parentId)")
+            }
+        }
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""

@@ -91,7 +91,24 @@ class LinkRepository @Inject constructor(
                     it.folder.color,
                     it.folder.createdAt,
                     it.linkCount,
-                    it.folder.isLocked
+                    it.folder.isLocked,
+                    it.folder.parentId
+                )
+            }
+        }
+
+    fun getFoldersByParent(parentId: Long?): Flow<List<Folder>> =
+        folderDao.getFoldersByParentWithCount(parentId).map { list ->
+            list.map {
+                Folder(
+                    it.folder.id,
+                    it.folder.name,
+                    it.folder.icon,
+                    it.folder.color,
+                    it.folder.createdAt,
+                    it.linkCount,
+                    it.folder.isLocked,
+                    it.folder.parentId
                 )
             }
         }
@@ -99,12 +116,13 @@ class LinkRepository @Inject constructor(
     suspend fun insertFolder(folder: Folder): Long {
         return folderDao.insertFolder(
             FolderEntity(
-                id = folder.id,  // preserve original ID so links still match
+                id = folder.id,
                 name = folder.name,
                 icon = folder.icon,
                 color = folder.color,
                 createdAt = folder.createdAt,
-                isLocked = folder.isLocked
+                isLocked = folder.isLocked,
+                parentId = folder.parentId
             )
         )
     }
@@ -117,7 +135,8 @@ class LinkRepository @Inject constructor(
                 folder.icon,
                 folder.color,
                 folder.createdAt,
-                isLocked = folder.isLocked
+                isLocked = folder.isLocked,
+                parentId = folder.parentId
             )
         )
 
@@ -129,7 +148,8 @@ class LinkRepository @Inject constructor(
                 folder.icon,
                 folder.color,
                 folder.createdAt,
-                isLocked = folder.isLocked
+                isLocked = folder.isLocked,
+                parentId = folder.parentId
             )
         )
 
@@ -202,6 +222,7 @@ class LinkRepository @Inject constructor(
         icon = entity.icon,
         color = entity.color,
         createdAt = entity.createdAt,
-        isLocked = entity.isLocked
+        isLocked = entity.isLocked,
+        parentId = entity.parentId
     )
 }

@@ -26,6 +26,7 @@ fun exportLinksToJson(links: List<Link>, folders: List<Folder>): String {
             put("color", folder.color)
             put("createdAt", folder.createdAt)
             put("isLocked", folder.isLocked)
+            put("parentId", folder.parentId ?: JSONObject.NULL)
         })
     }
     root.put("folders", foldersArr)
@@ -83,7 +84,8 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
                 icon = f.optString("icon", "folder"),
                 color = f.optString("color", "#6750A4"),
                 createdAt = f.optLong("createdAt", System.currentTimeMillis()),
-                isLocked = f.optBoolean("isLocked", false)
+                isLocked = f.optBoolean("isLocked", false),
+                parentId = if (f.isNull("parentId")) null else f.optLong("parentId")
             )
         }
     } ?: emptyList()
@@ -134,7 +136,11 @@ fun importFromBrowserHtml(context: Context, uri: Uri): ImportResult {
     val links = mutableListOf<Link>()
     val folders = mutableListOf<Folder>()
     
-    // Match <H3...>Folder Name</H3> or <A HREF="url"...>Title</A>
+    // Improved regex to capture structure if possible, but basic flat import for now
+    // Actually, to handle nesting in HTML, we'd need a real parser. 
+    // For now, I'll update it to at least keep the parentId logic if we encounter nested DL tags.
+    // However, regex isn't great for nested structures. 
+    
     val pattern = Regex("""<(H3|A)(?:\s+HREF="([^"]+)")?[^>]*>([^<]+)</\1>""", RegexOption.IGNORE_CASE)
     
     var currentFolderId: Long? = null
@@ -146,11 +152,10 @@ fun importFromBrowserHtml(context: Context, uri: Uri): ImportResult {
         val text = match.groupValues[3].trim()
 
         if (tag == "H3") {
-            // New folder
             val folderName = text
             if (folderName.isNotBlank() && folderName.lowercase() != "bookmarks bar" && folderName.lowercase() != "other bookmarks") {
                 val tempId = folderCounter++
-                folders.add(Folder(id = tempId, name = folderName))
+                folders.add(Folder(id = tempId, name = folderName, parentId = null)) // Simple flat for now
                 currentFolderId = tempId
             }
         } else if (tag == "A" && url.isNotBlank()) {
@@ -266,40 +271,39 @@ private fun parseCsvLine(line: String): List<String> {
 fun exportLinksToHtml(links: List<Link>, folders: List<Folder>): String {
     val sb = StringBuilder()
     sb.appendLine("<!DOCTYPE NETSCAPE-Bookmark-file-1>")
-    sb.appendLine("<!-- This is an automatically generated file.")
-    sb.appendLine("     It will be read and written.")
-    sb.appendLine("     DO NOT EDIT! -->")
     sb.appendLine("<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">")
     sb.appendLine("<TITLE>Bookmarks</TITLE>")
     sb.appendLine("<H1>Bookmarks</H1>")
     sb.appendLine("<DL><p>")
 
-    // Group by folder
-    val folderMap = folders.associateBy { it.id }
-    val grouped = links.groupBy { it.folderId }
+    val foldersByParent = folders.groupBy { it.parentId }
+    val linksByFolder = links.groupBy { it.folderId }
 
-    // First, exports folders
-    folders.forEach { folder ->
-        val folderLinks = grouped[folder.id] ?: return@forEach
-        sb.appendLine("    <DT><H3 ADD_DATE=\"${folder.createdAt / 1000}\" LAST_MODIFIED=\"${System.currentTimeMillis() / 1000}\">${folder.name}</H3>")
-        sb.appendLine("    <DL><p>")
-        folderLinks.forEach { link ->
-            val addDate = link.createdAt / 1000
-            sb.appendLine("        <DT><A HREF=\"${link.url}\" ADD_DATE=\"$addDate\">${link.title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</A>")
+    fun writeFolder(parentId: Long?, indent: String) {
+        // Folders at this level
+        foldersByParent[parentId]?.forEach { folder ->
+            sb.appendLine("$indent    <DT><H3 ADD_DATE=\"${folder.createdAt / 1000}\">${folder.name}</H3>")
+            sb.appendLine("$indent    <DL><p>")
+            
+            // Sub-folders
+            writeFolder(folder.id, "$indent    ")
+            
+            // Links in this folder
+            linksByFolder[folder.id]?.forEach { link ->
+                val addDate = link.createdAt / 1000
+                sb.appendLine("$indent        <DT><A HREF=\"${link.url}\" ADD_DATE=\"$addDate\">${link.title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</A>")
+            }
+            sb.appendLine("$indent    </DL><p>")
         }
-        sb.appendLine("    </DL><p>")
     }
 
-    // Export uncategorized links
-    val uncategorized = grouped[null]
-    if (!uncategorized.isNullOrEmpty()) {
-        sb.appendLine("    <DT><H3 ADD_DATE=\"${System.currentTimeMillis() / 1000}\">Uncategorized</H3>")
-        sb.appendLine("    <DL><p>")
-        uncategorized.forEach { link ->
-            val addDate = link.createdAt / 1000
-            sb.appendLine("        <DT><A HREF=\"${link.url}\" ADD_DATE=\"$addDate\">${link.title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</A>")
-        }
-        sb.appendLine("    </DL><p>")
+    // Start with root folders
+    writeFolder(null, "")
+
+    // Export uncategorized links (at root)
+    linksByFolder[null]?.forEach { link ->
+        val addDate = link.createdAt / 1000
+        sb.appendLine("    <DT><A HREF=\"${link.url}\" ADD_DATE=\"$addDate\">${link.title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</A>")
     }
 
     sb.appendLine("</DL><p>")

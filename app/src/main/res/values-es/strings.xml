@@ -93,6 +93,7 @@
     <string name="folders_title">Carpetas</string>
     <string name="no_folders">Aún no hay carpetas</string>
     <string name="create_folder">Crear carpeta</string>
+    <string name="sub_folders">Subcarpetas</string>
     <string name="toggle_view">Alternar vista</string>
     <string name="add_folder">Añadir carpeta</string>
     <string name="sort_folders">Ordenar carpetas</string>

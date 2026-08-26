@@ -438,7 +438,7 @@ fun HomeScreen(
                         ViewMode.LIST -> LinksList(
                             links = state.links,
                             listState = listState,
-                            folders = state.folders,
+                            folders = state.allFolders,
                             selectedIds = state.selectedIds,
                             isSelectionMode = state.isSelectionMode,
                             onLongPress = viewModel::toggleSelction,
@@ -479,7 +479,7 @@ fun HomeScreen(
 
                         ViewMode.GRID -> LinksGrid(
                             links = state.links,
-                            folders = state.folders,
+                            folders = state.allFolders,
                             selectedIds = state.selectedIds,
                             isSelectionMode = state.isSelectionMode,
                             onLongPress = viewModel::toggleSelction,
@@ -611,9 +611,10 @@ fun HomeScreen(
 
     if (state.showAddLinkDialog) {
         AddLinkSheet(
-            folders = state.folders,
+            folders = state.allFolders,
             allTags = state.allTags,
             isFetchingMetadata = state.isFetchingMetadata,
+            initialFolderId = state.selectedFolderId,
 //            isInTour = isInTour,
 //            tourStep = tourStep,
 //            onTourNext = { nextStep() },
@@ -643,7 +644,8 @@ fun HomeScreen(
         AddFolderDialog(
             onDismiss = viewModel::hideAddFolderDialog,
             onConfirm = { name, emoji, color ->
-                viewModel.addFolder(name, emoji, color)
+                // If a folder filter is active on Home screen, create as sub-folder
+                viewModel.addFolder(name, emoji, color, state.selectedFolderId)
                 viewModel.hideAddFolderDialog()
             }
         )
@@ -947,7 +949,7 @@ fun BulkActionBar(
     onDelete: () -> Unit,
     onMove: (Long?) -> Unit,
     onCancel: () -> Unit,
-    onCreateFolder: (String, String, String) -> Unit
+    onCreateFolder: (String, String, String, Long?) -> Unit
 ) {
     var showFolderPicker by remember { mutableStateOf(false) }
 
@@ -991,7 +993,7 @@ fun BulkActionBar(
             currentFolderId = null,
             onSelect = { folderId -> onMove(folderId); showFolderPicker = false },
             onDismiss = { showFolderPicker = false },
-            onCreateFolder = onCreateFolder
+            onCreateFolder = { name, icon, color -> onCreateFolder(name, icon, color, null) }
         )
     }
 }

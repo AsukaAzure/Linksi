@@ -27,7 +27,8 @@ object AppModule {
                 LinksDatabase.MIGRATION_4_5,
                 LinksDatabase.MIGRATION_5_6,
                 LinksDatabase.MIGRATION_6_7,
-                LinksDatabase.MIGRATION_7_8
+                LinksDatabase.MIGRATION_7_8,
+                LinksDatabase.MIGRATION_8_9
             )
             .build()
 

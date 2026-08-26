@@ -686,7 +686,7 @@ fun ShareReceiverSheet(
     if (showEditSheet) {
         LinkEditSheet(
             link = tempLink,
-            folders = state.folders,
+            folders = state.allFolders,
             onDismiss = { showEditSheet = false },
             onSave = { updated ->
                 editTitle = updated.title
@@ -699,14 +699,16 @@ fun ShareReceiverSheet(
 
     if (showFolderPicker) {
         FolderPickerDialog(
-            folders = state.folders,
+            folders = state.allFolders,
             currentFolderId = selectedFolderId,
             onSelect = { folderId ->
                 selectedFolderId = folderId
                 showFolderPicker = false
             },
             onDismiss = { showFolderPicker = false },
-            onCreateFolder = { name, icon, color -> viewModel.addFolder(name, icon, color) }
+            onCreateFolder = { name, icon, color -> 
+                viewModel.addFolder(name, icon, color, selectedFolderId) 
+            }
         )
     }
 
@@ -714,7 +716,7 @@ fun ShareReceiverSheet(
         AddFolderDialog(
             onDismiss = { showCreateFolder = false },
             onConfirm = { name, icon, color ->
-                viewModel.addFolder(name, icon, color)
+                viewModel.addFolder(name, icon, color, state.selectedFolderId)
                 showCreateFolder = false
             }
         )

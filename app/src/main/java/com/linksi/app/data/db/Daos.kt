@@ -127,6 +127,18 @@ interface FolderDao {
         SELECT f.*, COUNT(l.id) as link_count 
         FROM folders f 
         LEFT JOIN links l ON l.folderId = f.id AND l.inBin = 0
+        WHERE f.parentId IS :parentId
+        GROUP BY f.id
+        ORDER BY f.createdAt ASC
+    """
+    )
+    fun getFoldersByParentWithCount(parentId: Long?): Flow<List<FolderWithCount>>
+
+    @Query(
+        """
+        SELECT f.*, COUNT(l.id) as link_count 
+        FROM folders f 
+        LEFT JOIN links l ON l.folderId = f.id AND l.inBin = 0
         GROUP BY f.id
         ORDER BY f.createdAt ASC
     """

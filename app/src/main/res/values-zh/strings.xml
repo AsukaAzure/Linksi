@@ -91,6 +91,7 @@
     <string name="folders_title">文件夹</string>
     <string name="no_folders">暂无文件夹</string>
     <string name="create_folder">创建文件夹</string>
+    <string name="sub_folders">子文件夹</string>
     <string name="toggle_view">切换视图</string>
     <string name="add_folder">添加文件夹</string>
     <string name="sort_folders">文件夹排序</string>

@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.fragment.app.FragmentActivity
+import androidx.compose.ui.text.style.TextOverflow
 import com.linksi.app.R
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.SortOption
@@ -311,6 +312,9 @@ fun FolderPickerDialog(
     var folderToUnlock by remember { mutableStateOf<Folder?>(null) }
     var showPinVerify by remember { mutableStateOf(false) }
 
+    val foldersByParent = remember(folders) { folders.groupBy { it.parentId } }
+    val expandedFolders = remember { mutableStateListOf<Long>() }
+
     // Trigger enter animation on first frame
     LaunchedEffect(Unit) { visible = true }
 
@@ -395,9 +399,9 @@ fun FolderPickerDialog(
             ) {
                 Surface(
                     modifier = Modifier
-                        .fillMaxWidth(0.72f)
-                        .fillMaxHeight(0.65f),
-                    shape = RoundedCornerShape(topEnd = 20.dp, bottomEnd = 20.dp),
+                        .fillMaxWidth(0.85f)
+                        .fillMaxHeight(0.75f),
+                    shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp),
                     color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 8.dp
                 ) {
@@ -414,7 +418,7 @@ fun FolderPickerDialog(
                             }
                             Text(
                                 stringResource(R.string.move_to_folder),
-                                style = MaterialTheme.typography.titleLarge
+                                style = MaterialTheme.typography.headlineSmall
                             )
                         }
 
@@ -451,40 +455,58 @@ fun FolderPickerDialog(
                             )
 
                             HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
 
-                            // Existing folders
-                            folders.forEach { folder ->
-                                val isCurrentFolder = folder.id == currentFolderId
-                                FolderPickerItem(
-                                    icon = {
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = Color(
-                                                android.graphics.Color.parseColor(folder.color)
-                                            ).copy(alpha = 0.15f),
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Icon(
-                                                    iconFromName(folder.icon), null,
-                                                    Modifier.size(18.dp),
-                                                    tint = Color(android.graphics.Color.parseColor(folder.color))
-                                                )
+                            // Recursive Folder Rendering
+                            @Composable
+                            fun FolderTree(parentId: Long?, level: Int) {
+                                foldersByParent[parentId]?.forEach { folder ->
+                                    val isCurrentFolder = folder.id == currentFolderId
+                                    val hasSubfolders = foldersByParent.containsKey(folder.id)
+                                    val isExpanded = expandedFolders.contains(folder.id)
+
+                                    FolderPickerItem(
+                                        icon = {
+                                            Surface(
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = Color(
+                                                    android.graphics.Color.parseColor(folder.color)
+                                                ).copy(alpha = 0.15f),
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        iconFromName(folder.icon), null,
+                                                        Modifier.size(18.dp),
+                                                        tint = Color(android.graphics.Color.parseColor(folder.color))
+                                                    )
+                                                }
                                             }
-                                        }
-                                    },
-                                    name = folder.name,
-                                    isSelected = isCurrentFolder,
-                                    isLocked = folder.isLocked && folderLockEnabled,
-                                    color = Color(android.graphics.Color.parseColor(folder.color)),
-                                    subtitle = if (isCurrentFolder) stringResource(R.string.tap_to_remove) else null,
-                                    onClick = { handleFolderClick(folder) }
-                                )
+                                        },
+                                        name = folder.name,
+                                        isSelected = isCurrentFolder,
+                                        isLocked = folder.isLocked && folderLockEnabled,
+                                        color = Color(android.graphics.Color.parseColor(folder.color)),
+                                        subtitle = if (isCurrentFolder) stringResource(R.string.tap_to_remove) else null,
+                                        level = level,
+                                        hasChildren = hasSubfolders,
+                                        isExpanded = isExpanded,
+                                        onExpandToggle = {
+                                            if (isExpanded) expandedFolders.remove(folder.id)
+                                            else expandedFolders.add(folder.id)
+                                        },
+                                        onClick = { handleFolderClick(folder) }
+                                    )
+
+                                    if (isExpanded) {
+                                        FolderTree(folder.id, level + 1)
+                                    }
+                                }
                             }
 
-                            // Create folder dialog
+                            FolderTree(null, 0)
+
                             if (showCreateFolder) {
                                 AddFolderDialog(
                                     onDismiss = { showCreateFolder = false },
@@ -503,7 +525,7 @@ fun FolderPickerDialog(
 
     if (showPinVerify && folderToUnlock != null) {
         PinVerifyDialog(
-            savedPin = securityPrefs.first,
+            savedPin = savedPin,
             onSuccess = {
                 showPinVerify = false
                 select(folderToUnlock?.id)
@@ -634,7 +656,11 @@ fun FolderPickerItem(
     color: Color,
     onClick: () -> Unit,
     subtitle: String? = null,
-    isLocked: Boolean = false
+    isLocked: Boolean = false,
+    level: Int = 0,
+    hasChildren: Boolean = false,
+    isExpanded: Boolean = false,
+    onExpandToggle: () -> Unit = {}
 ) {
     Surface(
         color = if (isSelected)
@@ -647,7 +673,8 @@ fun FolderPickerItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(start = (level * 16).dp), // Indentation for levels
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -658,7 +685,9 @@ fun FolderPickerItem(
                         name,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier.weight(1f, fill = false),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     if (isLocked) {
                         Spacer(Modifier.width(6.dp))
@@ -678,12 +707,32 @@ fun FolderPickerItem(
                     )
                 }
             }
-            if (isSelected) {
-                Icon(
-                    Icons.Filled.Check, null,
-                    Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+
+            // Expand/Collapse Arrow & Selection Checkmark on the right
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (hasChildren) {
+                    IconButton(
+                        onClick = { onExpandToggle() },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            if (isExpanded) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowRight,
+                            null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (isSelected) {
+                    Icon(
+                        Icons.Filled.Check, null,
+                        Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }

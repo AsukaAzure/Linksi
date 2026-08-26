@@ -26,7 +26,18 @@ data class LinkEntity(
     val preventScreenshot: Boolean = false
 )
 
-@Entity(tableName = "folders")
+@Entity(
+    tableName = "folders",
+    foreignKeys = [
+        ForeignKey(
+            entity = FolderEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["parentId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("parentId")]
+)
 data class FolderEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -34,7 +45,8 @@ data class FolderEntity(
     val icon: String = "folder",
     val color: String = "#6750A4",
     val createdAt: Long = System.currentTimeMillis(),
-    val isLocked: Boolean = false
+    val isLocked: Boolean = false,
+    val parentId: Long? = null
 )
 
 data class FolderWithCount(

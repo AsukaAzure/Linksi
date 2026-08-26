@@ -35,7 +35,7 @@ class AiOrganizerService {
         }.joinToString(",\n")
 
         val foldersJson = folders.map { f ->
-            """{"id": ${f.id}, "name": "${f.name.replace("\"", "'")}"}"""
+            """{"id": ${f.id}, "name": "${f.name.replace("\"", "'")}", "parentId": ${f.parentId ?: "null"}}"""
         }.joinToString(",\n")
 
         val availableIcons = "folder, work, bookmark, star, heart, code, school, movie, music, shopping, travel, food, health, news, game, finance, science, design, home, photo, book, fitness, tech, nature, pets, video, article, recipe, idea, social, events, gifts, automotive, tool, family, sports, reading, writing, productivity, ai, audio, security, cloud, weather, history, archive, personal, wallet, coffee, entertainment, mobile, camera, medicine, banking, map, messaging, email, key, flag, rocket, support, wellness, celebration"
@@ -43,8 +43,9 @@ class AiOrganizerService {
 
         return """
 You are a smart link organizer. Organize the following saved links into folders.
+The app supports nested folders (folders within folders).
 
-EXISTING FOLDERS (use these when appropriate):
+EXISTING FOLDERS (with their parent IDs):
 [$foldersJson]
 
 LINKS TO ORGANIZE:
@@ -57,6 +58,7 @@ RULES:
 4. Folder names should be short (1-3 words)
 5. Every link must be assigned to exactly one folder
 6. For each new folder, pick the most relatable icon and color from the provided list.
+7. You can create sub-folders by setting a parentId for new folders (referencing an existing folder's ID).
 
 AVAILABLE ICONS:
 $availableIcons
@@ -70,12 +72,13 @@ Respond ONLY with valid JSON in this exact format, no other text:
     {"linkId": 1, "folderName": "existing or new folder name", "isExistingFolder": true, "existingFolderId": 5}
   ],
   "newFolders": [
-    {"name": "New Folder Name", "icon": "icon_name", "color": "hex_color"}
+    {"name": "New Folder Name", "icon": "icon_name", "color": "hex_color", "parentId": null}
   ]
 }
 
 For existing folders set isExistingFolder=true and existingFolderId=<the folder id>.
 For new folders set isExistingFolder=false and existingFolderId=null.
+If a new folder is a sub-folder, set parentId to the ID of the existing parent folder.
         """.trimIndent()
     }
 
@@ -382,12 +385,13 @@ For new folders set isExistingFolder=false and existingFolderId=null.
                         NewFolderPlan(
                             name = item.getString("name"),
                             icon = item.optString("icon", "folder"),
-                            color = item.optString("color", "#6366F1")
+                            color = item.optString("color", "#6366F1"),
+                            parentId = if (item.isNull("parentId")) null else item.optLong("parentId")
                         )
                     )
                 } else if (item is String) {
                     // Fallback for older models/unexpected formats
-                    newFolders.add(NewFolderPlan(item, "folder", "#6366F1"))
+                    newFolders.add(NewFolderPlan(item, "folder", "#6366F1", null))
                 }
             }
         }

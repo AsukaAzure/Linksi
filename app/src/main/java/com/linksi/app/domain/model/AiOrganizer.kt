@@ -97,7 +97,8 @@ data class LinkOrganizePlan(
 data class NewFolderPlan(
     val name: String,
     val icon: String,
-    val color: String
+    val color: String,
+    val parentId: Long? = null
 )
 
 data class OrganizePlan(
