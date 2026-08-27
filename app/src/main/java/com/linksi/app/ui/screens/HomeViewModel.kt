@@ -246,8 +246,12 @@ class HomeViewModel @Inject constructor(
                 tags = tags,
                 expiresAt = expiresAt
             )
-            repository.insertLink(link)
-            _uiState.update { it.copy(snackbarMessage = context.getString(R.string.link_saved), scrollToTop = true) }
+            try {
+                repository.insertLink(link)
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.link_saved), scrollToTop = true) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.link_save_failed)) }
+            }
         }
     }
 

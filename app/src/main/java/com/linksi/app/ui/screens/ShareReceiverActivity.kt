@@ -125,6 +125,8 @@ fun ShareReceiverSheet(
     var showEditSheet by remember { mutableStateOf(false) }
     var showCreateFolder by remember { mutableStateOf(false) }
 
+    var saveStatus by remember { mutableStateOf(SaveStatus.IDLE) }
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val dateFormatter = remember { SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()) }
@@ -593,38 +595,14 @@ fun ShareReceiverSheet(
                     }
                 }
 
-                // ── Duplicate warning ─────────────────────────
-                AnimatedVisibility(visible = state.snackbarMessage == "Link already saved") {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Outlined.Warning, null,
-                                Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                            Text(
-                                stringResource(R.string.link_already_saved),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                    }
-                }
-
                 Spacer(Modifier.height(4.dp))
 
                 // ── Save button ───────────────────────────────
                 Button(
                     onClick = {
+                        if (saveStatus == SaveStatus.SAVING || saveStatus == SaveStatus.SUCCESS) return@Button
                         scope.launch {
+                            saveStatus = SaveStatus.SAVING
                             viewModel.dismissSnackbar()
                             viewModel.addLink(
                                 url = url,
@@ -637,13 +615,21 @@ fun ShareReceiverSheet(
                                 tags = tags,
                                 expiresAt = expiresAt
                             )
-                            snapshotFlow { state.snackbarMessage }
+                            val result = snapshotFlow { state.snackbarMessage }
                                 .first { it != null }
-                            if (state.snackbarMessage == "Link already saved") {
-                                // Stay open — warning shows
-                            } else {
+
+                            if (result == context.getString(R.string.link_already_saved)) {
+                                saveStatus = SaveStatus.IDLE
+                            } else if (result == context.getString(R.string.link_saved)) {
+                                saveStatus = SaveStatus.SUCCESS
+                                kotlinx.coroutines.delay(800)
                                 sheetState.hide()
                                 onSaved()
+                                viewModel.dismissSnackbar()
+                            } else {
+                                saveStatus = SaveStatus.FAILURE
+                                kotlinx.coroutines.delay(2000)
+                                saveStatus = SaveStatus.IDLE
                                 viewModel.dismissSnackbar()
                             }
                         }
@@ -652,27 +638,57 @@ fun ShareReceiverSheet(
                         .fillMaxWidth()
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp),
-                    enabled = !state.isFetchingMetadata,
-                    colors = if (state.snackbarMessage == "Link already saved")
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        )
-                    else ButtonDefaults.buttonColors()
+                    enabled = !state.isFetchingMetadata && saveStatus != SaveStatus.SAVING,
+                    colors = when (saveStatus) {
+                        SaveStatus.SUCCESS -> ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E))
+                        SaveStatus.FAILURE -> ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        else -> if (state.snackbarMessage == context.getString(R.string.link_already_saved))
+                            ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        else ButtonDefaults.buttonColors()
+                    }
                 ) {
-                    if (state.isFetchingMetadata) {
-                        CircularProgressIndicator(
-                            Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else if (state.snackbarMessage == "Link already saved") {
-                        Icon(Icons.Outlined.Warning, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.link_already_saved))
-                    } else {
-                        Icon(Icons.Filled.Bookmark, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.save_link), style = MaterialTheme.typography.titleMedium)
+                    AnimatedContent(
+                        targetState = saveStatus,
+                        transitionSpec = {
+                            fadeIn() + scaleIn() togetherWith fadeOut() + scaleOut()
+                        },
+                        label = "save_status"
+                    ) { status ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            when (status) {
+                                SaveStatus.SAVING -> {
+                                    CircularProgressIndicator(
+                                        Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                                SaveStatus.SUCCESS -> {
+                                    Icon(Icons.Filled.Check, null, Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.link_saved), style = MaterialTheme.typography.titleMedium)
+                                }
+                                SaveStatus.FAILURE -> {
+                                    Icon(Icons.Outlined.Error, null, Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.link_save_failed), style = MaterialTheme.typography.titleMedium)
+                                }
+                                SaveStatus.IDLE -> {
+                                    if (state.snackbarMessage == context.getString(R.string.link_already_saved)) {
+                                        Icon(Icons.Outlined.Warning, null, Modifier.size(18.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(stringResource(R.string.link_already_saved))
+                                    } else {
+                                        Icon(Icons.Filled.Bookmark, null, Modifier.size(18.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(stringResource(R.string.save_link), style = MaterialTheme.typography.titleMedium)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -756,6 +772,8 @@ fun ShareReceiverSheet(
         )
     }
 }
+
+enum class SaveStatus { IDLE, SAVING, SUCCESS, FAILURE }
 
 private fun extractDomainFromUrl(url: String): String {
     return try {

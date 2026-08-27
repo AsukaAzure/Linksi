@@ -211,6 +211,7 @@
     <string name="invalid_url">无效的 URL</string>
     <string name="link_already_saved">链接已保存</string>
     <string name="link_saved">链接已保存</string>
+    <string name="link_save_failed">链接保存失败</string>
     <string name="link_updated">链接已更新</string>
     <string name="moved_to_folder">已移动到文件夹</string>
     <string name="metadata_refreshed">元数据已刷新</string>

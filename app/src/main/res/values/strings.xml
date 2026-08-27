@@ -213,6 +213,7 @@
     <string name="invalid_url">Invalid URL</string>
     <string name="link_already_saved">Link already saved</string>
     <string name="link_saved">Link saved</string>
+    <string name="link_save_failed">Link did not save</string>
     <string name="link_updated">Link updated</string>
     <string name="moved_to_folder">Moved to folder</string>
     <string name="metadata_refreshed">Metadata refreshed</string>

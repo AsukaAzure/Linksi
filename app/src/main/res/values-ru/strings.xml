@@ -211,6 +211,7 @@
     <string name="invalid_url">Неверный URL</string>
     <string name="link_already_saved">Ссылка уже сохранена</string>
     <string name="link_saved">Ссылка сохранена</string>
+    <string name="link_save_failed">Ссылка не сохранена</string>
     <string name="link_updated">Ссылка обновлена</string>
     <string name="moved_to_folder">Перемещено в папку</string>
     <string name="metadata_refreshed">Метаданные обновлены</string>
