@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -58,6 +60,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,12 +80,24 @@ fun HomeScreen(
     val screenHeightPx = LocalConfiguration.current.screenHeightDp.toFloat()
     val context = LocalContext.current
     val listState = rememberLazyListState()
+    val gridState = rememberLazyStaggeredGridState()
     val scope = rememberCoroutineScope()
+
+    val showScrollToTop by remember {
+        derivedStateOf {
+            if (viewMode == ViewMode.LIST) {
+                listState.firstVisibleItemIndex > 0
+            } else {
+                gridState.firstVisibleItemIndex > 0
+            }
+        }
+    }
 
     LaunchedEffect(state.links.size) {
         if (state.links.isNotEmpty()) {
             scope.launch {
-                listState.animateScrollToItem(0)
+                if (viewMode == ViewMode.LIST) listState.animateScrollToItem(0)
+                else gridState.animateScrollToItem(0)
             }
         }
     }
@@ -91,14 +106,16 @@ fun HomeScreen(
     LaunchedEffect(state.searchQuery) {
         if (state.searchQuery.isBlank()) {
             scope.launch {
-                listState.animateScrollToItem(0)
+                if (viewMode == ViewMode.LIST) listState.animateScrollToItem(0)
+                else gridState.animateScrollToItem(0)
             }
         }
     }
 
     LaunchedEffect(state.scrollToTop) {
         if (state.scrollToTop) {
-            listState.animateScrollToItem(0)
+            if (viewMode == ViewMode.LIST) listState.animateScrollToItem(0)
+            else gridState.animateScrollToItem(0)
             viewModel.consumeScrollToTop()
         }
     }
@@ -111,7 +128,10 @@ fun HomeScreen(
     }
     BackHandler(enabled = state.searchQuery.isNotBlank()) {
         viewModel.onSearchQueryChange("")
-        scope.launch { listState.animateScrollToItem(0) }
+        scope.launch {
+            if (viewMode == ViewMode.LIST) listState.animateScrollToItem(0)
+            else gridState.animateScrollToItem(0)
+        }
     }
     BackHandler(enabled = browserUrl != null) {
         offsetY = screenHeightPx
@@ -424,95 +444,102 @@ fun HomeScreen(
 //                }
 
                 // Content
-                if (state.isLoading) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                } else if (state.links.isEmpty()) {
-                    EmptyState(
-                        hasSearch = state.searchQuery.isNotBlank(),
-                        onAddLink = viewModel::showAddLinkDialog
-                    )
-                } else {
-                    when (viewMode) {
-                        ViewMode.LIST -> LinksList(
-                            links = state.links,
-                            listState = listState,
-                            folders = state.allFolders,
-                            selectedIds = state.selectedIds,
-                            isSelectionMode = state.isSelectionMode,
-                            onLongPress = viewModel::toggleSelction,
-                            onLinkClick = { link ->
-                                if (state.isSelectionMode) {
-                                    viewModel.toggleSelction(link.id)
-                                } else {
-                                    viewModel.markAsRead(link, true)
-                                    if (state.useInAppBrowser) {
-                                        browserUrl = link.url
-                                        browserTitle = link.title
-                                    } else {
-                                        uriHandler.openUri(link.url)
-                                    }
-                                }
-                            },
-                            onFavoriteToggle = viewModel::toggleFavorite,
-                            onDelete = viewModel::deleteLink,
-                            onMoveToFolder = { link, folderId ->
-                                viewModel.moveToFolder(link, folderId)
-                            },
-                            onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
-                            onFolderClick = { folder ->
-                                viewModel.selectFolder(folder.id)
-                            },
-                            onPin = viewModel::setPinned,
-                            onSetNote = { link, note -> viewModel.setNote(link, note) },
-                            onSetReminder = { link, time -> viewModel.setReminder(link, time) },
-                            onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
-                            onSetTags = { link, tags -> viewModel.setTags(link, tags) },
-                            allTags = state.allTags,
-                            onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
-                            onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
-                            onCreateFolder = viewModel::addFolder,
-                            folderLockEnabled = state.folderLockEnabled,
-                            isRefreshingMetadata = state.isRefreshingMetadata
+                PullToRefreshBox(
+                    isRefreshing = state.isRefreshingMetadata,
+                    onRefresh = viewModel::refreshAllMetadata,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    if (state.isLoading) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (state.links.isEmpty()) {
+                        EmptyState(
+                            hasSearch = state.searchQuery.isNotBlank(),
+                            onAddLink = viewModel::showAddLinkDialog
                         )
+                    } else {
+                        when (viewMode) {
+                            ViewMode.LIST -> LinksList(
+                                links = state.links,
+                                listState = listState,
+                                folders = state.allFolders,
+                                selectedIds = state.selectedIds,
+                                isSelectionMode = state.isSelectionMode,
+                                onLongPress = viewModel::toggleSelction,
+                                onLinkClick = { link ->
+                                    if (state.isSelectionMode) {
+                                        viewModel.toggleSelction(link.id)
+                                    } else {
+                                        viewModel.markAsRead(link, true)
+                                        if (state.useInAppBrowser) {
+                                            browserUrl = link.url
+                                            browserTitle = link.title
+                                        } else {
+                                            uriHandler.openUri(link.url)
+                                        }
+                                    }
+                                },
+                                onFavoriteToggle = viewModel::toggleFavorite,
+                                onDelete = viewModel::deleteLink,
+                                onMoveToFolder = { link, folderId ->
+                                    viewModel.moveToFolder(link, folderId)
+                                },
+                                onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
+                                onFolderClick = { folder ->
+                                    viewModel.selectFolder(folder.id)
+                                },
+                                onPin = viewModel::setPinned,
+                                onSetNote = { link, note -> viewModel.setNote(link, note) },
+                                onSetReminder = { link, time -> viewModel.setReminder(link, time) },
+                                onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
+                                onSetTags = { link, tags -> viewModel.setTags(link, tags) },
+                                allTags = state.allTags,
+                                onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
+                                onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
+                                onCreateFolder = viewModel::addFolder,
+                                folderLockEnabled = state.folderLockEnabled,
+                                isRefreshingMetadata = state.isRefreshingMetadata
+                            )
 
-                        ViewMode.GRID -> LinksGrid(
-                            links = state.links,
-                            folders = state.allFolders,
-                            selectedIds = state.selectedIds,
-                            isSelectionMode = state.isSelectionMode,
-                            onLongPress = viewModel::toggleSelction,
-                            onLinkClick = { link ->
-                                if (state.isSelectionMode) {
-                                    viewModel.toggleSelction(link.id)
-                                } else {
-                                    viewModel.markAsRead(link, true)
-                                    if (state.useInAppBrowser) {
-                                        browserUrl = link.url
-                                        browserTitle = link.title
+                            ViewMode.GRID -> LinksGrid(
+                                links = state.links,
+                                gridState = gridState,
+                                folders = state.allFolders,
+                                selectedIds = state.selectedIds,
+                                isSelectionMode = state.isSelectionMode,
+                                onLongPress = viewModel::toggleSelction,
+                                onLinkClick = { link ->
+                                    if (state.isSelectionMode) {
+                                        viewModel.toggleSelction(link.id)
                                     } else {
-                                        uriHandler.openUri(link.url)
+                                        viewModel.markAsRead(link, true)
+                                        if (state.useInAppBrowser) {
+                                            browserUrl = link.url
+                                            browserTitle = link.title
+                                        } else {
+                                            uriHandler.openUri(link.url)
+                                        }
                                     }
-                                }
-                            },
-                            onFavoriteToggle = viewModel::toggleFavorite,
-                            onDelete = viewModel::deleteLink,
-                            onMoveToFolder = { link, folderId -> viewModel.moveToFolder(link, folderId) },
-                            onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
-                            onFolderClick = { folder -> viewModel.selectFolder(folder.id) },
-                            onPin = viewModel::setPinned,
-                            onSetNote = { link, note -> viewModel.setNote(link, note) },
-                            onSetReminder = { link, time -> viewModel.setReminder(link, time) },
-                            onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
-                            onSetTags = { link, tags -> viewModel.setTags(link, tags) },
-                            allTags = state.allTags,
-                            onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
-                            onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
-                            onCreateFolder = viewModel::addFolder,
-                            folderLockEnabled = state.folderLockEnabled,
-                            isRefreshingMetadata = state.isRefreshingMetadata
-                        )
+                                },
+                                onFavoriteToggle = viewModel::toggleFavorite,
+                                onDelete = viewModel::deleteLink,
+                                onMoveToFolder = { link, folderId -> viewModel.moveToFolder(link, folderId) },
+                                onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
+                                onFolderClick = { folder -> viewModel.selectFolder(folder.id) },
+                                onPin = viewModel::setPinned,
+                                onSetNote = { link, note -> viewModel.setNote(link, note) },
+                                onSetReminder = { link, time -> viewModel.setReminder(link, time) },
+                                onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
+                                onSetTags = { link, tags -> viewModel.setTags(link, tags) },
+                                allTags = state.allTags,
+                                onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
+                                onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
+                                onCreateFolder = viewModel::addFolder,
+                                folderLockEnabled = state.folderLockEnabled,
+                                isRefreshingMetadata = state.isRefreshingMetadata
+                            )
+                        }
                     }
                 }
             }
@@ -595,19 +622,32 @@ fun HomeScreen(
                 }
             }
         }
-    }
 
-//    state.editingLink?.let { link ->
-//        EditLinkDialog(
-//            link = link,
-//            folders = state.folders,
-//            onDismiss = { viewModel.setEditingLink(null) },
-//            onConfirm = { updated ->
-//                viewModel.updateLink(updated)
-//                viewModel.setEditingLink(null)
-//            }
-//        )
-//    }
+        // Scroll to Top Button
+        AnimatedVisibility(
+            visible = showScrollToTop && !showSettings && !showFolders && browserUrl == null,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
+        ) {
+            SmallFloatingActionButton(
+                onClick = {
+                    scope.launch {
+                        if (viewMode == ViewMode.LIST) listState.animateScrollToItem(0)
+                        else gridState.animateScrollToItem(0)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.primary,
+                shape = CircleShape,
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+            ) {
+                Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Scroll to top")
+            }
+        }
+    }
 
     if (state.showAddLinkDialog) {
         AddLinkSheet(
@@ -615,10 +655,6 @@ fun HomeScreen(
             allTags = state.allTags,
             isFetchingMetadata = state.isFetchingMetadata,
             initialFolderId = state.selectedFolderId,
-//            isInTour = isInTour,
-//            tourStep = tourStep,
-//            onTourNext = { nextStep() },
-//            snackbarMessage = state.snackbarMessage,
             onDismiss = viewModel::hideAddLinkDialog,
             onCreateFolder = { name, icon, color -> viewModel.addFolder(name, icon, color) },
             onConfirm = { url, folderId, reminderAt, note, tags, expiresAt,
@@ -834,6 +870,7 @@ fun LinksList(
 @Composable
 fun LinksGrid(
     links: List<Link>,
+    gridState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
     folders: List<Folder>,
     selectedIds: Set<Long>,
     isSelectionMode: Boolean,
@@ -858,6 +895,7 @@ fun LinksGrid(
 ) {
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Fixed(2),
+        state = gridState,
         contentPadding = PaddingValues(16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalItemSpacing = 8.dp

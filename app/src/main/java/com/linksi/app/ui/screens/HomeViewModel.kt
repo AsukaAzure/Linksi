@@ -372,6 +372,44 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun refreshAllMetadata() {
+        viewModelScope.launch {
+            if (_uiState.value.isRefreshingMetadata) return@launch
+            _uiState.update { it.copy(isRefreshingMetadata = true) }
+            
+            val links = _uiState.value.links
+            if (links.isEmpty()) {
+                _uiState.update { it.copy(isRefreshingMetadata = false) }
+                return@launch
+            }
+
+            links.forEach { link ->
+                try {
+                    val meta = MetadataFetcher.fetch(link.url)
+                    val updatedLink = link.copy(
+                        title = meta.title.ifBlank { link.title },
+                        description = meta.description.ifBlank { link.description },
+                        previewImageUrl = meta.previewImageUrl.ifBlank { link.previewImageUrl },
+                        faviconUrl = meta.faviconUrl.ifBlank { "https://www.google.com/s2/favicons?domain=${meta.domain}&sz=64" },
+                        domain = meta.domain.ifBlank { extractDomain(link.url) }
+                    )
+                    if (updatedLink != link) {
+                        repository.updateLink(updatedLink)
+                    }
+                } catch (e: Exception) {
+                    // Ignore failures for individual links
+                }
+            }
+
+            _uiState.update {
+                it.copy(
+                    isRefreshingMetadata = false,
+                    snackbarMessage = context.getString(R.string.metadata_refreshed)
+                )
+            }
+        }
+    }
+
     fun undoFolderDelete() {
         viewModelScope.launch {
             _uiState.value.lastDeletedFolder?.let { folder ->
