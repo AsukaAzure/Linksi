@@ -621,7 +621,6 @@ fun HomeScreen(
 //            snackbarMessage = state.snackbarMessage,
             onDismiss = viewModel::hideAddLinkDialog,
             onCreateFolder = { name, icon, color -> viewModel.addFolder(name, icon, color) },
-            folderLockEnabled = state.folderLockEnabled,
             onConfirm = { url, folderId, reminderAt, note, tags, expiresAt,
                           titleOverride, descriptionOverride, previewImageOverride ->
                 viewModel.addLink(
@@ -762,17 +761,7 @@ fun FolderAndFilterRow(
                 selected = selectedFolderId == folder.id,
                 onClick = { onFolderSelect(folder.id) },
                 label = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            if (folderLockEnabled && folder.isLocked) Icons.Outlined.Lock else iconFromName(folder.icon),
-                            null, Modifier.size(14.dp),
-                            tint = Color(android.graphics.Color.parseColor(folder.color))
-                        )
-                        Text(folder.name)
-                    }
+                    Text(folder.name)
                 }
             )
         }

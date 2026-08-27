@@ -98,7 +98,7 @@ data class NewFolderPlan(
     val name: String,
     val icon: String,
     val color: String,
-    val parentId: Long? = null
+    val parentId: String? = null // Can be existing ID or name of another new folder
 )
 
 data class OrganizePlan(

@@ -35,7 +35,8 @@ data class Folder(
     val createdAt: Long = System.currentTimeMillis(),
     val linkCount: Int = 0,
     val isLocked: Boolean = false,
-    val parentId: Long? = null
+    val parentId: Long? = null,
+    val latestImages: List<String> = emptyList()
 ) : Parcelable
 
 enum class SortOption {

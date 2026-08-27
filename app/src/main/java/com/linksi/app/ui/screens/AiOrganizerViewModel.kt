@@ -340,18 +340,61 @@ class AiOrganizerViewModel @Inject constructor(
                 LinkSnapshot(linkId = lp.link.id, originalFolderId = lp.link.folderId)
             }
 
-            // Create new folders first
+            // Create new folders first — maintaining hierarchy
             val newFolderIdMap = mutableMapOf<String, Long>()
-            plan.newFolders.forEach { folderPlan ->
-                val newId = repository.insertFolder(
-                    Folder(
-                        name = folderPlan.name,
-                        icon = folderPlan.icon,
-                        color = folderPlan.color,
-                        parentId = folderPlan.parentId
-                    )
-                )
-                newFolderIdMap[folderPlan.name] = newId
+            val remainingFolders = plan.newFolders.toMutableList()
+            
+            while (remainingFolders.isNotEmpty()) {
+                val iterator = remainingFolders.iterator()
+                var insertedThisPass = 0
+                while (iterator.hasNext()) {
+                    val folderPlan = iterator.next()
+                    val parentRef = folderPlan.parentId
+                    
+                    // Can we insert this folder? Yes if:
+                    // 1. No parent
+                    // 2. Parent is an existing ID (Long)
+                    // 3. Parent is a new folder name that was already inserted
+                    val parentId = when {
+                        parentRef == null -> null
+                        parentRef.toLongOrNull() != null -> parentRef.toLong()
+                        newFolderIdMap.containsKey(parentRef) -> newFolderIdMap[parentRef]
+                        else -> null // We'll try next pass if it refers to a new folder not yet created
+                    }
+                    
+                    val shouldWait = parentRef != null && 
+                                   parentRef.toLongOrNull() == null && 
+                                   !newFolderIdMap.containsKey(parentRef)
+                    
+                    if (!shouldWait) {
+                        val newId = repository.insertFolder(
+                            Folder(
+                                name = folderPlan.name,
+                                icon = folderPlan.icon,
+                                color = folderPlan.color,
+                                parentId = parentId
+                            )
+                        )
+                        newFolderIdMap[folderPlan.name] = newId
+                        iterator.remove()
+                        insertedThisPass++
+                    }
+                }
+                if (insertedThisPass == 0) {
+                    // Circular or missing — just insert the rest as root
+                    remainingFolders.forEach { folderPlan ->
+                        val newId = repository.insertFolder(
+                            Folder(
+                                name = folderPlan.name,
+                                icon = folderPlan.icon,
+                                color = folderPlan.color,
+                                parentId = null
+                            )
+                        )
+                        newFolderIdMap[folderPlan.name] = newId
+                    }
+                    remainingFolders.clear()
+                }
             }
 
             // Apply link assignments

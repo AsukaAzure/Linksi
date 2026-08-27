@@ -56,16 +56,44 @@ class BackgroundImportManager @Inject constructor(
                     }
                 }
 
-                // Insert folders
+                // Insert folders — maintaining hierarchy
                 val folderIdMap = mutableMapOf<Long, Long>()
-                result.folders.forEach { folder ->
-                    val existing = repository.getFolderByName(folder.name)
-                    val newId = if (existing != null) {
-                        existing.id
-                    } else {
-                        repository.insertFolder(folder.copy(id = 0))
+                // Group by parentId to process level by level or just sort by parentId
+                // Simple approach: Iterate multiple times until all folders are inserted
+                val remainingFolders = result.folders.toMutableList()
+                while (remainingFolders.isNotEmpty()) {
+                    val iterator = remainingFolders.iterator()
+                    var insertedThisPass = 0
+                    while (iterator.hasNext()) {
+                        val folder = iterator.next()
+                        // If root folder or its parent is already inserted
+                        if (folder.parentId == null || folderIdMap.containsKey(folder.parentId)) {
+                            val existing = repository.getFolderByName(folder.name)
+                            val newId = if (existing != null) {
+                                existing.id
+                            } else {
+                                repository.insertFolder(
+                                    folder.copy(
+                                        id = 0,
+                                        parentId = folder.parentId?.let { folderIdMap[it] }
+                                    )
+                                )
+                            }
+                            folderIdMap[folder.id] = newId
+                            iterator.remove()
+                            insertedThisPass++
+                        }
                     }
-                    folderIdMap[folder.id] = newId
+                    if (insertedThisPass == 0) {
+                        // Avoid infinite loop if there's a circular dependency or missing parent
+                        // Just insert the rest as root folders
+                        remainingFolders.forEach { folder ->
+                            val existing = repository.getFolderByName(folder.name)
+                            val newId = existing?.id ?: repository.insertFolder(folder.copy(id = 0, parentId = null))
+                            folderIdMap[folder.id] = newId
+                        }
+                        remainingFolders.clear()
+                    }
                 }
 
                 var importedCount = 0

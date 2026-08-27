@@ -30,11 +30,11 @@ import com.linksi.app.R
 import com.linksi.app.ui.components.AddFolderDialog
 import com.linksi.app.ui.components.EditFolderDialog
 import com.linksi.app.ui.components.FolderPickerDialog
+import com.linksi.app.ui.components.FolderStackIcon
 import com.linksi.app.ui.components.LinkCard
 import com.linksi.app.ui.components.LinkGridCard
 import com.linksi.app.ui.components.OptionsFullRow
 import com.linksi.app.ui.components.SortBottomSheet
-import com.linksi.app.ui.components.iconFromName
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.rememberCoroutineScope
@@ -486,10 +486,10 @@ fun FolderListScreen(
                             ) {
                                 FolderListItem(
                                     folder = folder,
+                                    folderLockEnabled = folderLockEnabled,
                                     onClick = { onFolderClick(folder) },
                                     onDelete = { onDeleteFolder(folder) },
-                                    onEdit = { editingFolder = it },
-                                    folderLockEnabled = folderLockEnabled
+                                    onEdit = { editingFolder = it }
                                 )
                             }
                             HorizontalDivider(
@@ -513,10 +513,10 @@ fun FolderListScreen(
                         items(sortedFolders, key = { it.id }) { folder ->
                             FolderGridCard(
                                 folder = folder,
+                                folderLockEnabled = folderLockEnabled,
                                 onClick = { onFolderClick(folder) },
                                 onEdit = { editingFolder = folder },
-                                onDelete = { onDeleteFolder(folder) },
-                                folderLockEnabled = folderLockEnabled
+                                onDelete = { onDeleteFolder(folder) }
                             )
                         }
                     }
@@ -598,10 +598,10 @@ enum class FolderSortOption(val icon: androidx.compose.ui.graphics.vector.ImageV
 @Composable
 fun FolderGridCard(
     folder: Folder,
+    folderLockEnabled: Boolean,
     onClick: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    folderLockEnabled: Boolean
+    onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -624,25 +624,15 @@ fun FolderGridCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color(android.graphics.Color.parseColor(folder.color))
-                        .copy(alpha = 0.15f),
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            if (folderLockEnabled && folder.isLocked) Icons.Outlined.Lock else iconFromName(folder.icon),
-                            null,
-                            Modifier.size(24.dp),
-                            tint = Color(android.graphics.Color.parseColor(folder.color))
-                        )
-                    }
-                }
-
-                Spacer(Modifier.weight(1f))
+                FolderStackIcon(
+                    folder = folder,
+                    folderLockEnabled = folderLockEnabled,
+                    modifier = Modifier.size(width = 64.dp, height = 36.dp)
+                )
+                
+                Spacer(modifier = Modifier.weight(1f))
 
                 // 3-dot menu
                 IconButton(
@@ -652,14 +642,28 @@ fun FolderGridCard(
                     Icon(Icons.Filled.MoreVert, null, Modifier.size(16.dp))
                 }
             }
+            
+            Spacer(Modifier.height(4.dp))
 
-            Text(
-                folder.name,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    folder.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (folderLockEnabled && folder.isLocked) {
+                    Spacer(Modifier.width(6.dp))
+                    Icon(
+                        Icons.Outlined.Lock,
+                        null,
+                        Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+            }
 
             Text(
                 stringResource(R.string.links_count, folder.linkCount),
@@ -697,18 +701,6 @@ fun FolderGridCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.padding(bottom = 8.dp)
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color(android.graphics.Color.parseColor(folder.color))
-                            .copy(alpha = 0.15f),
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(iconFromName(folder.icon), null,
-                                Modifier.size(22.dp),
-                                tint = Color(android.graphics.Color.parseColor(folder.color)))
-                        }
-                    }
                     Column {
                         Text(folder.name,
                             style = MaterialTheme.typography.titleMedium,
@@ -746,32 +738,40 @@ fun FolderGridCard(
 @Composable
 fun FolderListItem(
     folder: Folder,
+    folderLockEnabled: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
-    onEdit: (Folder) -> Unit,
-    folderLockEnabled: Boolean
+    onEdit: (Folder) -> Unit
 ) {
     val context = LocalContext.current
 
     ListItem(
         headlineContent = {
-            Text(folder.name, style = MaterialTheme.typography.titleMedium)
-        },
-        leadingContent = {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(android.graphics.Color.parseColor(folder.color)).copy(alpha = 0.15f),
-                modifier = Modifier.size(44.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    folder.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f, fill = false),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (folderLockEnabled && folder.isLocked) {
+                    Spacer(Modifier.width(6.dp))
                     Icon(
-                        if (folderLockEnabled && folder.isLocked) Icons.Outlined.Lock else iconFromName(folder.icon),
+                        Icons.Outlined.Lock,
                         null,
-                        Modifier.size(22.dp),
-                        tint = Color(android.graphics.Color.parseColor(folder.color))
+                        Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
             }
+        },
+        leadingContent = {
+            FolderStackIcon(
+                folder = folder,
+                folderLockEnabled = folderLockEnabled,
+                modifier = Modifier.width(72.dp).height(36.dp)
+            )
         },
         trailingContent = {
             Row(
@@ -885,11 +885,6 @@ fun FolderDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(
-                                    iconFromName(folder.icon), null,
-                                    Modifier.size(20.dp),
-                                    tint = Color(android.graphics.Color.parseColor(folder.color))
-                                )
                                 Text(folder.name, style = MaterialTheme.typography.titleLarge)
                             }
                         }
@@ -1071,8 +1066,8 @@ fun FolderDetailScreen(
                                             showFolderPicker = false
                                         },
                                         onDismiss = { showFolderPicker = false },
-                                        onCreateFolder = { name, icon, color -> 
-                                            viewModel.addFolder(name, icon, color, folder.id) 
+                                        onCreateFolder = { name, icon, color ->
+                                            viewModel.addFolder(name, icon, color, folder.id)
                                         }
                                     )
                                 }
@@ -1145,10 +1140,10 @@ fun FolderDetailScreen(
                         Box(modifier = Modifier.width(160.dp)) {
                             FolderGridCard(
                                 folder = subFolder,
+                                folderLockEnabled = state.folderLockEnabled,
                                 onClick = { onSubFolderClick(subFolder) },
                                 onEdit = { /* TODO */ },
-                                onDelete = { viewModel.deleteFolder(subFolder) },
-                                folderLockEnabled = state.folderLockEnabled
+                                onDelete = { viewModel.deleteFolder(subFolder) }
                             )
                         }
                     }

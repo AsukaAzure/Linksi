@@ -22,7 +22,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.linksi.app.R
-import com.linksi.app.ui.components.iconFromName
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,12 +49,6 @@ fun LinksTopBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        iconFromName(selectedFolder.icon),
-                        null,
-                        Modifier.size(20.dp),
-                        tint = Color(android.graphics.Color.parseColor(selectedFolder.color))
-                    )
                     Text(selectedFolder.name, style = MaterialTheme.typography.titleLarge)
                 }
             } else {

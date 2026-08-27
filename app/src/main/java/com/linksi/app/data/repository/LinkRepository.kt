@@ -92,7 +92,8 @@ class LinkRepository @Inject constructor(
                     it.folder.createdAt,
                     it.linkCount,
                     it.folder.isLocked,
-                    it.folder.parentId
+                    it.folder.parentId,
+                    it.latestImages?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
                 )
             }
         }
@@ -108,7 +109,8 @@ class LinkRepository @Inject constructor(
                     it.folder.createdAt,
                     it.linkCount,
                     it.folder.isLocked,
-                    it.folder.parentId
+                    it.folder.parentId,
+                    it.latestImages?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
                 )
             }
         }

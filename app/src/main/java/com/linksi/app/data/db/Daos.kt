@@ -124,7 +124,12 @@ interface FolderDao {
 
     @Query(
         """
-        SELECT f.*, COUNT(l.id) as link_count 
+        SELECT f.*, COUNT(l.id) as link_count,
+        (SELECT GROUP_CONCAT(previewImageUrl) FROM (
+            SELECT previewImageUrl FROM links 
+            WHERE folderId = f.id AND inBin = 0 AND previewImageUrl != '' 
+            ORDER BY createdAt DESC LIMIT 3
+        )) as latest_images
         FROM folders f 
         LEFT JOIN links l ON l.folderId = f.id AND l.inBin = 0
         WHERE f.parentId IS :parentId
@@ -136,7 +141,12 @@ interface FolderDao {
 
     @Query(
         """
-        SELECT f.*, COUNT(l.id) as link_count 
+        SELECT f.*, COUNT(l.id) as link_count,
+        (SELECT GROUP_CONCAT(previewImageUrl) FROM (
+            SELECT previewImageUrl FROM links 
+            WHERE folderId = f.id AND inBin = 0 AND previewImageUrl != '' 
+            ORDER BY createdAt DESC LIMIT 3
+        )) as latest_images
         FROM folders f 
         LEFT JOIN links l ON l.folderId = f.id AND l.inBin = 0
         GROUP BY f.id

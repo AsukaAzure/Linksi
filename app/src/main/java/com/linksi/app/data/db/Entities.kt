@@ -51,5 +51,6 @@ data class FolderEntity(
 
 data class FolderWithCount(
     @Embedded val folder: FolderEntity,
-    @ColumnInfo(name = "link_count") val linkCount: Int = 0
+    @ColumnInfo(name = "link_count") val linkCount: Int = 0,
+    @ColumnInfo(name = "latest_images") val latestImages: String? = null
 )

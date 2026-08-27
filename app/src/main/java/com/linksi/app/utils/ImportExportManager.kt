@@ -22,8 +22,6 @@ fun exportLinksToJson(links: List<Link>, folders: List<Folder>): String {
         foldersArr.put(JSONObject().apply {
             put("id", folder.id)
             put("name", folder.name)
-            put("icon", folder.icon)
-            put("color", folder.color)
             put("createdAt", folder.createdAt)
             put("isLocked", folder.isLocked)
             put("parentId", folder.parentId ?: JSONObject.NULL)
@@ -136,14 +134,10 @@ fun importFromBrowserHtml(context: Context, uri: Uri): ImportResult {
     val links = mutableListOf<Link>()
     val folders = mutableListOf<Folder>()
     
-    // Improved regex to capture structure if possible, but basic flat import for now
-    // Actually, to handle nesting in HTML, we'd need a real parser. 
-    // For now, I'll update it to at least keep the parentId logic if we encounter nested DL tags.
-    // However, regex isn't great for nested structures. 
+    // Improved regex-based stack parsing for HTML bookmarks
+    val pattern = Regex("""<(H3|A|/DL)(?:\s+HREF="([^"]+)")?[^>]*>([^<]+)?""", RegexOption.IGNORE_CASE)
     
-    val pattern = Regex("""<(H3|A)(?:\s+HREF="([^"]+)")?[^>]*>([^<]+)</\1>""", RegexOption.IGNORE_CASE)
-    
-    var currentFolderId: Long? = null
+    val folderStack = mutableListOf<Long>()
     var folderCounter = 1L
 
     pattern.findAll(html).forEach { match ->
@@ -151,22 +145,32 @@ fun importFromBrowserHtml(context: Context, uri: Uri): ImportResult {
         val url = match.groupValues[2]
         val text = match.groupValues[3].trim()
 
-        if (tag == "H3") {
-            val folderName = text
-            if (folderName.isNotBlank() && folderName.lowercase() != "bookmarks bar" && folderName.lowercase() != "other bookmarks") {
-                val tempId = folderCounter++
-                folders.add(Folder(id = tempId, name = folderName, parentId = null)) // Simple flat for now
-                currentFolderId = tempId
+        when (tag) {
+            "H3" -> {
+                val folderName = text
+                if (folderName.isNotBlank() && folderName.lowercase() != "bookmarks bar" && folderName.lowercase() != "other bookmarks") {
+                    val tempId = folderCounter++
+                    folders.add(Folder(id = tempId, name = folderName, parentId = folderStack.lastOrNull()))
+                    folderStack.add(tempId)
+                }
             }
-        } else if (tag == "A" && url.isNotBlank()) {
-            links.add(Link(
-                id = 0,
-                url = url,
-                title = text,
-                folderId = currentFolderId,
-                domain = extractDomain(url),
-                faviconUrl = "https://www.google.com/s2/favicons?domain=${extractDomain(url)}&sz=64"
-            ))
+            "A" -> {
+                if (url.isNotBlank()) {
+                    links.add(Link(
+                        id = 0,
+                        url = url,
+                        title = text,
+                        folderId = folderStack.lastOrNull(),
+                        domain = extractDomain(url),
+                        faviconUrl = "https://www.google.com/s2/favicons?domain=${extractDomain(url)}&sz=64"
+                    ))
+                }
+            }
+            "/DL" -> {
+                if (folderStack.isNotEmpty()) {
+                    folderStack.removeAt(folderStack.size - 1)
+                }
+            }
         }
     }
 

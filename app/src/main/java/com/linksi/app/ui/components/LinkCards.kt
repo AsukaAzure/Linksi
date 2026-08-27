@@ -399,23 +399,10 @@ fun LinkCard(
                             AssistChip(
                                 onClick = { onFolderClick(folder) },
                                 label = {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Icon(
-                                            if (folderLockEnabled && folder.isLocked) Icons.Outlined.Lock else iconFromName(folder.icon),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(14.dp),
-                                            tint = Color(
-                                                android.graphics.Color.parseColor(folder.color)
-                                            )
-                                        )
-                                        Text(
-                                            folder.name,
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                    }
+                                    Text(
+                                        folder.name,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
                                 },
                                 modifier = Modifier.height(24.dp)
                             )

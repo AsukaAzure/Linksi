@@ -4,13 +4,10 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +35,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.ui.text.style.TextOverflow
+import com.linksi.app.ui.components.FolderStackIcon
 import com.linksi.app.R
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.SortOption
@@ -75,27 +73,7 @@ val folderIcons = listOf(
     FolderIconOption("fitness", Icons.Outlined.FitnessCenter)
 )
 
-val folderColors = listOf(
-    "#6750A4", // Deep Purple (Default)
-    "#F44336", // Red
-    "#E91E63", // Pink
-    "#9C27B0", // Purple
-    "#3F51B5", // Indigo
-    "#2196F3", // Blue
-    "#03A9F4", // Light Blue
-    "#00BCD4", // Cyan
-    "#009688", // Teal
-    "#4CAF50", // Green
-    "#8BC34A", // Light Green
-    "#CDDC39", // Lime
-    "#FFEB3B", // Yellow
-    "#FFC107", // Amber
-    "#FF9800", // Orange
-    "#FF5722", // Deep Orange
-    "#795548", // Brown
-    "#607D8B", // Blue Grey
-    "#000000"  // Black
-)
+
 
 @Composable
 fun iconFromName(name: String): ImageVector {
@@ -112,7 +90,6 @@ fun AddFolderDialog(
     title: String = stringResource(R.string.new_folder)
 ) {
     var name by remember { mutableStateOf(initialName) }
-    var selectedIcon by remember { mutableStateOf(initialIcon) }
     var selectedColor by remember { mutableStateOf(initialColor) }
 
     AlertDialog(
@@ -133,77 +110,16 @@ fun AddFolderDialog(
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = {
-                        if (name.isNotBlank()) onConfirm(name, selectedIcon, selectedColor)
+                        if (name.isNotBlank()) onConfirm(name, initialIcon, selectedColor)
                     })
                 )
 
-                Text(
-                    stringResource(R.string.icon),
-                    style = MaterialTheme.typography.titleSmall
-                )
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    items(folderIcons) { iconOption ->
-                        val isSelected = selectedIcon == iconOption.name
-                        Surface(
-                            onClick = { selectedIcon = iconOption.name },
-                            shape = CircleShape,
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    iconOption.icon,
-                                    null,
-                                    modifier = Modifier.size(24.dp),
-                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
 
-                Text(
-                    stringResource(R.string.color),
-                    style = MaterialTheme.typography.titleSmall
-                )
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    items(folderColors) { colorHex ->
-                        val color = Color(android.graphics.Color.parseColor(colorHex))
-                        val isSelected = selectedColor == colorHex
-                        Surface(
-                            onClick = { selectedColor = colorHex },
-                            shape = CircleShape,
-                            color = color,
-                            modifier = Modifier.size(40.dp),
-                            border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
-                            else null
-                        ) {
-                            if (isSelected) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        null,
-                                        modifier = Modifier.size(20.dp),
-                                        tint = if (colorHex == "#FFFFFF" || colorHex == "#FFEB3B") Color.Black else Color.White
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(name, selectedIcon, selectedColor) },
+                onClick = { onConfirm(name, initialIcon, selectedColor) },
                 enabled = name.isNotBlank()
             ) {
                 Text(stringResource(R.string.save))
@@ -400,7 +316,7 @@ fun FolderPickerDialog(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth(0.85f)
-                        .fillMaxHeight(0.75f),
+                        .fillMaxHeight(0.55f),
                     shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp),
                     color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 8.dp
@@ -468,21 +384,11 @@ fun FolderPickerDialog(
 
                                     FolderPickerItem(
                                         icon = {
-                                            Surface(
-                                                shape = RoundedCornerShape(8.dp),
-                                                color = Color(
-                                                    android.graphics.Color.parseColor(folder.color)
-                                                ).copy(alpha = 0.15f),
-                                                modifier = Modifier.size(36.dp)
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Icon(
-                                                        iconFromName(folder.icon), null,
-                                                        Modifier.size(18.dp),
-                                                        tint = Color(android.graphics.Color.parseColor(folder.color))
-                                                    )
-                                                }
-                                            }
+                                            FolderStackIcon(
+                                                folder = folder,
+                                                folderLockEnabled = folderLockEnabled,
+                                                modifier = Modifier.width(72.dp).height(36.dp)
+                                            )
                                         },
                                         name = folder.name,
                                         isSelected = isCurrentFolder,
