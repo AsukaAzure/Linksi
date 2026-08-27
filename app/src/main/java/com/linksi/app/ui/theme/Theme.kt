@@ -12,41 +12,52 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// ── Clean Neutral Color Schemes (No Amber/Brown) ──────────
 private val DarkColorScheme = darkColorScheme(
-    primary          = Color(0xFFD1E4FF), // Light Blue-White for high contrast icons/text
-    onPrimary        = Color(0xFF003258),
-    primaryContainer = Color(0xFF00497D),
-    onPrimaryContainer = Color(0xFFD1E4FF),
-    secondary        = Color(0xFFD1E4FF),
-    onSecondary      = Color(0xFF003258),
-    tertiary         = Color(0xFFD1E4FF),
-    background       = Color(0xFF0F0F0F), // Clean Neutral Dark
-    surface          = Color(0xFF0F0F0F),
-    onBackground     = Color.White,       // Pure white text/icons
-    onSurface        = Color.White,       // Pure white text/icons
-    surfaceVariant   = Color(0xFF1E1E1E), // Dark Gray for cards
-    onSurfaceVariant = Color(0xFFE2E2E2),
-    outline          = Color(0xFF444444),
-    surfaceTint      = Color.Transparent, // Disables color harmonic blending
+    primary = PrimaryDark,
+    onPrimary = OnPrimaryDark,
+    primaryContainer = PrimaryContainerDark,
+    onPrimaryContainer = OnPrimaryContainerDark,
+    secondary = SecondaryDark,
+    onSecondary = OnSecondaryDark,
+    secondaryContainer = SecondaryContainerDark,
+    onSecondaryContainer = OnSecondaryContainerDark,
+    tertiary = TertiaryDark,
+    onTertiary = OnTertiaryDark,
+    tertiaryContainer = TertiaryContainerDark,
+    onTertiaryContainer = OnTertiaryContainerDark,
+    error = ErrorDark,
+    onError = OnErrorDark,
+    background = BackgroundDark,
+    onBackground = OnBackgroundDark,
+    surface = SurfaceDark,
+    onSurface = OnSurfaceDark,
+    surfaceVariant = SurfaceVariantDark,
+    onSurfaceVariant = OnSurfaceVariantDark,
+    outline = OutlineDark
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary          = Color(0xFF0061A4), // Professional Blue
-    onPrimary        = Color.White,
-    primaryContainer = Color(0xFFD1E4FF),
-    onPrimaryContainer = Color(0xFF001D36),
-    secondary        = Color(0xFF0061A4),
-    onSecondary      = Color.White,
-    tertiary         = Color(0xFF0061A4),
-    background       = Color(0xFFFAFAFA), // Clean Neutral Light
-    surface          = Color(0xFFFAFAFA),
-    onBackground     = Color(0xFF1A1C1E),
-    onSurface        = Color(0xFF1A1C1E),
-    surfaceVariant   = Color(0xFFF2F2F2), // Light Gray for cards
-    onSurfaceVariant = Color(0xFF444444),
-    outline          = Color(0xFFC4C4C4),
-    surfaceTint      = Color.Transparent,
+    primary = PrimaryLight,
+    onPrimary = OnPrimaryLight,
+    primaryContainer = PrimaryContainerLight,
+    onPrimaryContainer = OnPrimaryContainerLight,
+    secondary = SecondaryLight,
+    onSecondary = OnSecondaryLight,
+    secondaryContainer = SecondaryContainerLight,
+    onSecondaryContainer = OnSecondaryContainerLight,
+    tertiary = TertiaryLight,
+    onTertiary = OnTertiaryLight,
+    tertiaryContainer = TertiaryContainerLight,
+    onTertiaryContainer = OnTertiaryContainerLight,
+    error = ErrorLight,
+    onError = OnErrorLight,
+    background = BackgroundLight,
+    onBackground = OnBackgroundLight,
+    surface = SurfaceLight,
+    onSurface = OnSurfaceLight,
+    surfaceVariant = SurfaceVariantLight,
+    onSurfaceVariant = OnSurfaceVariantLight,
+    outline = OutlineLight
 )
 
 @Composable
@@ -94,8 +105,12 @@ fun LinksTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = Color.Transparent.toArgb()
+            window.navigationBarColor = Color.Transparent.toArgb()
+            
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = !darkTheme
+            insetsController.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 
