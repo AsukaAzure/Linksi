@@ -83,7 +83,7 @@ fun HomeScreen(
     val gridState = rememberLazyStaggeredGridState()
     val scope = rememberCoroutineScope()
 
-    val showScrollToTop by remember {
+    val showScrollToTop by remember(viewMode) {
         derivedStateOf {
             if (viewMode == ViewMode.LIST) {
                 listState.firstVisibleItemIndex > 0

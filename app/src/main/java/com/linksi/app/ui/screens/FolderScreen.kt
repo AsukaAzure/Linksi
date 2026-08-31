@@ -55,6 +55,13 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.shape.CircleShape
 import com.linksi.app.utils.SECURITY_BIOMETRIC_ENABLED
 import com.linksi.app.utils.SECURITY_PIN
 import com.linksi.app.utils.dataStore
@@ -303,6 +310,18 @@ fun FolderListScreen(
     var showSortMenu by remember { mutableStateOf(false) }
     var sortOption = state.folderSortOption
     val context = LocalContext.current
+    val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
+
+    val showScrollToTop by remember(viewMode) {
+        derivedStateOf {
+            if (viewMode == FolderViewMode.LIST) {
+                listState.firstVisibleItemIndex > 0
+            } else {
+                gridState.firstVisibleItemIndex > 0
+            }
+        }
+    }
 
     val sortedFolders = remember(folders, sortOption) {
         when (sortOption) {
@@ -330,197 +349,242 @@ fun FolderListScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(id = R.string.folders_title), style = MaterialTheme.typography.headlineMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, stringResource(id = R.string.back))
-                    }
-                },
-                actions = {
-                    // Sort button
-                    IconButton(onClick = { showSortMenu = true }) {
-                        Icon(Icons.Outlined.Sort, stringResource(id = R.string.sort_folders))
-                    }
-                    // Toggle view
-                    IconButton(onClick = {
-                        viewModel.setFolderViewMode(
-                            if (viewMode == FolderViewMode.LIST) FolderViewMode.GRID else FolderViewMode.LIST
-                        )
-                    }) {
-                        Icon(
-                            if (viewMode == FolderViewMode.LIST)
-                                Icons.Outlined.GridView
-                            else Icons.Outlined.ViewList,
-                            stringResource(id = R.string.toggle_view)
-                        )
-                    }
-                    // Add folder
-                    IconButton(onClick = onAddFolder) {
-                        Icon(Icons.Filled.Add, stringResource(id = R.string.add_folder))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(id = R.string.folders_title), style = MaterialTheme.typography.headlineMedium) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Outlined.ArrowBack, stringResource(id = R.string.back))
+                        }
+                    },
+                    actions = {
+                        // Sort button
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.Outlined.Sort, stringResource(id = R.string.sort_folders))
+                        }
+                        // Toggle view
+                        IconButton(onClick = {
+                            viewModel.setFolderViewMode(
+                                if (viewMode == FolderViewMode.LIST) FolderViewMode.GRID else FolderViewMode.LIST
+                            )
+                        }) {
+                            Icon(
+                                if (viewMode == FolderViewMode.LIST)
+                                    Icons.Outlined.GridView
+                                else Icons.Outlined.ViewList,
+                                stringResource(id = R.string.toggle_view)
+                            )
+                        }
+                        // Add folder
+                        IconButton(onClick = onAddFolder) {
+                            Icon(Icons.Filled.Add, stringResource(id = R.string.add_folder))
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
                 )
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
-        if (folders.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            containerColor = MaterialTheme.colorScheme.background
+        ) { padding ->
+            if (folders.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Outlined.FolderOpen, null,
-                        Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(stringResource(id = R.string.no_folders),
-                        style = MaterialTheme.typography.titleMedium)
-                    Button(onClick = onAddFolder) {
-                        Icon(Icons.Filled.Add, null, Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(id = R.string.create_folder))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.FolderOpen, null,
+                            Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            stringResource(id = R.string.no_folders),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Button(onClick = onAddFolder) {
+                            Icon(Icons.Filled.Add, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(id = R.string.create_folder))
+                        }
                     }
                 }
-            }
-        } else {
-            when (viewMode) {
-                FolderViewMode.LIST -> {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
-                        contentPadding = PaddingValues(vertical = 8.dp)
-                    ) {
-                        items(sortedFolders, key = { it.id }) { folder ->
-                            var swipeConfirmed by remember { mutableStateOf(false) }
-                            val dismissState = rememberSwipeToDismissBoxState(
-                                positionalThreshold = { it * 0.4f },
-                                confirmValueChange = { value ->
-                                    when (value) {
-                                        SwipeToDismissBoxValue.StartToEnd -> {
-                                            if (swipeConfirmed) {
-                                                editingFolder = folder
-                                                swipeConfirmed = false
+            } else {
+                when (viewMode) {
+                    FolderViewMode.LIST -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            items(sortedFolders, key = { it.id }) { folder ->
+                                var swipeConfirmed by remember { mutableStateOf(false) }
+                                val dismissState = rememberSwipeToDismissBoxState(
+                                    positionalThreshold = { it * 0.4f },
+                                    confirmValueChange = { value ->
+                                        when (value) {
+                                            SwipeToDismissBoxValue.StartToEnd -> {
+                                                if (swipeConfirmed) {
+                                                    editingFolder = folder
+                                                    swipeConfirmed = false
+                                                }
+                                                false
                                             }
-                                            false
+
+                                            SwipeToDismissBoxValue.EndToStart -> {
+                                                if (swipeConfirmed) {
+                                                    swipeConfirmed = false
+                                                    onDeleteFolder(folder)
+                                                    // If it's locked and locking is enabled, snap back while auth shows
+                                                    !(folderLockEnabled && folder.isLocked && isPinSet)
+                                                } else false
+                                            }
+
+                                            else -> false
                                         }
-                                        SwipeToDismissBoxValue.EndToStart -> {
-                                            if (swipeConfirmed) {
-                                                swipeConfirmed = false
-                                                onDeleteFolder(folder)
-                                                // If it's locked and locking is enabled, snap back while auth shows
-                                                !(folderLockEnabled && folder.isLocked && isPinSet)
-                                            } else false
-                                        }
-                                        else -> false
                                     }
+                                )
+                                LaunchedEffect(dismissState.progress) {
+                                    swipeConfirmed = dismissState.progress >= 0.4f
                                 }
-                            )
-                            LaunchedEffect(dismissState.progress) {
-                                swipeConfirmed = dismissState.progress >= 0.4f
-                            }
-                            SwipeToDismissBox(
-                                state = dismissState,
-                                backgroundContent = {
-                                    val direction = dismissState.dismissDirection
-                                    val isDelete = direction == SwipeToDismissBoxValue.EndToStart
-                                    val isEdit = direction == SwipeToDismissBoxValue.StartToEnd
-                                    val bgColor by animateColorAsState(
-                                        targetValue = when {
-                                            isDelete && swipeConfirmed ->
-                                                MaterialTheme.colorScheme.errorContainer
-                                            isDelete ->
-                                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                                            isEdit && swipeConfirmed ->
-                                                MaterialTheme.colorScheme.primaryContainer
-                                            isEdit ->
-                                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                            else -> MaterialTheme.colorScheme.surface
-                                        }, label = "folder_swipe_bg"
+                                SwipeToDismissBox(
+                                    state = dismissState,
+                                    backgroundContent = {
+                                        val direction = dismissState.dismissDirection
+                                        val isDelete = direction == SwipeToDismissBoxValue.EndToStart
+                                        val isEdit = direction == SwipeToDismissBoxValue.StartToEnd
+                                        val bgColor by animateColorAsState(
+                                            targetValue = when {
+                                                isDelete && swipeConfirmed ->
+                                                    MaterialTheme.colorScheme.errorContainer
+
+                                                isDelete ->
+                                                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+
+                                                isEdit && swipeConfirmed ->
+                                                    MaterialTheme.colorScheme.primaryContainer
+
+                                                isEdit ->
+                                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+
+                                                else -> MaterialTheme.colorScheme.surface
+                                            }, label = "folder_swipe_bg"
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(bgColor)
+                                                .padding(horizontal = 24.dp),
+                                            contentAlignment = if (isDelete)
+                                                Alignment.CenterEnd else Alignment.CenterStart
+                                        ) {
+                                            if (isEdit) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Icon(
+                                                        Icons.Outlined.Edit, null,
+                                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                                    )
+                                                    Text(
+                                                        if (swipeConfirmed) stringResource(id = R.string.release_to_edit) else stringResource(
+                                                            id = R.string.edit
+                                                        ),
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                    )
+                                                }
+                                            } else if (isDelete) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Icon(
+                                                        if (swipeConfirmed) Icons.Outlined.Delete
+                                                        else Icons.Outlined.Lock,
+                                                        null,
+                                                        tint = MaterialTheme.colorScheme.onErrorContainer
+                                                    )
+                                                    Text(
+                                                        if (swipeConfirmed) stringResource(id = R.string.release_to_delete)
+                                                        else stringResource(id = R.string.keep_swiping),
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    FolderListItem(
+                                        folder = folder,
+                                        folderLockEnabled = folderLockEnabled,
+                                        onClick = { onFolderClick(folder) },
+                                        onDelete = { onDeleteFolder(folder) },
+                                        onEdit = { editingFolder = it }
                                     )
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(bgColor)
-                                            .padding(horizontal = 24.dp),
-                                        contentAlignment = if (isDelete)
-                                            Alignment.CenterEnd else Alignment.CenterStart
-                                    ) {
-                                        if (isEdit) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(Icons.Outlined.Edit, null,
-                                                    tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                                                Text(
-                                                    if (swipeConfirmed) stringResource(id = R.string.release_to_edit) else stringResource(id = R.string.edit),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                                )
-                                            }
-                                        } else if (isDelete) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(
-                                                    if (swipeConfirmed) Icons.Outlined.Delete
-                                                    else Icons.Outlined.Lock,
-                                                    null,
-                                                    tint = MaterialTheme.colorScheme.onErrorContainer
-                                                )
-                                                Text(
-                                                    if (swipeConfirmed) stringResource(id = R.string.release_to_delete)
-                                                    else stringResource(id = R.string.keep_swiping),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                                )
-                                            }
-                                        }
-                                    }
                                 }
-                            ) {
-                                FolderListItem(
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 24.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    }
+
+                    FolderViewMode.GRID -> {
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding),
+                            contentPadding = PaddingValues(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(sortedFolders, key = { it.id }) { folder ->
+                                FolderGridCard(
                                     folder = folder,
                                     folderLockEnabled = folderLockEnabled,
                                     onClick = { onFolderClick(folder) },
-                                    onDelete = { onDeleteFolder(folder) },
-                                    onEdit = { editingFolder = it }
+                                    onEdit = { editingFolder = folder },
+                                    onDelete = { onDeleteFolder(folder) }
                                 )
                             }
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 24.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                            )
                         }
                     }
                 }
+            }
+        }
 
-                FolderViewMode.GRID -> {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
-                        contentPadding = PaddingValues(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(sortedFolders, key = { it.id }) { folder ->
-                            FolderGridCard(
-                                folder = folder,
-                                folderLockEnabled = folderLockEnabled,
-                                onClick = { onFolderClick(folder) },
-                                onEdit = { editingFolder = folder },
-                                onDelete = { onDeleteFolder(folder) }
-                            )
-                        }
+        // Scroll to Top Button
+        AnimatedVisibility(
+            visible = showScrollToTop,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
+        ) {
+            SmallFloatingActionButton(
+                onClick = {
+                    scope.launch {
+                        if (viewMode == FolderViewMode.LIST) listState.animateScrollToItem(0)
+                        else gridState.animateScrollToItem(0)
                     }
-                }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.primary,
+                shape = CircleShape,
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+            ) {
+                Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Scroll to top")
             }
         }
     }
@@ -826,9 +890,21 @@ fun FolderDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-
+    val listState = rememberLazyListState()
+    val gridState = rememberLazyStaggeredGridState()
     val viewMode = state.folderLinksViewMode
+
+    val showScrollToTop by remember(viewMode) {
+        derivedStateOf {
+            if (viewMode == ViewMode.LIST) {
+                listState.firstVisibleItemIndex > 0
+            } else {
+                gridState.firstVisibleItemIndex > 0
+            }
+        }
+    }
     var showSortMenu by remember { mutableStateOf(false) }
+    var editingFolder by remember { mutableStateOf<Folder?>(null) }
 
     BackHandler(enabled = isSelectionMode) {
         selectedIds = emptySet()
@@ -846,411 +922,474 @@ fun FolderDetailScreen(
         viewModel.sortLinks(filtered, state.sortOption)
     }
 
-    Scaffold(
-        topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-                // Normal top bar — always visible
-                TopAppBar(
-                    title = {
-                        Column {
-                            // Breadcrumbs
-                            LazyRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                item {
-                                    Text(
-                                        stringResource(R.string.folders_title),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.clickable { onBreadcrumbClick(-1) }
-                                    )
-                                }
-                                itemsIndexed(folderStack.dropLast(1)) { index, f ->
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Filled.ChevronRight, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Spacer(Modifier.width(4.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+                    // Normal top bar — always visible
+                    TopAppBar(
+                        title = {
+                            Column {
+                                // Breadcrumbs
+                                LazyRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    item {
                                         Text(
-                                            f.name,
+                                            stringResource(R.string.folders_title),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.clickable { onBreadcrumbClick(index) }
+                                            modifier = Modifier.clickable { onBreadcrumbClick(-1) }
                                         )
                                     }
-                                }
-                            }
-                            
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(folder.name, style = MaterialTheme.typography.titleLarge)
-                            }
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            if (isSelectionMode) selectedIds = emptySet()
-                            else onBack()
-                        }) {
-                            Icon(Icons.Outlined.ArrowBack, stringResource(id = R.string.back))
-                        }
-                    },
-                    actions = {
-                        // Add link button
-                        IconButton(onClick = viewModel::showAddLinkDialog) {
-                            Icon(Icons.Outlined.AddLink, stringResource(id = R.string.save_link))
-                        }
-                        // Add subfolder button
-                        IconButton(onClick = viewModel::showAddFolderDialog) {
-                            Icon(Icons.Outlined.CreateNewFolder, stringResource(id = R.string.add_folder))
-                        }
-                        IconButton(onClick = {
-                            viewModel.setFolderLinksViewMode(
-                                if (viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST
-                            )
-                        }) {
-                            Icon(
-                                if (viewMode == ViewMode.LIST) Icons.Outlined.GridView else Icons.Outlined.ViewList,
-                                stringResource(id = R.string.toggle_view)
-                            )
-                        }
-                        IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.Outlined.Sort, stringResource(id = R.string.sort))
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
-                )
-
-                // Animated search + bulk row — same as HomeScreen
-                var searchExpanded by remember { mutableStateOf(false) }
-
-                LaunchedEffect(isSelectionMode) {
-                    if (!isSelectionMode) searchExpanded = false
-                }
-
-                val bulkWeight by animateFloatAsState(
-                    targetValue = when {
-                        !isSelectionMode -> 0f
-                        searchExpanded -> 0.25f
-                        else -> 0.300f
-                    },
-                    animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
-                    label = "bulkWeight"
-                )
-
-                val searchWeight by animateFloatAsState(
-                    targetValue = when {
-                        !isSelectionMode -> 1f
-                        searchExpanded -> 0.75f
-                        else -> 0.06f
-                    },
-                    animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
-                    label = "searchWeight"
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .height(56.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Bulk bar — same as HomeScreen
-                    if (bulkWeight > 0f) {
-                        Row(
-                            modifier = Modifier
-                                .weight(bulkWeight.coerceAtLeast(0.001f))
-                                .height(56.dp)
-                                .clip(RoundedCornerShape(50.dp))
-                                .border(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.primary,
-                                    RoundedCornerShape(50.dp)
-                                )
-                                .background(
-                                    MaterialTheme.colorScheme.background,
-                                    RoundedCornerShape(50.dp)
-                                )
-                                .clickable { if (searchExpanded) searchExpanded = false },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { selectedIds = emptySet() }) {
-                                Icon(Icons.Filled.Close, stringResource(id = R.string.cancel), Modifier.size(18.dp))
-                            }
-
-                            if (isSelectionMode) {
-                                var showFolderPicker by remember { mutableStateOf(false) }
-
-                                if (searchExpanded) {
-                                    Text(
-                                        "${selectedIds.size}",
-                                        style = MaterialTheme.typography.titleSmall
-                                    )
-                                } else {
-                                    Text(
-                                        stringResource(id = R.string.selected, selectedIds.size),
-                                        style = MaterialTheme.typography.titleSmall,
-                                        modifier = Modifier.weight(1f),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Clip
-                                    )
-                                    TextButton(onClick = {
-                                        selectedIds = folderLinks.map { it.id }.toSet()
-                                    }) { Text(stringResource(id = R.string.all)) }
-                                    IconButton(onClick = { showFolderPicker = true }) {
-                                        Icon(
-                                            Icons.Outlined.FolderOpen,
-                                            stringResource(id = R.string.move),
-                                            Modifier.size(18.dp)
-                                        )
-                                    }
-                                    IconButton(onClick = {
-                                        scope.launch {
-                                            val linksToDelete =
-                                                folderLinks.filter { it.id in selectedIds }
-                                            linksToDelete.forEach { viewModel.deleteLink(it) }
-                                            val result = snackbarHostState.showSnackbar(
-                                                message = context.getString(R.string.links_deleted, linksToDelete.size),
-                                                actionLabel = context.getString(R.string.undo),
-                                                withDismissAction = true,
-                                                duration = SnackbarDuration.Long
+                                    itemsIndexed(folderStack.dropLast(1)) { index, f ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                Icons.Filled.ChevronRight,
+                                                null,
+                                                Modifier.size(12.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
-                                            if (result == SnackbarResult.ActionPerformed) {
-                                                linksToDelete.forEach { viewModel.restoreLink(it) }
-                                            }
-                                            selectedIds = emptySet()
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(
+                                                f.name,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.clickable { onBreadcrumbClick(index) }
+                                            )
                                         }
-                                    }) {
-                                        Icon(
-                                            Icons.Outlined.Delete, stringResource(id = R.string.delete),
-                                            Modifier.size(18.dp),
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
                                     }
                                 }
 
-                                if (showFolderPicker) {
-                                    FolderPickerDialog(
-                                        folders = state.allFolders.filter { it.id != folder.id },
-                                        currentFolderId = folder.id,
-                                        onSelect = { folderId ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(folder.name, style = MaterialTheme.typography.titleLarge)
+                                }
+                            }
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = {
+                                if (isSelectionMode) selectedIds = emptySet()
+                                else onBack()
+                            }) {
+                                Icon(Icons.Outlined.ArrowBack, stringResource(id = R.string.back))
+                            }
+                        },
+                        actions = {
+                            // Add link button
+                            IconButton(onClick = viewModel::showAddLinkDialog) {
+                                Icon(Icons.Outlined.AddLink, stringResource(id = R.string.save_link))
+                            }
+                            // Add subfolder button
+                            IconButton(onClick = viewModel::showAddFolderDialog) {
+                                Icon(
+                                    Icons.Outlined.CreateNewFolder,
+                                    stringResource(id = R.string.add_folder)
+                                )
+                            }
+                            IconButton(onClick = {
+                                viewModel.setFolderLinksViewMode(
+                                    if (viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST
+                                )
+                            }) {
+                                Icon(
+                                    if (viewMode == ViewMode.LIST) Icons.Outlined.GridView else Icons.Outlined.ViewList,
+                                    stringResource(id = R.string.toggle_view)
+                                )
+                            }
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(Icons.Outlined.Sort, stringResource(id = R.string.sort))
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.background
+                        )
+                    )
+
+                    // Animated search + bulk row — same as HomeScreen
+                    var searchExpanded by remember { mutableStateOf(false) }
+
+                    LaunchedEffect(isSelectionMode) {
+                        if (!isSelectionMode) searchExpanded = false
+                    }
+
+                    val bulkWeight by animateFloatAsState(
+                        targetValue = when {
+                            !isSelectionMode -> 0f
+                            searchExpanded -> 0.25f
+                            else -> 0.300f
+                        },
+                        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+                        label = "bulkWeight"
+                    )
+
+                    val searchWeight by animateFloatAsState(
+                        targetValue = when {
+                            !isSelectionMode -> 1f
+                            searchExpanded -> 0.75f
+                            else -> 0.06f
+                        },
+                        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+                        label = "searchWeight"
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .height(56.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Bulk bar — same as HomeScreen
+                        if (bulkWeight > 0f) {
+                            Row(
+                                modifier = Modifier
+                                    .weight(bulkWeight.coerceAtLeast(0.001f))
+                                    .height(56.dp)
+                                    .clip(RoundedCornerShape(50.dp))
+                                    .border(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.primary,
+                                        RoundedCornerShape(50.dp)
+                                    )
+                                    .background(
+                                        MaterialTheme.colorScheme.background,
+                                        RoundedCornerShape(50.dp)
+                                    )
+                                    .clickable { if (searchExpanded) searchExpanded = false },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(onClick = { selectedIds = emptySet() }) {
+                                    Icon(
+                                        Icons.Filled.Close,
+                                        stringResource(id = R.string.cancel),
+                                        Modifier.size(18.dp)
+                                    )
+                                }
+
+                                if (isSelectionMode) {
+                                    var showFolderPicker by remember { mutableStateOf(false) }
+
+                                    if (searchExpanded) {
+                                        Text(
+                                            "${selectedIds.size}",
+                                            style = MaterialTheme.typography.titleSmall
+                                        )
+                                    } else {
+                                        Text(
+                                            stringResource(id = R.string.selected, selectedIds.size),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            modifier = Modifier.weight(1f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Clip
+                                        )
+                                        TextButton(onClick = {
+                                            selectedIds = folderLinks.map { it.id }.toSet()
+                                        }) { Text(stringResource(id = R.string.all)) }
+                                        IconButton(onClick = { showFolderPicker = true }) {
+                                            Icon(
+                                                Icons.Outlined.FolderOpen,
+                                                stringResource(id = R.string.move),
+                                                Modifier.size(18.dp)
+                                            )
+                                        }
+                                        IconButton(onClick = {
                                             scope.launch {
-                                                val linksToMove =
+                                                val linksToDelete =
                                                     folderLinks.filter { it.id in selectedIds }
-                                                linksToMove.forEach {
-                                                    viewModel.moveToFolder(
-                                                        it,
-                                                        folderId
-                                                    )
-                                                }
+                                                linksToDelete.forEach { viewModel.deleteLink(it) }
                                                 val result = snackbarHostState.showSnackbar(
-                                                    message = context.getString(R.string.links_moved, linksToMove.size),
+                                                    message = context.getString(
+                                                        R.string.links_deleted,
+                                                        linksToDelete.size
+                                                    ),
                                                     actionLabel = context.getString(R.string.undo),
+                                                    withDismissAction = true,
                                                     duration = SnackbarDuration.Long
                                                 )
                                                 if (result == SnackbarResult.ActionPerformed) {
-                                                    linksToMove.forEach {
-                                                        viewModel.moveToFolder(
-                                                            it,
-                                                            folder.id
-                                                        )
-                                                    }
+                                                    linksToDelete.forEach { viewModel.restoreLink(it) }
                                                 }
                                                 selectedIds = emptySet()
                                             }
-                                            showFolderPicker = false
-                                        },
-                                        onDismiss = { showFolderPicker = false },
-                                        onCreateFolder = { name, icon, color ->
-                                            viewModel.addFolder(name, icon, color, folder.id)
+                                        }) {
+                                            Icon(
+                                                Icons.Outlined.Delete,
+                                                stringResource(id = R.string.delete),
+                                                Modifier.size(18.dp),
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
                                         }
-                                    )
+                                    }
+
+                                    if (showFolderPicker) {
+                                        FolderPickerDialog(
+                                            folders = state.allFolders.filter { it.id != folder.id },
+                                            currentFolderId = folder.id,
+                                            onSelect = { folderId ->
+                                                scope.launch {
+                                                    val linksToMove =
+                                                        folderLinks.filter { it.id in selectedIds }
+                                                    linksToMove.forEach {
+                                                        viewModel.moveToFolder(
+                                                            it,
+                                                            folderId
+                                                        )
+                                                    }
+                                                    val result = snackbarHostState.showSnackbar(
+                                                        message = context.getString(
+                                                            R.string.links_moved,
+                                                            linksToMove.size
+                                                        ),
+                                                        actionLabel = context.getString(R.string.undo),
+                                                        duration = SnackbarDuration.Long
+                                                    )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        linksToMove.forEach {
+                                                            viewModel.moveToFolder(
+                                                                it,
+                                                                folder.id
+                                                            )
+                                                        }
+                                                    }
+                                                    selectedIds = emptySet()
+                                                }
+                                                showFolderPicker = false
+                                            },
+                                            onDismiss = { showFolderPicker = false },
+                                            onCreateFolder = { name, icon, color ->
+                                                viewModel.addFolder(name, icon, color, folder.id)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // Search bar — exactly same as HomeScreen
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = {
-                            Text(if (searchExpanded) stringResource(id = R.string.search_short) else stringResource(id = R.string.search_in_folder, folder.name))
-                        },
-                        leadingIcon = {
-                            IconButton(
-                                onClick = {
-                                    if (isSelectionMode && !searchExpanded) {
-                                        searchExpanded = true
+                        // Search bar — exactly same as HomeScreen
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = {
+                                Text(
+                                    if (searchExpanded) stringResource(id = R.string.search_short) else stringResource(
+                                        id = R.string.search_in_folder,
+                                        folder.name
+                                    )
+                                )
+                            },
+                            leadingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        if (isSelectionMode && !searchExpanded) {
+                                            searchExpanded = true
+                                        }
+                                    },
+                                    enabled = isSelectionMode && !searchExpanded
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Search,
+                                        stringResource(id = R.string.search_short),
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotBlank()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(
+                                            Icons.Filled.Clear,
+                                            stringResource(id = R.string.clear)
+                                        )
                                     }
-                                },
-                                enabled = isSelectionMode && !searchExpanded
-                            ) {
-                                Icon(
-                                    Icons.Filled.Search, stringResource(id = R.string.search_short),
-                                    modifier = Modifier.padding(start = 8.dp)
+                                }
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier.weight(searchWeight.coerceAtLeast(0.001f)),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                            )
+                        )
+                    }
+                }
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            containerColor = MaterialTheme.colorScheme.background
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // Sub-folders Section
+                if (state.subFolders.isNotEmpty() && searchQuery.isBlank()) {
+                    Text(
+                        stringResource(R.string.sub_folders),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                    )
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    ) {
+                        items(state.subFolders, key = { it.id }) { subFolder ->
+                            Box(modifier = Modifier.width(160.dp)) {
+                                FolderGridCard(
+                                    folder = subFolder,
+                                    folderLockEnabled = state.folderLockEnabled,
+                                    onClick = { onSubFolderClick(subFolder) },
+                                    onEdit = { editingFolder = subFolder },
+                                    onDelete = { viewModel.deleteFolder(subFolder) }
                                 )
                             }
-                        },
-                        trailingIcon = {
-                            if (searchQuery.isNotBlank()) {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Filled.Clear, stringResource(id = R.string.clear))
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(28.dp),
-                        modifier = Modifier.weight(searchWeight.coerceAtLeast(0.001f)),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
-                    )
+                        }
+                    }
+                    HorizontalDivider(Modifier.padding(horizontal = 20.dp))
                 }
-            }
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Sub-folders Section
-            if (state.subFolders.isNotEmpty() && searchQuery.isBlank()) {
+
                 Text(
-                    stringResource(R.string.sub_folders),
+                    stringResource(R.string.links_count, folderLinks.size),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
                 )
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = 12.dp)
-                ) {
-                    items(state.subFolders, key = { it.id }) { subFolder ->
-                        Box(modifier = Modifier.width(160.dp)) {
-                            FolderGridCard(
-                                folder = subFolder,
-                                folderLockEnabled = state.folderLockEnabled,
-                                onClick = { onSubFolderClick(subFolder) },
-                                onEdit = { /* TODO */ },
-                                onDelete = { viewModel.deleteFolder(subFolder) }
-                            )
-                        }
+
+                if (folderLinks.isEmpty()) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            if (searchQuery.isBlank()) stringResource(id = R.string.no_links_in_folder)
+                            else stringResource(id = R.string.no_results_for, searchQuery),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    when (viewMode) {
+                        ViewMode.LIST -> LinksList(
+                            links = folderLinks,
+                            listState = listState,
+                            folders = state.allFolders,
+                            selectedIds = selectedIds,
+                            isSelectionMode = isSelectionMode,
+                            onLongPress = { id ->
+                                selectedIds =
+                                    if (selectedIds.contains(id)) selectedIds - id else selectedIds + id
+                            },
+                            onLinkClick = { link ->
+                                if (isSelectionMode) {
+                                    selectedIds = if (selectedIds.contains(link.id))
+                                        selectedIds - link.id
+                                    else
+                                        selectedIds + link.id
+                                } else {
+                                    viewModel.markAsRead(link, true)
+                                    if (state.useInAppBrowser) {
+                                        onOpenBrowser(link.url, link.title)
+                                    } else {
+                                        uriHandler.openUri(link.url)
+                                    }
+                                }
+                            },
+                            onFavoriteToggle = viewModel::toggleFavorite,
+                            onDelete = viewModel::deleteLink,
+                            onMoveToFolder = { link, folderId ->
+                                viewModel.moveToFolder(link, folderId)
+                            },
+                            onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
+                            onFolderClick = { f -> viewModel.selectFolder(f.id) },
+                            onPin = viewModel::setPinned,
+                            onSetNote = { link, note -> viewModel.setNote(link, note) },
+                            onSetReminder = { link, time -> viewModel.setReminder(link, time) },
+                            onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
+                            onSetTags = { link, tags -> viewModel.setTags(link, tags) },
+                            allTags = state.allTags,
+                            onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
+                            onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
+                            onCreateFolder = viewModel::addFolder,
+                            folderLockEnabled = state.folderLockEnabled,
+                            isRefreshingMetadata = state.isRefreshingMetadata
+                        )
+
+                        ViewMode.GRID -> LinksGrid(
+                            links = folderLinks,
+                            gridState = gridState,
+                            folders = state.allFolders,
+                            selectedIds = selectedIds,
+                            isSelectionMode = isSelectionMode,
+                            onLongPress = { id ->
+                                selectedIds =
+                                    if (selectedIds.contains(id)) selectedIds - id else selectedIds + id
+                            },
+                            onLinkClick = { link ->
+                                if (isSelectionMode) {
+                                    selectedIds = if (selectedIds.contains(link.id))
+                                        selectedIds - link.id
+                                    else
+                                        selectedIds + link.id
+                                } else {
+                                    viewModel.markAsRead(link, true)
+                                    if (state.useInAppBrowser) {
+                                        onOpenBrowser(link.url, link.title)
+                                    } else {
+                                        uriHandler.openUri(link.url)
+                                    }
+                                }
+                            },
+                            onFavoriteToggle = viewModel::toggleFavorite,
+                            onDelete = viewModel::deleteLink,
+                            onMoveToFolder = { link, folderId ->
+                                viewModel.moveToFolder(link, folderId)
+                            },
+                            onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
+                            onFolderClick = { f -> viewModel.selectFolder(f.id) },
+                            onPin = viewModel::setPinned,
+                            onSetNote = { link, note -> viewModel.setNote(link, note) },
+                            onSetReminder = { link, time -> viewModel.setReminder(link, time) },
+                            onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
+                            onSetTags = { link, tags -> viewModel.setTags(link, tags) },
+                            allTags = state.allTags,
+                            onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
+                            onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
+                            onCreateFolder = viewModel::addFolder,
+                            folderLockEnabled = state.folderLockEnabled,
+                            isRefreshingMetadata = state.isRefreshingMetadata
+                        )
                     }
                 }
-                HorizontalDivider(Modifier.padding(horizontal = 20.dp))
             }
+        }
 
-            Text(
-                stringResource(R.string.links_count, folderLinks.size),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-            )
-
-            if (folderLinks.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        if (searchQuery.isBlank()) stringResource(id = R.string.no_links_in_folder)
-                        else stringResource(id = R.string.no_results_for, searchQuery),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                when (viewMode) {
-                    ViewMode.LIST -> LinksList(
-                        links = folderLinks,
-                        folders = state.allFolders,
-                        selectedIds = selectedIds,
-                        isSelectionMode = isSelectionMode,
-                        onLongPress = { id ->
-                            selectedIds = if (selectedIds.contains(id)) selectedIds - id else selectedIds + id
-                        },
-                        onLinkClick = { link ->
-                            if (isSelectionMode) {
-                                selectedIds = if (selectedIds.contains(link.id))
-                                    selectedIds - link.id
-                                else
-                                    selectedIds + link.id
-                            } else {
-                                viewModel.markAsRead(link, true)
-                                if (state.useInAppBrowser) {
-                                    onOpenBrowser(link.url, link.title)
-                                } else {
-                                    uriHandler.openUri(link.url)
-                                }
-                            }
-                        },
-                        onFavoriteToggle = viewModel::toggleFavorite,
-                        onDelete = viewModel::deleteLink,
-                        onMoveToFolder = { link, folderId -> viewModel.moveToFolder(link, folderId) },
-                        onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
-                        onFolderClick = { f -> viewModel.selectFolder(f.id) },
-                        onPin = viewModel::setPinned,
-                        onSetNote = { link, note -> viewModel.setNote(link, note) },
-                        onSetReminder = { link, time -> viewModel.setReminder(link, time) },
-                        onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
-                        onSetTags = { link, tags -> viewModel.setTags(link, tags) },
-                        allTags = state.allTags,
-                        onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
-                        onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
-                        onCreateFolder = viewModel::addFolder,
-                        folderLockEnabled = state.folderLockEnabled,
-                        isRefreshingMetadata = state.isRefreshingMetadata
-                    )
-
-                    ViewMode.GRID -> LinksGrid(
-                        links = folderLinks,
-                        folders = state.allFolders,
-                        selectedIds = selectedIds,
-                        isSelectionMode = isSelectionMode,
-                        onLongPress = { id ->
-                            selectedIds = if (selectedIds.contains(id)) selectedIds - id else selectedIds + id
-                        },
-                        onLinkClick = { link ->
-                            if (isSelectionMode) {
-                                selectedIds = if (selectedIds.contains(link.id))
-                                    selectedIds - link.id
-                                else
-                                    selectedIds + link.id
-                            } else {
-                                viewModel.markAsRead(link, true)
-                                if (state.useInAppBrowser) {
-                                    onOpenBrowser(link.url, link.title)
-                                } else {
-                                    uriHandler.openUri(link.url)
-                                }
-                            }
-                        },
-                        onFavoriteToggle = viewModel::toggleFavorite,
-                        onDelete = viewModel::deleteLink,
-                        onMoveToFolder = { link, folderId -> viewModel.moveToFolder(link, folderId) },
-                        onEdit = { updatedLink -> viewModel.updateLink(updatedLink) },
-                        onFolderClick = { f -> viewModel.selectFolder(f.id) },
-                        onPin = viewModel::setPinned,
-                        onSetNote = { link, note -> viewModel.setNote(link, note) },
-                        onSetReminder = { link, time -> viewModel.setReminder(link, time) },
-                        onSetExpiry = { link, time -> viewModel.setExpiry(link, time) },
-                        onSetTags = { link, tags -> viewModel.setTags(link, tags) },
-                        allTags = state.allTags,
-                        onRefreshMetadata = { link -> viewModel.refreshLinkMetadata(link) },
-                        onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
-                        onCreateFolder = viewModel::addFolder,
-                        folderLockEnabled = state.folderLockEnabled,
-                        isRefreshingMetadata = state.isRefreshingMetadata
-                    )
-                }
+        // Scroll to Top Button
+        AnimatedVisibility(
+            visible = showScrollToTop,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
+        ) {
+            SmallFloatingActionButton(
+                onClick = {
+                    scope.launch {
+                        if (viewMode == ViewMode.LIST) listState.animateScrollToItem(0)
+                        else gridState.animateScrollToItem(0)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.primary,
+                shape = CircleShape,
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+            ) {
+                Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Scroll to top")
             }
         }
     }
@@ -1263,6 +1402,17 @@ fun FolderDetailScreen(
                 showSortMenu = false
             },
             onDismiss = { showSortMenu = false }
+        )
+    }
+
+    editingFolder?.let { folderToEdit ->
+        EditFolderDialog(
+            folder = folderToEdit,
+            onDismiss = { editingFolder = null },
+            onConfirm = { name, icon, color ->
+                viewModel.updateFolder(folderToEdit.copy(name = name, icon = icon, color = color))
+                editingFolder = null
+            }
         )
     }
 }
