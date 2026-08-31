@@ -8,12 +8,15 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
+import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridScope
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -829,13 +832,15 @@ fun LinksList(
     onDeleteTagGlobally: (String) -> Unit = {},
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
     folderLockEnabled: Boolean = false,
-    isRefreshingMetadata: Boolean = false
+    isRefreshingMetadata: Boolean = false,
+    header: (LazyListScope.() -> Unit)? = null
 ) {
     LazyColumn(
         state = listState,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        header?.invoke(this)
         itemsIndexed(links, key = { _, link -> link.id }) { index, link ->
             LinkCard(
                 link = link,
@@ -891,7 +896,8 @@ fun LinksGrid(
     onDeleteTagGlobally: (String) -> Unit = {},
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
     folderLockEnabled: Boolean = false,
-    isRefreshingMetadata: Boolean = false
+    isRefreshingMetadata: Boolean = false,
+    header: (LazyStaggeredGridScope.() -> Unit)? = null
 ) {
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Fixed(2),
@@ -900,6 +906,7 @@ fun LinksGrid(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalItemSpacing = 8.dp
     ) {
+        header?.invoke(this)
         items(links, key = { it.id }) { link ->
             LinkGridCard(
                 link = link,

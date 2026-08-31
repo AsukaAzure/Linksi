@@ -57,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -1230,54 +1231,61 @@ fun FolderDetailScreen(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             containerColor = MaterialTheme.colorScheme.background
         ) { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                // Sub-folders Section
-                if (state.subFolders.isNotEmpty() && searchQuery.isBlank()) {
+            val headerContent = @Composable {
+                Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
+                    // Sub-folders Section
+                    if (state.subFolders.isNotEmpty() && searchQuery.isBlank()) {
+                        Text(
+                            stringResource(R.string.sub_folders),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                        )
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            items(state.subFolders, key = { it.id }) { subFolder ->
+                                Box(modifier = Modifier.width(160.dp)) {
+                                    FolderGridCard(
+                                        folder = subFolder,
+                                        folderLockEnabled = state.folderLockEnabled,
+                                        onClick = { onSubFolderClick(subFolder) },
+                                        onEdit = { editingFolder = subFolder },
+                                        onDelete = { viewModel.deleteFolder(subFolder) }
+                                    )
+                                }
+                            }
+                        }
+                        HorizontalDivider(Modifier.padding(horizontal = 20.dp))
+                    }
+
                     Text(
-                        stringResource(R.string.sub_folders),
+                        stringResource(R.string.links_count, folderLinks.size),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
                     )
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    ) {
-                        items(state.subFolders, key = { it.id }) { subFolder ->
-                            Box(modifier = Modifier.width(160.dp)) {
-                                FolderGridCard(
-                                    folder = subFolder,
-                                    folderLockEnabled = state.folderLockEnabled,
-                                    onClick = { onSubFolderClick(subFolder) },
-                                    onEdit = { editingFolder = subFolder },
-                                    onDelete = { viewModel.deleteFolder(subFolder) }
-                                )
-                            }
-                        }
-                    }
-                    HorizontalDivider(Modifier.padding(horizontal = 20.dp))
                 }
+            }
 
-                Text(
-                    stringResource(R.string.links_count, folderLinks.size),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-                )
-
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
                 if (folderLinks.isEmpty()) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            if (searchQuery.isBlank()) stringResource(id = R.string.no_links_in_folder)
-                            else stringResource(id = R.string.no_results_for, searchQuery),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Column {
+                        headerContent()
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                if (searchQuery.isBlank()) stringResource(id = R.string.no_links_in_folder)
+                                else stringResource(id = R.string.no_results_for, searchQuery),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 } else {
                     when (viewMode) {
@@ -1323,7 +1331,10 @@ fun FolderDetailScreen(
                             onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
                             onCreateFolder = viewModel::addFolder,
                             folderLockEnabled = state.folderLockEnabled,
-                            isRefreshingMetadata = state.isRefreshingMetadata
+                            isRefreshingMetadata = state.isRefreshingMetadata,
+                            header = {
+                                item { headerContent() }
+                            }
                         )
 
                         ViewMode.GRID -> LinksGrid(
@@ -1368,7 +1379,10 @@ fun FolderDetailScreen(
                             onDeleteTagGlobally = { tag -> viewModel.deleteTagGlobally(tag) },
                             onCreateFolder = viewModel::addFolder,
                             folderLockEnabled = state.folderLockEnabled,
-                            isRefreshingMetadata = state.isRefreshingMetadata
+                            isRefreshingMetadata = state.isRefreshingMetadata,
+                            header = {
+                                item(span = StaggeredGridItemSpan.FullLine) { headerContent() }
+                            }
                         )
                     }
                 }
