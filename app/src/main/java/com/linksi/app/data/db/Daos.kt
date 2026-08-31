@@ -137,7 +137,7 @@ interface FolderDao {
         LEFT JOIN links l ON l.folderId = f.id AND l.inBin = 0
         WHERE f.parentId IS :parentId
         GROUP BY f.id
-        ORDER BY f.createdAt ASC
+        ORDER BY f.createdAt DESC
     """
     )
     fun getFoldersByParentWithCount(parentId: Long?): Flow<List<FolderWithCount>>
@@ -153,7 +153,7 @@ interface FolderDao {
         FROM folders f 
         LEFT JOIN links l ON l.folderId = f.id AND l.inBin = 0
         GROUP BY f.id
-        ORDER BY f.createdAt ASC
+        ORDER BY f.createdAt DESC
     """
     )
     fun getAllFoldersWithCount(): Flow<List<FolderWithCount>>
