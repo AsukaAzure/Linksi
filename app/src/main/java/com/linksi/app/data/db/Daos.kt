@@ -173,3 +173,18 @@ interface FolderDao {
     @Query("UPDATE folders SET isLocked = :isLocked WHERE id = :id")
     suspend fun toggleLock(id: Long, isLocked: Boolean)
 }
+
+@Dao
+interface MetadataCacheDao {
+    @Query("SELECT * FROM metadata_cache WHERE url = :url LIMIT 1")
+    suspend fun getMetadata(url: String): MetadataCacheEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMetadata(metadata: MetadataCacheEntity)
+
+    @Query("DELETE FROM metadata_cache WHERE url = :url")
+    suspend fun deleteMetadata(url: String)
+
+    @Query("DELETE FROM metadata_cache WHERE createdAt < :threshold")
+    suspend fun clearOldMetadata(threshold: Long)
+}

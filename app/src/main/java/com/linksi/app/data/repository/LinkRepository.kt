@@ -2,6 +2,7 @@ package com.linksi.app.data.repository
 
 import com.linksi.app.data.db.*
 import com.linksi.app.domain.model.*
+import com.linksi.app.utils.LinkMetadata
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -10,7 +11,8 @@ import javax.inject.Singleton
 @Singleton
 class LinkRepository @Inject constructor(
     private val linkDao: LinkDao,
-    private val folderDao: FolderDao
+    private val folderDao: FolderDao,
+    private val metadataCacheDao: MetadataCacheDao
 ) {
     // ─── Links ───────────────────────────────────────────────
     fun getAllLinks(isFolderLockEnabled: Boolean = true): Flow<List<Link>> =
@@ -165,13 +167,44 @@ class LinkRepository @Inject constructor(
         folderDao.getFolderByName(name)?.let { toFolder(it) }
 
     suspend fun isUrlAlreadySaved(url: String): Boolean {
-        return linkDao.getLinkByUrl(url) != null
+        return linkDao.getLinkByUrl(com.linksi.app.utils.normalizeUrl(url)) != null
     }
 
     suspend fun setPinned(id: Long, isPinned: Boolean) = linkDao.setPinned(id, isPinned)
     suspend fun setNote(id: Long, note: String) = linkDao.setNote(id, note)
     suspend fun setExpiry(id: Long, expiresAt: Long?) = linkDao.setExpiry(id, expiresAt)
     suspend fun getExpiredLinks() = linkDao.getExpiredLinks().map(::toLink)
+
+    // ─── Metadata Cache ──────────────────────────────────────
+    suspend fun getMetadataFromCache(url: String): LinkMetadata? {
+        return metadataCacheDao.getMetadata(url)?.let { entity ->
+            LinkMetadata(
+                title = entity.title,
+                description = entity.description,
+                faviconUrl = entity.faviconUrl,
+                previewImageUrl = entity.previewImageUrl,
+                domain = entity.domain
+            )
+        }
+    }
+
+    suspend fun saveMetadataToCache(url: String, meta: LinkMetadata) {
+        metadataCacheDao.insertMetadata(
+            MetadataCacheEntity(
+                url = url,
+                title = meta.title,
+                description = meta.description,
+                faviconUrl = meta.faviconUrl,
+                previewImageUrl = meta.previewImageUrl,
+                domain = meta.domain
+            )
+        )
+    }
+
+    suspend fun clearOldMetadataCache(days: Int = 7) {
+        val threshold = System.currentTimeMillis() - (days.toLong() * 24 * 60 * 60 * 1000)
+        metadataCacheDao.clearOldMetadata(threshold)
+    }
 
     // ─── Mappers ─────────────────────────────────────────────
     private fun toLink(entity: LinkEntity) = Link(

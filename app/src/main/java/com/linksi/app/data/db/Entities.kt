@@ -54,3 +54,14 @@ data class FolderWithCount(
     @ColumnInfo(name = "link_count") val linkCount: Int = 0,
     @ColumnInfo(name = "latest_images") val latestImages: String? = null
 )
+
+@Entity(tableName = "metadata_cache")
+data class MetadataCacheEntity(
+    @PrimaryKey val url: String,
+    val title: String = "",
+    val description: String = "",
+    val faviconUrl: String = "",
+    val previewImageUrl: String = "",
+    val domain: String = "",
+    val createdAt: Long = System.currentTimeMillis()
+)

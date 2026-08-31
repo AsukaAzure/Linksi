@@ -60,6 +60,7 @@ fun AddLinkSheet(
     allTags: List<String> = emptyList(),
     isFetchingMetadata: Boolean = false,
     initialFolderId: Long? = null,
+    viewModel: com.linksi.app.ui.screens.HomeViewModel,
     onDismiss: () -> Unit,
     onCreateFolder: (String, String, String) -> Unit = { _, _, _ -> },
     folderLockEnabled: Boolean = false,
@@ -149,7 +150,7 @@ fun AddLinkSheet(
             
             isFetchingPreview = true
             try {
-                val meta = com.linksi.app.utils.MetadataFetcher.fetch(trimmedUrl)
+                val meta = viewModel.fetchMetadata(trimmedUrl)
                 // Only auto-fill if the fields are currently blank to avoid overwriting user edits
                 if (editTitle.isBlank()) {
                     editTitle = meta.title.ifBlank {
@@ -438,12 +439,12 @@ fun AddLinkSheet(
                                         editDescription = ""
                                         previewImageUrl = ""
                                         try {
-                                            val meta = com.linksi.app.utils.MetadataFetcher.fetch(url.trim())
+                                            // Refresh bypasses cache
+                                            val meta = com.linksi.app.utils.MetadataFetcher.fetch(url.trim(), context)
                                             editTitle = meta.title.ifBlank {
                                                 url.removePrefix("https://")
                                                     .removePrefix("http://")
-                                                    .removePrefix("www.")
-                                                    .substringBefore("/")
+                                                    .removePrefix("www.").substringBefore("/")
                                             }
                                             editDescription = meta.description
                                             previewImageUrl = meta.previewImageUrl

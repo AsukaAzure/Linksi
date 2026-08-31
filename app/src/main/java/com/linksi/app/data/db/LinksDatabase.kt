@@ -7,15 +7,31 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.work.impl.Migration_1_2
 
 @Database(
-    entities = [LinkEntity::class, FolderEntity::class],
-    version = 9,
+    entities = [LinkEntity::class, FolderEntity::class, MetadataCacheEntity::class],
+    version = 10,
     exportSchema = false
 )
 abstract class LinksDatabase : RoomDatabase() {
     abstract fun linkDao(): LinkDao
     abstract fun folderDao(): FolderDao
+    abstract fun metadataCacheDao(): MetadataCacheDao
 
     companion object {
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS metadata_cache (
+                        url TEXT PRIMARY KEY NOT NULL,
+                        title TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        faviconUrl TEXT NOT NULL,
+                        previewImageUrl TEXT NOT NULL,
+                        domain TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                """)
+            }
+        }
         val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 // Create new table with parentId and proper constraints

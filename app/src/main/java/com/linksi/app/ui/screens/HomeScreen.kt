@@ -655,6 +655,7 @@ fun HomeScreen(
             allTags = state.allTags,
             isFetchingMetadata = state.isFetchingMetadata,
             initialFolderId = state.selectedFolderId,
+            viewModel = viewModel,
             onDismiss = viewModel::hideAddLinkDialog,
             onCreateFolder = { name, icon, color -> viewModel.addFolder(name, icon, color) },
             onConfirm = { url, folderId, reminderAt, note, tags, expiresAt,

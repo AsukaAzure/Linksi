@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.linksi.app.data.db.FolderDao
 import com.linksi.app.data.db.LinkDao
 import com.linksi.app.data.db.LinksDatabase
+import com.linksi.app.data.db.MetadataCacheDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,7 +29,8 @@ object AppModule {
                 LinksDatabase.MIGRATION_5_6,
                 LinksDatabase.MIGRATION_6_7,
                 LinksDatabase.MIGRATION_7_8,
-                LinksDatabase.MIGRATION_8_9
+                LinksDatabase.MIGRATION_8_9,
+                LinksDatabase.MIGRATION_9_10
             )
             .build()
 
@@ -37,4 +39,7 @@ object AppModule {
 
     @Provides
     fun provideFolderDao(db: LinksDatabase): FolderDao = db.folderDao()
+
+    @Provides
+    fun provideMetadataCacheDao(db: LinksDatabase): MetadataCacheDao = db.metadataCacheDao()
 }

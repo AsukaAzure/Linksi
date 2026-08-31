@@ -55,9 +55,9 @@ class ShareReceiverActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val sharedUrl = extractUrl(intent)
+        val sharedData = extractData(intent)
 
-        if (sharedUrl == null) {
+        if (sharedData == null) {
             finish()
             return
         }
@@ -65,7 +65,9 @@ class ShareReceiverActivity : AppCompatActivity() {
         setContent {
             LinksTheme {
                 ShareReceiverSheet(
-                    url = sharedUrl,
+                    url = sharedData.url,
+                    initialTitle = sharedData.title,
+                    initialImageUrl = sharedData.imageUrl,
                     viewModel = viewModel,
                     onDismiss = { finish() },
                     onSaved = { finish() }
@@ -74,16 +76,37 @@ class ShareReceiverActivity : AppCompatActivity() {
         }
     }
 
-    private fun extractUrl(intent: Intent?): String? {
-        if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
-            return intent.getStringExtra(Intent.EXTRA_TEXT)
-                ?.trim()
-                ?.let { extractUrlFromText(it) }
+    private data class SharedData(
+        val url: String,
+        val title: String?,
+        val imageUrl: String?
+    )
+
+    private fun extractData(intent: Intent?): SharedData? {
+        if (intent == null) return null
+        
+        var sharedUrl: String? = null
+        var sharedTitle: String? = null
+        var sharedImageUrl: String? = null
+
+        if (intent.action == Intent.ACTION_SEND) {
+            if (intent.type == "text/plain") {
+                val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return null
+                sharedUrl = extractUrlFromText(text)
+                sharedTitle = intent.getStringExtra(Intent.EXTRA_SUBJECT) 
+                    ?: intent.getStringExtra(Intent.EXTRA_TITLE)
+            }
+            
+            // Try to extract image preview from intent (Android 10+ rich previews or Chrome screenshots)
+            val uri = intent.data ?: intent.clipData?.getItemAt(0)?.uri 
+                ?: intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
+            
+            sharedImageUrl = uri?.toString()
+        } else if (intent.action == Intent.ACTION_VIEW) {
+            sharedUrl = intent.dataString
         }
-        if (intent?.action == Intent.ACTION_VIEW) {
-            return intent.dataString
-        }
-        return null
+
+        return sharedUrl?.let { SharedData(it, sharedTitle, sharedImageUrl) }
     }
 
     private fun extractUrlFromText(text: String): String {
@@ -96,6 +119,8 @@ class ShareReceiverActivity : AppCompatActivity() {
 @Composable
 fun ShareReceiverSheet(
     url: String,
+    initialTitle: String? = null,
+    initialImageUrl: String? = null,
     viewModel: HomeViewModel,
     onDismiss: () -> Unit,
     onSaved: () -> Unit
@@ -109,9 +134,9 @@ fun ShareReceiverSheet(
     var expiresAt by remember { mutableStateOf<Long?>(null) }
     var note by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf<List<String>>(emptyList()) }
-    var editTitle by remember { mutableStateOf("") }
+    var editTitle by remember { mutableStateOf(initialTitle ?: "") }
     var editDescription by remember { mutableStateOf("") }
-    var previewImageUrl by remember { mutableStateOf("") }
+    var previewImageUrl by remember { mutableStateOf(initialImageUrl ?: "") }
     var imageLoadFailed by remember { mutableStateOf(false) }
     var isFetchingPreview by remember { mutableStateOf(false) }
 
@@ -137,12 +162,23 @@ fun ShareReceiverSheet(
     // Fetch metadata silently in background
     LaunchedEffect(url) {
         try {
-            val meta = MetadataFetcher.fetch(url)
-            editTitle = meta.title.ifBlank { extractDomainFromUrl(url) }
+            val meta = viewModel.fetchMetadata(url)
+            // Only update title if scraper found something better than what we got from intent
+            if (meta.title.isNotBlank()) {
+                editTitle = meta.title
+            } else if (editTitle.isBlank()) {
+                editTitle = extractDomainFromUrl(url)
+            }
             editDescription = meta.description
-            previewImageUrl = meta.previewImageUrl
+            
+            // Only update image if intent didn't provide one
+            if (previewImageUrl.isBlank() && meta.previewImageUrl.isNotBlank()) {
+                previewImageUrl = meta.previewImageUrl
+            }
         } catch (e: Exception) {
-            editTitle = extractDomainFromUrl(url)
+            if (editTitle.isBlank()) {
+                editTitle = extractDomainFromUrl(url)
+            }
         }
     }
 
@@ -362,7 +398,8 @@ fun ShareReceiverSheet(
                                         editDescription = ""
                                         previewImageUrl = ""
                                         try {
-                                            val meta = com.linksi.app.utils.MetadataFetcher.fetch(url.trim())
+                                            // Refresh bypasses cache
+                                            val meta = com.linksi.app.utils.MetadataFetcher.fetch(url.trim(), context)
                                             editTitle = meta.title.ifBlank {
                                                 url.removePrefix("https://")
                                                     .removePrefix("http://")

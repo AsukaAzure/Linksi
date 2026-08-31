@@ -225,16 +225,17 @@ class HomeViewModel @Inject constructor(
         previewImageOverride: String? = null
     ) {
         viewModelScope.launch {
-            if (repository.isUrlAlreadySaved(url)) {
+            val normalizedUrl = normalizeUrl(url)
+            if (repository.isUrlAlreadySaved(normalizedUrl)) {
                 _uiState.update { it.copy(snackbarMessage = context.getString(R.string.link_already_saved)) }
                 return@launch
             }
 
-            val domain = extractDomain(url)
+            val domain = extractDomain(normalizedUrl)
             val faviconUrl = "https://www.google.com/s2/favicons?domain=$domain&sz=64"
 
             val link = Link(
-                url = url,
+                url = normalizedUrl,
                 title = titleOverride ?: "",
                 description = descriptionOverride ?: "",
                 folderId = folderId,
@@ -350,7 +351,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshingMetadata = true) }
             try {
-                val meta = MetadataFetcher.fetch(link.url)
+                // Try cache first for refresh? Actually refresh should probably bypass cache or update it.
+                // For manual refresh, we bypass cache to get latest.
+                val meta = MetadataFetcher.fetch(link.url, context)
+                repository.saveMetadataToCache(link.url, meta)
+                
                 val updatedLink = link.copy(
                     title = meta.title.ifBlank { link.title },
                     description = meta.description.ifBlank { link.description },
@@ -366,10 +371,15 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
+                val errorMsg = when {
+                    e is java.net.UnknownHostException -> context.getString(R.string.error_network)
+                    e.message?.contains("403") == true -> context.getString(R.string.error_blocked)
+                    else -> context.getString(R.string.metadata_refresh_failed)
+                }
                 _uiState.update {
                     it.copy(
                         isRefreshingMetadata = false,
-                        snackbarMessage = context.getString(R.string.metadata_refresh_failed)
+                        snackbarMessage = errorMsg
                     )
                 }
             }
@@ -389,7 +399,7 @@ class HomeViewModel @Inject constructor(
 
             links.forEach { link ->
                 try {
-                    val meta = MetadataFetcher.fetch(link.url)
+                    val meta = MetadataFetcher.fetch(link.url, context)
                     val updatedLink = link.copy(
                         title = meta.title.ifBlank { link.title },
                         description = meta.description.ifBlank { link.description },
@@ -498,6 +508,15 @@ class HomeViewModel @Inject constructor(
                 kotlinx.coroutines.delay(60000) // Check every minute
             }
         }
+    }
+
+    suspend fun fetchMetadata(url: String): LinkMetadata {
+        val cached = repository.getMetadataFromCache(url)
+        if (cached != null) return cached
+
+        val meta = MetadataFetcher.fetch(url, context)
+        repository.saveMetadataToCache(url, meta)
+        return meta
     }
 
     fun dismissSnackbar() { _uiState.update { it.copy(snackbarMessage = null) } }

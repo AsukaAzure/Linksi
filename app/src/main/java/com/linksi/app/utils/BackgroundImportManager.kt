@@ -119,35 +119,38 @@ class BackgroundImportManager @Inject constructor(
                     _progress.update { it.copy(progress = index + 1) }
                 }
 
-                // Fetch metadata
+                // Fetch metadata in parallel
                 _progress.update { it.copy(
                     phase = context.getString(R.string.fetching_metadata_phase),
                     total = insertedLinks.size,
                     progress = 0
                 )}
 
-                insertedLinks.forEachIndexed { index, (id, url) ->
-                    try {
-                        val existing = repository.getLinkById(id)
-                        val needsFetch = existing?.title.isNullOrBlank() ||
-                                existing?.title == existing?.domain ||
-                                existing?.previewImageUrl.isNullOrBlank()
-
-                        if (needsFetch) {
-                            val meta = MetadataFetcher.fetch(url)
-                            existing?.let {
-                                repository.updateLink(it.copy(
-                                    title = meta.title.ifBlank { it.title.ifBlank { extractDomain(url) } },
-                                    description = meta.description.ifBlank { it.description },
-                                    faviconUrl = meta.faviconUrl.ifBlank { it.faviconUrl },
-                                    previewImageUrl = meta.previewImageUrl,
-                                    domain = meta.domain.ifBlank { it.domain }
-                                ))
-                            }
+                MetadataFetcher.fetchAll(
+                    urls = insertedLinks.map { it.second },
+                    context = context,
+                    concurrency = 8,
+                    onItemComplete = { url, meta ->
+                        scope.launch(Dispatchers.IO) {
+                            val id = insertedLinks.find { it.second == url }?.first ?: return@launch
+                            
+                            // Save to cache
+                            repository.saveMetadataToCache(url, meta)
+                            
+                            val existing = repository.getLinkById(id) ?: return@launch
+                            
+                            repository.updateLink(existing.copy(
+                                title = meta.title.ifBlank { existing.title.ifBlank { extractDomain(url) } },
+                                description = meta.description.ifBlank { existing.description },
+                                faviconUrl = meta.faviconUrl.ifBlank { existing.faviconUrl },
+                                previewImageUrl = meta.previewImageUrl,
+                                domain = meta.domain.ifBlank { existing.domain }
+                            ))
+                            
+                            _progress.update { it.copy(progress = it.progress + 1) }
                         }
-                    } catch (e: Exception) { }
-                    _progress.update { it.copy(progress = index + 1) }
-                }
+                    }
+                )
 
                 val finalMessage = if (duplicateCount > 0) {
                     context.getString(R.string.import_message_with_duplicates, importedCount, duplicateCount)
