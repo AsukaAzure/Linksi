@@ -163,6 +163,29 @@ class LinkRepository @Inject constructor(
     suspend fun getFolderById(id: Long): Folder? =
         folderDao.getFolderById(id)?.let { toFolder(it) }
 
+    suspend fun getFolderTree(rootId: Long): FolderTree? {
+        val rootEntity = folderDao.getFolderById(rootId) ?: return null
+        val allFolders = folderDao.getAllFoldersSync()
+        val allLinks = linkDao.getAllLinksSync()
+
+        val descendants = mutableListOf<FolderEntity>()
+        fun findDescendants(parentId: Long) {
+            val children = allFolders.filter { it.parentId == parentId }
+            descendants.addAll(children)
+            children.forEach { findDescendants(it.id) }
+        }
+        findDescendants(rootId)
+
+        val folderIds = (descendants.map { it.id } + rootId).toSet()
+        val treeLinks = allLinks.filter { it.folderId in folderIds }
+
+        return FolderTree(
+            rootFolder = toFolder(rootEntity),
+            descendantFolders = descendants.map { toFolder(it) },
+            allLinks = treeLinks.map { toLink(it) }
+        )
+    }
+
     suspend fun getFolderByName(name: String): Folder? =
         folderDao.getFolderByName(name)?.let { toFolder(it) }
 

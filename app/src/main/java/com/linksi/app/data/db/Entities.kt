@@ -2,7 +2,18 @@ package com.linksi.app.data.db
 
 import androidx.room.*
 
-@Entity(tableName = "links")
+@Entity(
+    tableName = "links",
+    foreignKeys = [
+        ForeignKey(
+            entity = FolderEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["folderId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("folderId")]
+)
 data class LinkEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

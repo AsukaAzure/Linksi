@@ -337,8 +337,8 @@ fun FolderListScreen(
         state.snackbarMessage?.let { message ->
             when (message) {
                 "UNDO_FOLDER_DELETE" -> {
-                    val folderName = state.lastDeletedFolder?.name ?: ""
-                    val linkCount = state.lastDeletedFolderLinks.size
+                    val folderName = state.lastDeletedFolderTree?.rootFolder?.name ?: ""
+                    val linkCount = state.lastDeletedFolderTree?.allLinks?.size ?: 0
                     val result = snackbarHostState.showSnackbar(
                         message = context.getString(R.string.folder_deleted_with_links, folderName, linkCount),
                         actionLabel = context.getString(R.string.undo),

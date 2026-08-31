@@ -8,7 +8,7 @@ import androidx.work.impl.Migration_1_2
 
 @Database(
     entities = [LinkEntity::class, FolderEntity::class, MetadataCacheEntity::class],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class LinksDatabase : RoomDatabase() {
@@ -17,6 +17,41 @@ abstract class LinksDatabase : RoomDatabase() {
     abstract fun metadataCacheDao(): MetadataCacheDao
 
     companion object {
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE links_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        url TEXT NOT NULL,
+                        title TEXT NOT NULL DEFAULT '',
+                        description TEXT NOT NULL DEFAULT '',
+                        faviconUrl TEXT NOT NULL DEFAULT '',
+                        folderId INTEGER,
+                        isFavorite INTEGER NOT NULL DEFAULT 0,
+                        isRead INTEGER NOT NULL DEFAULT 0,
+                        createdAt INTEGER NOT NULL,
+                        reminderAt INTEGER,
+                        previewImageUrl TEXT NOT NULL DEFAULT '',
+                        domain TEXT NOT NULL DEFAULT '',
+                        isPinned INTEGER NOT NULL DEFAULT 0,
+                        note TEXT NOT NULL DEFAULT '',
+                        expiresAt INTEGER,
+                        tags TEXT NOT NULL DEFAULT '',
+                        inBin INTEGER NOT NULL DEFAULT 0,
+                        deletedAt INTEGER,
+                        preventScreenshot INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(folderId) REFERENCES folders(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """)
+                database.execSQL("""
+                    INSERT INTO links_new (id, url, title, description, faviconUrl, folderId, isFavorite, isRead, createdAt, reminderAt, previewImageUrl, domain, isPinned, note, expiresAt, tags, inBin, deletedAt, preventScreenshot)
+                    SELECT id, url, title, description, faviconUrl, folderId, isFavorite, isRead, createdAt, reminderAt, previewImageUrl, domain, isPinned, note, expiresAt, tags, inBin, deletedAt, preventScreenshot FROM links
+                """)
+                database.execSQL("DROP TABLE links")
+                database.execSQL("ALTER TABLE links_new RENAME TO links")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_links_folderId ON links(folderId)")
+            }
+        }
         val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""

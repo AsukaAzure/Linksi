@@ -42,8 +42,7 @@ data class HomeUiState(
     val lastDeletedLinks: List<Link> = emptyList(),
     val lastMovedLinks: List<Link> = emptyList(),
     val lastMovedToFolderId: Long? = null,
-    val lastDeletedFolder: Folder? = null,
-    val lastDeletedFolderLinks: List<Link> = emptyList(),
+    val lastDeletedFolderTree: FolderTree? = null,
     val useInAppBrowser: Boolean = true,
     val scrollToTop: Boolean = false,
     val allTags: List<String> = emptyList(),
@@ -341,12 +340,11 @@ class HomeViewModel @Inject constructor(
 
     fun deleteFolder(folder: Folder) {
         viewModelScope.launch {
-            val links = repository.getLinksByFolder(folder.id).first()
+            val tree = repository.getFolderTree(folder.id)
             repository.deleteFolder(folder)
             _uiState.update {
                 it.copy(
-                    lastDeletedFolder = folder,
-                    lastDeletedFolderLinks = links,
+                    lastDeletedFolderTree = tree,
                     snackbarMessage = "UNDO_FOLDER_DELETE"
                 )
             }
@@ -432,16 +430,14 @@ class HomeViewModel @Inject constructor(
 
     fun undoFolderDelete() {
         viewModelScope.launch {
-            _uiState.value.lastDeletedFolder?.let { folder ->
-                val newId = repository.insertFolder(folder)
-                _uiState.value.lastDeletedFolderLinks.forEach { link ->
-                    repository.insertLink(link.copy(folderId = newId))
-                }
+            _uiState.value.lastDeletedFolderTree?.let { tree ->
+                repository.insertFolder(tree.rootFolder)
+                tree.descendantFolders.forEach { repository.insertFolder(it) }
+                tree.allLinks.forEach { repository.insertLink(it) }
             }
             _uiState.update {
                 it.copy(
-                    lastDeletedFolder = null,
-                    lastDeletedFolderLinks = emptyList(),
+                    lastDeletedFolderTree = null,
                     snackbarMessage = context.getString(R.string.folder_restored)
                 )
             }

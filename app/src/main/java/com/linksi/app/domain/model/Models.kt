@@ -39,6 +39,12 @@ data class Folder(
     val latestImages: List<String> = emptyList()
 ) : Parcelable
 
+data class FolderTree(
+    val rootFolder: Folder,
+    val descendantFolders: List<Folder>,
+    val allLinks: List<Link>
+)
+
 enum class SortOption {
     DATE_NEWEST, DATE_OLDEST, TITLE_AZ, TITLE_ZA, DOMAIN
 }

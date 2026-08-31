@@ -117,6 +117,9 @@ interface LinkDao {
 
     @Query("SELECT tags FROM links WHERE tags != ''")
     suspend fun getAllTagStrings(): List<String>
+
+    @Query("SELECT * FROM links")
+    suspend fun getAllLinksSync(): List<LinkEntity>
 }
 
 @Dao
@@ -175,6 +178,9 @@ interface FolderDao {
 
     @Query("UPDATE folders SET isLocked = :isLocked WHERE id = :id")
     suspend fun toggleLock(id: Long, isLocked: Boolean)
+
+    @Query("SELECT * FROM folders")
+    suspend fun getAllFoldersSync(): List<FolderEntity>
 }
 
 @Dao
