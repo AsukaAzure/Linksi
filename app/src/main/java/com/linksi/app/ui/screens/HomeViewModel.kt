@@ -328,8 +328,14 @@ class HomeViewModel @Inject constructor(
 
     fun addFolder(name: String, icon: String, color: String, parentId: Long? = null) {
         viewModelScope.launch {
+            val existing = repository.getFolderByNameAndParent(name, parentId)
+            if (existing != null) {
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.folder_exists)) }
+                return@launch
+            }
             val folder = Folder(name = name, icon = icon, color = color, parentId = parentId)
             repository.insertFolder(folder)
+            hideAddFolderDialog()
         }
     }
 
@@ -444,6 +450,11 @@ class HomeViewModel @Inject constructor(
 
     fun updateFolder(folder: Folder) {
         viewModelScope.launch {
+            val existing = repository.getFolderByNameAndParent(folder.name, folder.parentId)
+            if (existing != null && existing.id != folder.id) {
+                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.folder_exists)) }
+                return@launch
+            }
             repository.updateFolder(folder)
         }
     }

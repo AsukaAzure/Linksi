@@ -166,6 +166,9 @@ class LinkRepository @Inject constructor(
     suspend fun getFolderByName(name: String): Folder? =
         folderDao.getFolderByName(name)?.let { toFolder(it) }
 
+    suspend fun getFolderByNameAndParent(name: String, parentId: Long?): Folder? =
+        folderDao.getFolderByNameAndParent(name, parentId)?.let { toFolder(it) }
+
     suspend fun isUrlAlreadySaved(url: String): Boolean {
         return linkDao.getLinkByUrl(com.linksi.app.utils.normalizeUrl(url)) != null
     }

@@ -170,6 +170,9 @@ interface FolderDao {
     @Query("SELECT * FROM folders WHERE name = :name LIMIT 1")
     suspend fun getFolderByName(name: String): FolderEntity?
 
+    @Query("SELECT * FROM folders WHERE name = :name AND parentId IS :parentId LIMIT 1")
+    suspend fun getFolderByNameAndParent(name: String, parentId: Long?): FolderEntity?
+
     @Query("UPDATE folders SET isLocked = :isLocked WHERE id = :id")
     suspend fun toggleLock(id: Long, isLocked: Boolean)
 }

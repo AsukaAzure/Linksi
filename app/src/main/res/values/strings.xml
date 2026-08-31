@@ -89,7 +89,7 @@
     <string name="link_moved">Link moved</string>
     <string name="folder_deleted">Folder deleted</string>
     <string name="folder_restored">Folder restored</string>
-    <string name="folder_exists">Folder already exists</string>
+    <string name="folder_exists">Folder name exists</string>
     <string name="folders_title">Folders</string>
     <string name="no_folders">No folders yet</string>
     <string name="create_folder">Create folder</string>

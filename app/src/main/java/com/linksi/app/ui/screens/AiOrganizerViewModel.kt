@@ -367,14 +367,20 @@ class AiOrganizerViewModel @Inject constructor(
                                    !newFolderIdMap.containsKey(parentRef)
                     
                     if (!shouldWait) {
-                        val newId = repository.insertFolder(
-                            Folder(
-                                name = folderPlan.name,
-                                icon = folderPlan.icon,
-                                color = folderPlan.color,
-                                parentId = parentId
+                        // Check if a folder with this name and parent already exists to avoid duplicates
+                        val existingFolder = repository.getFolderByNameAndParent(folderPlan.name, parentId)
+                        val newId = if (existingFolder != null) {
+                            existingFolder.id
+                        } else {
+                            repository.insertFolder(
+                                Folder(
+                                    name = folderPlan.name,
+                                    icon = folderPlan.icon,
+                                    color = folderPlan.color,
+                                    parentId = parentId
+                                )
                             )
-                        )
+                        }
                         newFolderIdMap[folderPlan.name] = newId
                         iterator.remove()
                         insertedThisPass++
@@ -383,14 +389,19 @@ class AiOrganizerViewModel @Inject constructor(
                 if (insertedThisPass == 0) {
                     // Circular or missing — just insert the rest as root
                     remainingFolders.forEach { folderPlan ->
-                        val newId = repository.insertFolder(
-                            Folder(
-                                name = folderPlan.name,
-                                icon = folderPlan.icon,
-                                color = folderPlan.color,
-                                parentId = null
+                        val existingFolder = repository.getFolderByNameAndParent(folderPlan.name, null)
+                        val newId = if (existingFolder != null) {
+                            existingFolder.id
+                        } else {
+                            repository.insertFolder(
+                                Folder(
+                                    name = folderPlan.name,
+                                    icon = folderPlan.icon,
+                                    color = folderPlan.color,
+                                    parentId = null
+                                )
                             )
-                        )
+                        }
                         newFolderIdMap[folderPlan.name] = newId
                     }
                     remainingFolders.clear()

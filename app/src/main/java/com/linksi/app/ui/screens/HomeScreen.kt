@@ -682,7 +682,6 @@ fun HomeScreen(
             onConfirm = { name, emoji, color ->
                 // If a folder filter is active on Home screen, create as sub-folder
                 viewModel.addFolder(name, emoji, color, state.selectedFolderId)
-                viewModel.hideAddFolderDialog()
             }
         )
     }

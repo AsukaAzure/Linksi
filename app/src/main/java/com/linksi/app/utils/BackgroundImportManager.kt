@@ -68,14 +68,15 @@ class BackgroundImportManager @Inject constructor(
                         val folder = iterator.next()
                         // If root folder or its parent is already inserted
                         if (folder.parentId == null || folderIdMap.containsKey(folder.parentId)) {
-                            val existing = repository.getFolderByName(folder.name)
+                            val targetParentId = folder.parentId?.let { folderIdMap[it] }
+                            val existing = repository.getFolderByNameAndParent(folder.name, targetParentId)
                             val newId = if (existing != null) {
                                 existing.id
                             } else {
                                 repository.insertFolder(
                                     folder.copy(
                                         id = 0,
-                                        parentId = folder.parentId?.let { folderIdMap[it] }
+                                        parentId = targetParentId
                                     )
                                 )
                             }
@@ -88,7 +89,7 @@ class BackgroundImportManager @Inject constructor(
                         // Avoid infinite loop if there's a circular dependency or missing parent
                         // Just insert the rest as root folders
                         remainingFolders.forEach { folder ->
-                            val existing = repository.getFolderByName(folder.name)
+                            val existing = repository.getFolderByNameAndParent(folder.name, null)
                             val newId = existing?.id ?: repository.insertFolder(folder.copy(id = 0, parentId = null))
                             folderIdMap[folder.id] = newId
                         }

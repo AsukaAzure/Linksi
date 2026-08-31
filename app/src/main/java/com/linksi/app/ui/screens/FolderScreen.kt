@@ -284,7 +284,6 @@ fun FoldersScreen(
             onConfirm = { name, icon, color ->
                 // CRITICAL: Use the ID from the actual folder stack to ensure it goes inside
                 viewModel.addFolder(name, icon, color, folderStack.lastOrNull()?.id)
-                viewModel.hideAddFolderDialog()
             }
         )
     }
@@ -334,18 +333,26 @@ fun FolderListScreen(
     }
 
     LaunchedEffect(state.snackbarMessage) {
-        if (state.snackbarMessage == "UNDO_FOLDER_DELETE") {
-            val folderName = state.lastDeletedFolder?.name ?: ""
-            val linkCount = state.lastDeletedFolderLinks.size
-            val result = snackbarHostState.showSnackbar(
-                message = context.getString(R.string.folder_deleted_with_links, folderName, linkCount),
-                actionLabel = context.getString(R.string.undo),
-                duration = SnackbarDuration.Long
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                viewModel.undoFolderDelete()
+        state.snackbarMessage?.let { message ->
+            when (message) {
+                "UNDO_FOLDER_DELETE" -> {
+                    val folderName = state.lastDeletedFolder?.name ?: ""
+                    val linkCount = state.lastDeletedFolderLinks.size
+                    val result = snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.folder_deleted_with_links, folderName, linkCount),
+                        actionLabel = context.getString(R.string.undo),
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoFolderDelete()
+                    }
+                    viewModel.dismissSnackbar()
+                }
+                else -> {
+                    snackbarHostState.showSnackbar(message)
+                    viewModel.dismissSnackbar()
+                }
             }
-            viewModel.dismissSnackbar()
         }
     }
 
