@@ -37,10 +37,10 @@ class LinkRepository @Inject constructor(
         linkDao.getLinksWithReminders(isFolderLockEnabled).map { it.map(::toLink) }
 
     suspend fun insertLink(link: Link): Long =
-        linkDao.insertLink(toEntity(link))
+        linkDao.insertLink(toEntity(link.copy(url = com.linksi.app.utils.normalizeUrl(link.url))))
 
     suspend fun updateLink(link: Link) =
-        linkDao.updateLink(toEntity(link))
+        linkDao.updateLink(toEntity(link.copy(url = com.linksi.app.utils.normalizeUrl(link.url))))
 
     suspend fun deleteLink(link: Link) =
         linkDao.deleteLink(toEntity(link))
@@ -195,6 +195,9 @@ class LinkRepository @Inject constructor(
     suspend fun isUrlAlreadySaved(url: String): Boolean {
         return linkDao.getLinkByUrl(com.linksi.app.utils.normalizeUrl(url)) != null
     }
+
+    suspend fun getLinkByUrl(url: String): Link? =
+        linkDao.getLinkByUrl(com.linksi.app.utils.normalizeUrl(url))?.let(::toLink)
 
     suspend fun setPinned(id: Long, isPinned: Boolean) = linkDao.setPinned(id, isPinned)
     suspend fun setNote(id: Long, note: String) = linkDao.setNote(id, note)

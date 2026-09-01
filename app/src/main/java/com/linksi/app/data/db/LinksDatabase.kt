@@ -8,7 +8,7 @@ import androidx.work.impl.Migration_1_2
 
 @Database(
     entities = [LinkEntity::class, FolderEntity::class, MetadataCacheEntity::class],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class LinksDatabase : RoomDatabase() {
@@ -17,6 +17,26 @@ abstract class LinksDatabase : RoomDatabase() {
     abstract fun metadataCacheDao(): MetadataCacheDao
 
     companion object {
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create index on URL
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_links_url ON links(url)")
+                
+                // Basic normalization for existing URLs in SQL
+                // 1. Lowercase all URLs
+                database.execSQL("UPDATE links SET url = LOWER(url)")
+                
+                // 2. Remove one trailing slash from all URLs if present
+                database.execSQL("UPDATE links SET url = SUBSTR(url, 1, LENGTH(url) - 1) WHERE url LIKE '%/'")
+                
+                // 3. Ensure https for http links
+                database.execSQL("""
+                    UPDATE links 
+                    SET url = 'https://' || SUBSTR(url, 8) 
+                    WHERE url LIKE 'http://%'
+                """)
+            }
+        }
         val MIGRATION_10_11 = object : Migration(10, 11) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""

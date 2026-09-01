@@ -47,26 +47,29 @@ class BackgroundImportManager @Inject constructor(
                     result = null
                 ) }
 
-                val fileName = uri.path?.lowercase() ?: ""
+                val fileName = getFileName(context, uri).lowercase()
+                val mimeType = context.contentResolver.getType(uri)
                 val result = withContext(Dispatchers.IO) {
                     when {
-                        fileName.endsWith(".json") -> importFromLinksJson(context, uri)
-                        fileName.endsWith(".csv") -> importFromCsv(context, uri)
+                        fileName.endsWith(".json") || mimeType == "application/json" -> importFromLinksJson(context, uri)
+                        fileName.endsWith(".csv") || mimeType == "text/csv" -> importFromCsv(context, uri)
                         else -> importFromBrowserHtml(context, uri)
                     }
                 }
 
                 // Insert folders — maintaining hierarchy
                 val folderIdMap = mutableMapOf<Long, Long>()
-                // Group by parentId to process level by level or just sort by parentId
-                // Simple approach: Iterate multiple times until all folders are inserted
+                
                 val remainingFolders = result.folders.toMutableList()
-                while (remainingFolders.isNotEmpty()) {
+                var passes = 0
+                val maxPasses = 100 // Prevent infinite loops for circular dependencies
+                
+                while (remainingFolders.isNotEmpty() && passes < maxPasses) {
                     val iterator = remainingFolders.iterator()
                     var insertedThisPass = 0
                     while (iterator.hasNext()) {
                         val folder = iterator.next()
-                        // If root folder or its parent is already inserted
+                        // If root folder or parent already mapped
                         if (folder.parentId == null || folderIdMap.containsKey(folder.parentId)) {
                             val targetParentId = folder.parentId?.let { folderIdMap[it] }
                             val existing = repository.getFolderByNameAndParent(folder.name, targetParentId)
@@ -86,15 +89,14 @@ class BackgroundImportManager @Inject constructor(
                         }
                     }
                     if (insertedThisPass == 0) {
-                        // Avoid infinite loop if there's a circular dependency or missing parent
-                        // Just insert the rest as root folders
-                        remainingFolders.forEach { folder ->
-                            val existing = repository.getFolderByNameAndParent(folder.name, null)
-                            val newId = existing?.id ?: repository.insertFolder(folder.copy(id = 0, parentId = null))
-                            folderIdMap[folder.id] = newId
-                        }
-                        remainingFolders.clear()
+                        // We are stuck (likely a broken hierarchy or circular dependency)
+                        // Break the cycle by inserting the next folder as a root folder
+                        val folder = remainingFolders.removeAt(0)
+                        val existing = repository.getFolderByNameAndParent(folder.name, null)
+                        val newId = existing?.id ?: repository.insertFolder(folder.copy(id = 0, parentId = null))
+                        folderIdMap[folder.id] = newId
                     }
+                    passes++
                 }
 
                 var importedCount = 0
@@ -108,13 +110,31 @@ class BackgroundImportManager @Inject constructor(
                 )}
 
                 result.links.forEachIndexed { index, link ->
-                    if (repository.isUrlAlreadySaved(link.url)) {
-                        duplicateCount++
+                    val normalizedUrl = normalizeUrl(link.url)
+                    val existing = repository.getLinkByUrl(normalizedUrl)
+                    
+                    if (existing != null) {
+                        if (existing.inBin) {
+                            // Restore from bin
+                            repository.restoreFromBin(existing.id)
+                            // Update folder if needed
+                            val targetFolderId = link.folderId?.let { folderIdMap[it] }
+                            if (existing.folderId != targetFolderId) {
+                                repository.moveToFolder(existing.id, targetFolderId)
+                            }
+                            insertedLinks.add(existing.id to normalizedUrl)
+                            importedCount++
+                        } else {
+                            duplicateCount++
+                        }
                     } else {
                         val newId = repository.insertLink(
-                            link.copy(folderId = link.folderId?.let { folderIdMap[it] })
+                            link.copy(
+                                url = normalizedUrl,
+                                folderId = link.folderId?.let { folderIdMap[it] }
+                            )
                         )
-                        insertedLinks.add(newId to link.url)
+                        insertedLinks.add(newId to normalizedUrl)
                         importedCount++
                     }
                     _progress.update { it.copy(progress = index + 1) }
@@ -127,31 +147,48 @@ class BackgroundImportManager @Inject constructor(
                     progress = 0
                 )}
 
-                MetadataFetcher.fetchAll(
-                    urls = insertedLinks.map { it.second },
-                    context = context,
-                    concurrency = 8,
-                    onItemComplete = { url, meta ->
-                        scope.launch(Dispatchers.IO) {
-                            val id = insertedLinks.find { it.second == url }?.first ?: return@launch
-                            
-                            // Save to cache
-                            repository.saveMetadataToCache(url, meta)
-                            
-                            val existing = repository.getLinkById(id) ?: return@launch
-                            
-                            repository.updateLink(existing.copy(
-                                title = meta.title.ifBlank { existing.title.ifBlank { extractDomain(url) } },
-                                description = meta.description.ifBlank { existing.description },
-                                faviconUrl = meta.faviconUrl.ifBlank { existing.faviconUrl },
-                                previewImageUrl = meta.previewImageUrl,
-                                domain = meta.domain.ifBlank { existing.domain }
-                            ))
-                            
-                            _progress.update { it.copy(progress = it.progress + 1) }
+                if (insertedLinks.isNotEmpty()) {
+                    MetadataFetcher.fetchAll(
+                        urls = insertedLinks.map { it.second },
+                        context = context,
+                        concurrency = 8,
+                        onItemComplete = { url, meta ->
+                            scope.launch(Dispatchers.IO) {
+                                val entry = insertedLinks.find { it.second == url } ?: return@launch
+                                val id = entry.first
+                                
+                                // Save to cache
+                                repository.saveMetadataToCache(url, meta)
+                                
+                                val existing = repository.getLinkById(id) ?: return@launch
+                                
+                                // Only update if existing data is missing or just domain-placeholder
+                                val currentTitle = existing.title
+                                val currentDomain = existing.domain
+                                val shouldUpdateTitle = currentTitle.isBlank() || 
+                                                       currentTitle == currentDomain || 
+                                                       currentTitle == url ||
+                                                       currentTitle == extractDomain(url)
+
+                                val updatedTitle = if (shouldUpdateTitle && meta.title.isNotBlank()) {
+                                    meta.title.take(200)
+                                } else {
+                                    currentTitle
+                                }
+
+                                repository.updateLink(existing.copy(
+                                    title = updatedTitle,
+                                    description = if (existing.description.isBlank()) meta.description.take(500) else existing.description,
+                                    faviconUrl = if (existing.faviconUrl.isBlank()) meta.faviconUrl else existing.faviconUrl,
+                                    previewImageUrl = if (existing.previewImageUrl.isBlank()) meta.previewImageUrl else existing.previewImageUrl,
+                                    domain = if (existing.domain.isBlank()) meta.domain else existing.domain
+                                ))
+                                
+                                _progress.update { it.copy(progress = it.progress + 1) }
+                            }
                         }
-                    }
-                )
+                    )
+                }
 
                 val finalMessage = if (duplicateCount > 0) {
                     context.getString(R.string.import_message_with_duplicates, importedCount, duplicateCount)
@@ -189,5 +226,30 @@ class BackgroundImportManager @Inject constructor(
         if (!_progress.value.isImporting) {
             _progress.update { it.copy(message = null, result = null, isMinimized = false) }
         }
+    }
+
+    private fun getFileName(context: Context, uri: Uri): String {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            try {
+                if (cursor != null && cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (index != -1) {
+                        result = cursor.getString(index)
+                    }
+                }
+            } finally {
+                cursor?.close()
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/') ?: -1
+            if (cut != -1) {
+                result = result?.substring(cut + 1)
+            }
+        }
+        return result ?: ""
     }
 }

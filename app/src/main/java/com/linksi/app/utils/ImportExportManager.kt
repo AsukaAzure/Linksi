@@ -22,6 +22,8 @@ fun exportLinksToJson(links: List<Link>, folders: List<Folder>): String {
         foldersArr.put(JSONObject().apply {
             put("id", folder.id)
             put("name", folder.name)
+            put("icon", folder.icon)
+            put("color", folder.color)
             put("createdAt", folder.createdAt)
             put("isLocked", folder.isLocked)
             put("parentId", folder.parentId ?: JSONObject.NULL)
@@ -61,7 +63,8 @@ data class ImportResult(
     val links: List<Link>,
     val folders: List<Folder>,
     val source: String,
-    val count: Int
+    val count: Int,
+    val duplicateCount: Int = 0
 )
 
 // ── Import Linksi JSON ────────────────────────────────────────
@@ -83,7 +86,7 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
                 color = f.optString("color", "#6750A4"),
                 createdAt = f.optLong("createdAt", System.currentTimeMillis()),
                 isLocked = f.optBoolean("isLocked", false),
-                parentId = if (f.isNull("parentId")) null else f.optLong("parentId")
+                parentId = if (f.has("parentId") && !f.isNull("parentId")) f.getLong("parentId") else null
             )
         }
     } ?: emptyList()
@@ -123,58 +126,97 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
         ))
     }
 
-    return ImportResult(links, folders, "Linksi", links.size)
+    return ImportResult(links, folders, "Linksi", links.size, 0)
 }
 
 // ── Import Chrome / Browser HTML bookmarks ────────────────────
 fun importFromBrowserHtml(context: Context, uri: Uri): ImportResult {
-    val html = context.contentResolver.openInputStream(uri)
-        ?.bufferedReader()?.readText() ?: throw Exception(context.getString(R.string.cannot_read_file))
+    val inputStream = context.contentResolver.openInputStream(uri)
+        ?: throw Exception(context.getString(R.string.cannot_read_file))
+    
+    val html = inputStream.bufferedReader().readText()
+    val doc = org.jsoup.Jsoup.parse(html)
 
     val links = mutableListOf<Link>()
     val folders = mutableListOf<Folder>()
-    
-    // Improved regex-based stack parsing for HTML bookmarks
-    val pattern = Regex("""<(H3|A|/DL)(?:\s+HREF="([^"]+)")?[^>]*>([^<]+)?""", RegexOption.IGNORE_CASE)
-    
-    val folderStack = mutableListOf<Long>()
     var folderCounter = 1L
 
-    pattern.findAll(html).forEach { match ->
-        val tag = match.groupValues[1].uppercase()
-        val url = match.groupValues[2]
-        val text = match.groupValues[3].trim()
+    fun processDl(dl: org.jsoup.nodes.Element, parentId: Long?) {
+        // Netscape bookmarks usually have <DT> elements containing <H3> (folders) or <A> (links)
+        // A <DL> usually follows an <H3> to contain its children.
+        val elements = dl.children()
+        var i = 0
+        while (i < elements.size) {
+            val element = elements[i]
+            
+            // Look for H3 or A inside DT or directly
+            val h3 = if (element.tagName().equals("H3", true)) element else element.selectFirst("h3")
+            val a = if (element.tagName().equals("A", true)) element else element.selectFirst("a")
 
-        when (tag) {
-            "H3" -> {
-                val folderName = text
-                if (folderName.isNotBlank() && folderName.lowercase() != "bookmarks bar" && folderName.lowercase() != "other bookmarks") {
-                    val tempId = folderCounter++
-                    folders.add(Folder(id = tempId, name = folderName, parentId = folderStack.lastOrNull()))
-                    folderStack.add(tempId)
+            if (h3 != null) {
+                val folderName = h3.text()
+                // Flatten common browser containers but keep their children
+                val isContainer = folderName.lowercase() == "bookmarks bar" || 
+                                folderName.lowercase() == "other bookmarks" ||
+                                folderName.lowercase() == "mobile bookmarks"
+                
+                val folderId: Long?
+                if (isContainer) {
+                    folderId = parentId
+                } else {
+                    folderId = folderCounter++
+                    folders.add(Folder(id = folderId, name = folderName, parentId = parentId))
                 }
-            }
-            "A" -> {
+
+                // Look for the next DL sibling which contains children
+                var nextDl: org.jsoup.nodes.Element? = null
+                for (j in i + 1 until elements.size) {
+                    val next = elements[j]
+                    if (next.tagName().equals("DL", true)) {
+                        nextDl = next
+                        i = j // Skip the DL in the outer loop
+                        break
+                    }
+                    // If we hit another DT/H3/A before a DL, this folder is empty
+                    if (next.tagName().equals("DT", true) || next.selectFirst("h3, a") != null) break
+                }
+                
+                nextDl?.let { processDl(it, folderId) }
+            } else if (a != null) {
+                val url = a.attr("href")
                 if (url.isNotBlank()) {
                     links.add(Link(
                         id = 0,
                         url = url,
-                        title = text,
-                        folderId = folderStack.lastOrNull(),
+                        title = a.text(),
+                        folderId = parentId,
                         domain = extractDomain(url),
                         faviconUrl = "https://www.google.com/s2/favicons?domain=${extractDomain(url)}&sz=64"
                     ))
                 }
             }
-            "/DL" -> {
-                if (folderStack.isNotEmpty()) {
-                    folderStack.removeAt(folderStack.size - 1)
-                }
+            i++
+        }
+    }
+
+    val rootDl = doc.selectFirst("dl")
+    if (rootDl != null) {
+        processDl(rootDl, null)
+    } else {
+        // Fallback for flat files
+        doc.select("a").forEach { a ->
+            val url = a.attr("href")
+            if (url.isNotBlank()) {
+                links.add(Link(
+                    url = url,
+                    title = a.text(),
+                    domain = extractDomain(url)
+                ))
             }
         }
     }
 
-    return ImportResult(links, folders, "Browser", links.size)
+    return ImportResult(links, folders, "Browser", links.size, 0)
 }
 
 // ── Export as CSV ─────────────────────────────────────────────
@@ -199,17 +241,17 @@ fun importFromCsv(context: Context, uri: Uri): ImportResult {
     val csv = context.contentResolver.openInputStream(uri)
         ?.bufferedReader()?.readText() ?: throw Exception(context.getString(R.string.cannot_read_file))
 
-    val lines = csv.lines().filter { it.isNotBlank() }
-    if (lines.isEmpty()) throw Exception(context.getString(R.string.cannot_read_file))
+    val allParts = parseFullCsv(csv)
+    if (allParts.isEmpty()) throw Exception(context.getString(R.string.cannot_read_file))
 
-    val header = lines[0].split(",")
+    val header = allParts[0].map { it.trim().lowercase() }
     val links = mutableListOf<Link>()
     val folders = mutableListOf<Folder>()
     val folderMap = mutableMapOf<String, Long>()
     var folderCounter = 1L
 
-    for (i in 1 until lines.size) {
-        val parts = parseCsvLine(lines[i])
+    for (i in 1 until allParts.size) {
+        val parts = allParts[i]
         if (parts.size < header.size) continue
 
         val linkData = header.zip(parts).toMap()
@@ -232,42 +274,57 @@ fun importFromCsv(context: Context, uri: Uri): ImportResult {
             description = linkData["description"] ?: "",
             domain = linkData["domain"] ?: extractDomain(linkData["url"] ?: ""),
             tags = linkData["tags"]?.split(";")?.filter { it.isNotBlank() } ?: emptyList(),
-            isFavorite = linkData["isFavorite"]?.toBoolean() ?: false,
-            isRead = linkData["isRead"]?.toBoolean() ?: false,
-            isPinned = linkData["isPinned"]?.toBoolean() ?: false,
-            createdAt = linkData["createdAt"]?.toLongOrNull() ?: System.currentTimeMillis(),
+            isFavorite = linkData["isfavorite"]?.toBoolean() ?: false,
+            isRead = linkData["isread"]?.toBoolean() ?: false,
+            isPinned = linkData["ispinned"]?.toBoolean() ?: false,
+            createdAt = linkData["createdat"]?.toLongOrNull() ?: System.currentTimeMillis(),
             note = linkData["note"] ?: "",
-            previewImageUrl = linkData["previewImageUrl"] ?: "",
+            previewImageUrl = linkData["previewimageurl"] ?: "",
             folderId = folderId
         ))
     }
 
-    return ImportResult(links, folders, "CSV", links.size)
+    return ImportResult(links, folders, "CSV", links.size, 0)
 }
 
-private fun parseCsvLine(line: String): List<String> {
-    val result = mutableListOf<String>()
-    var current = StringBuilder()
+private fun parseFullCsv(csv: String): List<List<String>> {
+    val result = mutableListOf<List<String>>()
+    var currentLine = mutableListOf<String>()
+    var currentField = StringBuilder()
     var inQuotes = false
     var i = 0
-    while (i < line.length) {
-        val c = line[i]
-        if (c == '\"') {
-            if (inQuotes && i + 1 < line.length && line[i + 1] == '\"') {
-                current.append('\"')
-                i++
-            } else {
-                inQuotes = !inQuotes
+    while (i < csv.length) {
+        val c = csv[i]
+        when {
+            c == '\"' -> {
+                if (inQuotes && i + 1 < csv.length && csv[i + 1] == '\"') {
+                    currentField.append('\"')
+                    i++
+                } else {
+                    inQuotes = !inQuotes
+                }
             }
-        } else if (c == ',' && !inQuotes) {
-            result.add(current.toString())
-            current = StringBuilder()
-        } else {
-            current.append(c)
+            c == ',' && !inQuotes -> {
+                currentLine.add(currentField.toString())
+                currentField = StringBuilder()
+            }
+            (c == '\n' || c == '\r') && !inQuotes -> {
+                if (c == '\r' && i + 1 < csv.length && csv[i + 1] == '\n') i++
+                currentLine.add(currentField.toString())
+                result.add(currentLine)
+                currentLine = mutableListOf()
+                currentField = StringBuilder()
+            }
+            else -> {
+                currentField.append(c)
+            }
         }
         i++
     }
-    result.add(current.toString())
+    if (currentLine.isNotEmpty() || currentField.isNotEmpty()) {
+        currentLine.add(currentField.toString())
+        result.add(currentLine)
+    }
     return result
 }
 

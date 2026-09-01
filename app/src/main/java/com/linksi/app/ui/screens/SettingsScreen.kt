@@ -438,8 +438,6 @@ fun SettingsScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(id = com.linksi.app.R.string.imported_links_from, result.count, result.source))
-                    if (result.folders.isNotEmpty())
-                        Text(stringResource(id = com.linksi.app.R.string.folders_also_imported, result.folders.size))
                     if (state.duplicateCount > 0) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),

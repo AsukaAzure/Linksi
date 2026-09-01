@@ -12,7 +12,7 @@ import androidx.room.*
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("folderId")]
+    indices = [Index("folderId"), Index("url")]
 )
 data class LinkEntity(
     @PrimaryKey(autoGenerate = true)

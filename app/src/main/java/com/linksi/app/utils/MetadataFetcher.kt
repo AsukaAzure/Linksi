@@ -461,19 +461,26 @@ fun normalizeUrl(url: String): String {
     if (trimmed.isBlank()) return ""
 
     var normalized = trimmed
-    if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
+    
+    // Convert to https if it's http
+    if (normalized.startsWith("http://")) {
+        normalized = "https://" + normalized.substring(7)
+    } else if (!normalized.startsWith("https://")) {
         normalized = "https://$normalized"
     }
 
     return try {
         val uri = java.net.URI(normalized).normalize()
         var result = uri.toString()
-        // Consistently remove trailing slash for root domains to avoid duplicates
-        if (result.endsWith("/") && (uri.path == "/" || uri.path.isEmpty())) {
+        
+        // Remove trailing slash for root domains AND paths to be robust
+        if (result.endsWith("/")) {
             result = result.substring(0, result.length - 1)
         }
-        result
+        
+        // Lowercase the entire URL for comparison consistency
+        result.lowercase()
     } catch (e: Exception) {
-        normalized
+        normalized.lowercase()
     }
 }
