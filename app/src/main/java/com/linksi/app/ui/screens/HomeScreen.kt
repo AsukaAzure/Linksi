@@ -141,6 +141,7 @@ fun HomeScreen(
     }
 
     LaunchedEffect(state.snackbarMessage) {
+        if (showFolders || showSettings || browserUrl != null) return@LaunchedEffect
         state.snackbarMessage?.let { message ->
             when (message) {
                 "UNDO_DELETE" -> {

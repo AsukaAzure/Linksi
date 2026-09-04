@@ -569,39 +569,39 @@ class HomeViewModel @Inject constructor(
     }
 
     fun deleteSelected() {
-        viewModelScope.launch {
-            val ids = _uiState.value.selectedIds
-            val linksToDelete = _uiState.value.links.filter { it.id in ids }
-            val useBin = _uiState.value.trashBinEnabled
+        deleteLinks(_uiState.value.links.filter { it.id in _uiState.value.selectedIds })
+        clearSelection()
+    }
 
+    fun deleteLinks(linksToDelete: List<Link>) {
+        viewModelScope.launch {
+            val useBin = _uiState.value.trashBinEnabled
             linksToDelete.forEach {
                 if (useBin) repository.moveToBin(it.id)
                 else repository.deleteLink(it)
             }
-
             _uiState.update {
                 it.copy(
                     lastDeletedLinks = linksToDelete,
-                    snackbarMessage = if (useBin) "UNDO_MOVE_TO_BIN" else "UNDO_DELETE",
-                    selectedIds = emptySet(),
-                    isSelectionMode = false
+                    snackbarMessage = if (useBin) "UNDO_MOVE_TO_BIN" else "UNDO_DELETE"
                 )
             }
         }
     }
 
     fun moveSelectedToFolder(folderId: Long?) {
+        moveLinksToFolder(_uiState.value.links.filter { it.id in _uiState.value.selectedIds }, folderId)
+        clearSelection()
+    }
+
+    fun moveLinksToFolder(linksToMove: List<Link>, folderId: Long?) {
         viewModelScope.launch {
-            val ids = _uiState.value.selectedIds
-            val linksToMove = _uiState.value.links.filter { it.id in ids }
             linksToMove.forEach { repository.moveToFolder(it.id, folderId) }
             _uiState.update {
                 it.copy(
                     lastMovedLinks = linksToMove,
                     lastMovedToFolderId = folderId,
-                    snackbarMessage = "UNDO_MOVE",
-                    selectedIds = emptySet(),
-                    isSelectionMode = false
+                    snackbarMessage = "UNDO_MOVE"
                 )
             }
         }

@@ -127,7 +127,8 @@ fun FoldersScreen(
             onBack = onBack,
             viewModel = viewModel,
             folderLockEnabled = state.folderLockEnabled,
-            isPinSet = securityPrefs?.first?.isNotEmpty() == true
+            isPinSet = securityPrefs?.first?.isNotEmpty() == true,
+            isVisible = folderStack.isEmpty() && browserUrl == null
         )
 
         AnimatedVisibility(
@@ -158,7 +159,8 @@ fun FoldersScreen(
                     onOpenBrowser = { url, title ->
                         browserUrl = url
                         browserTitle = title
-                    }
+                    },
+                    isVisible = browserUrl == null
                 )
             }
         }
@@ -300,7 +302,8 @@ fun FolderListScreen(
     onBack: () -> Unit,
     viewModel: HomeViewModel,
     folderLockEnabled: Boolean,
-    isPinSet: Boolean = false
+    isPinSet: Boolean = false,
+    isVisible: Boolean = true
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -334,8 +337,49 @@ fun FolderListScreen(
     }
 
     LaunchedEffect(state.snackbarMessage) {
+        if (!isVisible) return@LaunchedEffect
         state.snackbarMessage?.let { message ->
             when (message) {
+                "UNDO_DELETE" -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = if (state.lastDeletedLinks.size > 1)
+                            context.getString(R.string.links_deleted, state.lastDeletedLinks.size)
+                        else context.getString(R.string.link_deleted),
+                        actionLabel = context.getString(R.string.undo),
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoDeleted()
+                    }
+                    viewModel.dismissSnackbar()
+                }
+
+                "UNDO_MOVE_TO_BIN" -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.moved_to_bin),
+                        actionLabel = context.getString(R.string.undo),
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoDeleted()
+                    }
+                    viewModel.dismissSnackbar()
+                }
+
+                "UNDO_MOVE" -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = if (state.lastMovedLinks.size > 1)
+                            context.getString(R.string.links_moved, state.lastMovedLinks.size)
+                        else context.getString(R.string.link_moved),
+                        actionLabel = context.getString(R.string.undo),
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoMove()
+                    }
+                    viewModel.dismissSnackbar()
+                }
+
                 "UNDO_FOLDER_DELETE" -> {
                     val folderName = state.lastDeletedFolderTree?.rootFolder?.name ?: ""
                     val linkCount = state.lastDeletedFolderTree?.allLinks?.size ?: 0
@@ -888,7 +932,8 @@ fun FolderDetailScreen(
     onBack: () -> Unit,
     onBreadcrumbClick: (Int) -> Unit,
     onSubFolderClick: (Folder) -> Unit,
-    onOpenBrowser: (url: String, title: String) -> Unit
+    onOpenBrowser: (url: String, title: String) -> Unit,
+    isVisible: Boolean = true
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
@@ -901,6 +946,71 @@ fun FolderDetailScreen(
     val listState = rememberLazyListState()
     val gridState = rememberLazyStaggeredGridState()
     val viewMode = state.folderLinksViewMode
+
+    LaunchedEffect(state.snackbarMessage) {
+        if (!isVisible) return@LaunchedEffect
+        state.snackbarMessage?.let { message ->
+            when (message) {
+                "UNDO_DELETE" -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = if (state.lastDeletedLinks.size > 1)
+                            context.getString(R.string.links_deleted, state.lastDeletedLinks.size)
+                        else context.getString(R.string.link_deleted),
+                        actionLabel = context.getString(R.string.undo),
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoDeleted()
+                    }
+                    viewModel.dismissSnackbar()
+                }
+
+                "UNDO_MOVE_TO_BIN" -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.moved_to_bin),
+                        actionLabel = context.getString(R.string.undo),
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoDeleted()
+                    }
+                    viewModel.dismissSnackbar()
+                }
+
+                "UNDO_MOVE" -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = if (state.lastMovedLinks.size > 1)
+                            context.getString(R.string.links_moved, state.lastMovedLinks.size)
+                        else context.getString(R.string.link_moved),
+                        actionLabel = context.getString(R.string.undo),
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoMove()
+                    }
+                    viewModel.dismissSnackbar()
+                }
+
+                "UNDO_FOLDER_DELETE" -> {
+                    val folderName = state.lastDeletedFolderTree?.rootFolder?.name ?: ""
+                    val linkCount = state.lastDeletedFolderTree?.allLinks?.size ?: 0
+                    val result = snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.folder_deleted_with_links, folderName, linkCount),
+                        actionLabel = context.getString(R.string.undo),
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoFolderDelete()
+                    }
+                    viewModel.dismissSnackbar()
+                }
+                else -> {
+                    snackbarHostState.showSnackbar(message)
+                    viewModel.dismissSnackbar()
+                }
+            }
+        }
+    }
 
     val showScrollToTop by remember(viewMode) {
         derivedStateOf {
@@ -1107,24 +1217,9 @@ fun FolderDetailScreen(
                                             )
                                         }
                                         IconButton(onClick = {
-                                            scope.launch {
-                                                val linksToDelete =
-                                                    folderLinks.filter { it.id in selectedIds }
-                                                linksToDelete.forEach { viewModel.deleteLink(it) }
-                                                val result = snackbarHostState.showSnackbar(
-                                                    message = context.getString(
-                                                        R.string.links_deleted,
-                                                        linksToDelete.size
-                                                    ),
-                                                    actionLabel = context.getString(R.string.undo),
-                                                    withDismissAction = true,
-                                                    duration = SnackbarDuration.Long
-                                                )
-                                                if (result == SnackbarResult.ActionPerformed) {
-                                                    linksToDelete.forEach { viewModel.restoreLink(it) }
-                                                }
-                                                selectedIds = emptySet()
-                                            }
+                                            val linksToDelete = folderLinks.filter { it.id in selectedIds }
+                                            viewModel.deleteLinks(linksToDelete)
+                                            selectedIds = emptySet()
                                         }) {
                                             Icon(
                                                 Icons.Outlined.Delete,
@@ -1140,33 +1235,9 @@ fun FolderDetailScreen(
                                             folders = state.allFolders.filter { it.id != folder.id },
                                             currentFolderId = folder.id,
                                             onSelect = { folderId ->
-                                                scope.launch {
-                                                    val linksToMove =
-                                                        folderLinks.filter { it.id in selectedIds }
-                                                    linksToMove.forEach {
-                                                        viewModel.moveToFolder(
-                                                            it,
-                                                            folderId
-                                                        )
-                                                    }
-                                                    val result = snackbarHostState.showSnackbar(
-                                                        message = context.getString(
-                                                            R.string.links_moved,
-                                                            linksToMove.size
-                                                        ),
-                                                        actionLabel = context.getString(R.string.undo),
-                                                        duration = SnackbarDuration.Long
-                                                    )
-                                                    if (result == SnackbarResult.ActionPerformed) {
-                                                        linksToMove.forEach {
-                                                            viewModel.moveToFolder(
-                                                                it,
-                                                                folder.id
-                                                            )
-                                                        }
-                                                    }
-                                                    selectedIds = emptySet()
-                                                }
+                                                val linksToMove = folderLinks.filter { it.id in selectedIds }
+                                                viewModel.moveLinksToFolder(linksToMove, folderId)
+                                                selectedIds = emptySet()
                                                 showFolderPicker = false
                                             },
                                             onDismiss = { showFolderPicker = false },
