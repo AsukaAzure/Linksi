@@ -7,6 +7,8 @@ import com.linksi.app.domain.model.Folder
 import com.linksi.app.R
 import org.json.JSONArray
 import org.json.JSONObject
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -133,80 +135,88 @@ fun importFromLinksJson(context: Context, uri: Uri): ImportResult {
 fun importFromBrowserHtml(context: Context, uri: Uri): ImportResult {
     val inputStream = context.contentResolver.openInputStream(uri)
         ?: throw Exception(context.getString(R.string.cannot_read_file))
-    
-    val html = inputStream.bufferedReader().readText()
-    val doc = org.jsoup.Jsoup.parse(html)
 
+    // Use Jsoup with null charset to let it detect encoding from the file
+    val doc = Jsoup.parse(inputStream, null, uri.toString())
+    return parseBrowserHtml(doc)
+}
+
+fun parseBrowserHtml(doc: org.jsoup.nodes.Document): ImportResult {
     val links = mutableListOf<Link>()
     val folders = mutableListOf<Folder>()
     var folderCounter = 1L
 
-    fun processDl(dl: org.jsoup.nodes.Element, parentId: Long?) {
-        // Netscape bookmarks usually have <DT> elements containing <H3> (folders) or <A> (links)
-        // A <DL> usually follows an <H3> to contain its children.
-        val elements = dl.children()
-        var i = 0
-        while (i < elements.size) {
-            val element = elements[i]
-            
-            // Look for H3 or A inside DT or directly
-            val h3 = if (element.tagName().equals("H3", true)) element else element.selectFirst("h3")
-            val a = if (element.tagName().equals("A", true)) element else element.selectFirst("a")
+    fun processDl(dl: Element, parentId: Long?) {
+        dl.children().forEach { element ->
+            when {
+                element.tagName().equals("DT", true) -> {
+                    val h3 = element.selectFirst("h3")
+                    val a = element.selectFirst("a")
 
-            if (h3 != null) {
-                val folderName = h3.text()
-                // Flatten common browser containers but keep their children
-                val isContainer = folderName.lowercase() == "bookmarks bar" || 
-                                folderName.lowercase() == "other bookmarks" ||
-                                folderName.lowercase() == "mobile bookmarks"
-                
-                val folderId: Long?
-                if (isContainer) {
-                    folderId = parentId
-                } else {
-                    folderId = folderCounter++
-                    folders.add(Folder(id = folderId, name = folderName, parentId = parentId))
-                }
+                    if (h3 != null) {
+                        val folderName = h3.text()
+                        val isContainer = folderName.lowercase() in listOf("bookmarks bar", "other bookmarks", "mobile bookmarks")
 
-                // Look for the next DL sibling which contains children
-                var nextDl: org.jsoup.nodes.Element? = null
-                for (j in i + 1 until elements.size) {
-                    val next = elements[j]
-                    if (next.tagName().equals("DL", true)) {
-                        nextDl = next
-                        i = j // Skip the DL in the outer loop
-                        break
+                        val folderId: Long?
+                        if (isContainer) {
+                            folderId = parentId
+                        } else {
+                            folderId = folderCounter++
+                            folders.add(Folder(id = folderId, name = folderName, parentId = parentId))
+                        }
+
+                        // DL can be inside DT (nested by parser) or a sibling
+                        val internalDl = element.selectFirst("dl")
+                        if (internalDl != null) {
+                            processDl(internalDl, folderId)
+                        } else {
+                            val next = element.nextElementSibling()
+                            if (next != null && next.tagName().equals("DL", true)) {
+                                processDl(next, folderId)
+                            }
+                        }
+                    } else if (a != null) {
+                        val url = a.attr("href")
+                        if (url.isNotBlank()) {
+                            links.add(Link(
+                                id = 0,
+                                url = url,
+                                title = a.text(),
+                                folderId = parentId,
+                                domain = extractDomain(url),
+                                faviconUrl = "https://www.google.com/s2/favicons?domain=${extractDomain(url)}&sz=64"
+                            ))
+                        }
                     }
-                    // If we hit another DT/H3/A before a DL, this folder is empty
-                    if (next.tagName().equals("DT", true) || next.selectFirst("h3, a") != null) break
                 }
-                
-                nextDl?.let { processDl(it, folderId) }
-            } else if (a != null) {
-                val url = a.attr("href")
-                if (url.isNotBlank()) {
-                    links.add(Link(
-                        id = 0,
-                        url = url,
-                        title = a.text(),
-                        folderId = parentId,
-                        domain = extractDomain(url),
-                        faviconUrl = "https://www.google.com/s2/favicons?domain=${extractDomain(url)}&sz=64"
-                    ))
+                element.tagName().equals("A", true) -> {
+                    val url = element.attr("href")
+                    if (url.isNotBlank()) {
+                        links.add(Link(
+                            url = url,
+                            title = element.text(),
+                            folderId = parentId,
+                            domain = extractDomain(url)
+                        ))
+                    }
+                }
+                element.tagName().equals("DL", true) -> {
+                    processDl(element, parentId)
                 }
             }
-            i++
         }
     }
 
     val rootDl = doc.selectFirst("dl")
     if (rootDl != null) {
         processDl(rootDl, null)
-    } else {
-        // Fallback for flat files
-        doc.select("a").forEach { a ->
+    }
+
+    if (links.isEmpty()) {
+        // Fallback for flat files or failed hierarchical parsing
+        doc.select("a[href]").forEach { a ->
             val url = a.attr("href")
-            if (url.isNotBlank()) {
+            if (url.isNotBlank() && url.startsWith("http")) {
                 links.add(Link(
                     url = url,
                     title = a.text(),

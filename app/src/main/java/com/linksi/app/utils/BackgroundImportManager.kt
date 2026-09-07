@@ -50,10 +50,31 @@ class BackgroundImportManager @Inject constructor(
                 val fileName = getFileName(context, uri).lowercase()
                 val mimeType = context.contentResolver.getType(uri)
                 val result = withContext(Dispatchers.IO) {
+                    val isLikelyJson = fileName.endsWith(".json") || mimeType == "application/json"
+                    val isLikelyCsv = fileName.endsWith(".csv") || mimeType == "text/csv"
+
                     when {
-                        fileName.endsWith(".json") || mimeType == "application/json" -> importFromLinksJson(context, uri)
-                        fileName.endsWith(".csv") || mimeType == "text/csv" -> importFromCsv(context, uri)
-                        else -> importFromBrowserHtml(context, uri)
+                        isLikelyJson -> importFromLinksJson(context, uri)
+                        isLikelyCsv -> importFromCsv(context, uri)
+                        else -> {
+                            // If extension/mime is unknown, peek at the first character to see if it's JSON
+                            val peek = try {
+                                context.contentResolver.openInputStream(uri)?.use { 
+                                    val first = it.read()
+                                    if (first != -1) first.toChar() else null
+                                }
+                            } catch (e: Exception) { null }
+
+                            if (peek == '{') {
+                                try {
+                                    importFromLinksJson(context, uri)
+                                } catch (e: Exception) {
+                                    importFromBrowserHtml(context, uri)
+                                }
+                            } else {
+                                importFromBrowserHtml(context, uri)
+                            }
+                        }
                     }
                 }
 
