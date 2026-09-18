@@ -96,14 +96,6 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(state.links.size) {
-        if (state.links.isNotEmpty()) {
-            scope.launch {
-                if (viewMode == ViewMode.LIST) listState.animateScrollToItem(0)
-                else gridState.animateScrollToItem(0)
-            }
-        }
-    }
 
 // Auto scroll to top when search cleared
     LaunchedEffect(state.searchQuery) {
