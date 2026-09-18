@@ -64,6 +64,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +98,24 @@ fun HomeScreen(
                 gridState.firstVisibleItemIndex > 0
             }
         }
+    }
+
+    var isFabVisible by remember { mutableStateOf(true) }
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y < -5) {
+                    isFabVisible = false
+                } else if (available.y > 5) {
+                    isFabVisible = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(showScrollToTop) {
+        if (!showScrollToTop) isFabVisible = true
     }
 
 
@@ -225,17 +247,23 @@ fun HomeScreen(
                 )
             },
             floatingActionButton = {
-                FloatingActionButton(
-                    onClick = viewModel::showAddLinkDialog,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = CircleShape,
-                    modifier = Modifier
+                AnimatedVisibility(
+                    visible = isFabVisible,
+                    enter = scaleIn() + fadeIn(),
+                    exit = scaleOut() + fadeOut()
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = stringResource(id = com.linksi.app.R.string.save_link)
-                    )
+                    FloatingActionButton(
+                        onClick = viewModel::showAddLinkDialog,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        shape = CircleShape,
+                        modifier = Modifier
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = stringResource(id = com.linksi.app.R.string.save_link)
+                        )
+                    }
                 }
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -245,6 +273,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
+                    .nestedScroll(nestedScrollConnection)
             ) {
                 var searchExpanded by remember { mutableStateOf(false) }
 
@@ -621,7 +650,7 @@ fun HomeScreen(
 
         // Scroll to Top Button
         AnimatedVisibility(
-            visible = showScrollToTop && !showSettings && !showFolders && browserUrl == null,
+            visible = showScrollToTop && isFabVisible && !showSettings && !showFolders && browserUrl == null,
             enter = slideInVertically { it } + fadeIn(),
             exit = slideOutVertically { it } + fadeOut(),
             modifier = Modifier
