@@ -7,9 +7,14 @@ import kotlinx.coroutines.flow.Flow
 interface LinkDao {
 
     @Query("""
+        WITH RECURSIVE locked_folders(id) AS (
+            SELECT id FROM folders WHERE isLocked = 1
+            UNION ALL
+            SELECT f.id FROM folders f
+            JOIN locked_folders lf ON f.parentId = lf.id
+        )
         SELECT l.* FROM links l 
-        LEFT JOIN folders f ON l.folderId = f.id 
-        WHERE l.inBin = 0 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
+        WHERE l.inBin = 0 AND (:isFolderLockEnabled = 0 OR l.folderId IS NULL OR l.folderId NOT IN (SELECT id FROM locked_folders)) 
         ORDER BY l.createdAt DESC
     """)
     fun getAllLinks(isFolderLockEnabled: Boolean): Flow<List<LinkEntity>>
@@ -21,26 +26,41 @@ interface LinkDao {
     fun getUncategorizedLinks(): Flow<List<LinkEntity>>
 
     @Query("""
+        WITH RECURSIVE locked_folders(id) AS (
+            SELECT id FROM folders WHERE isLocked = 1
+            UNION ALL
+            SELECT f.id FROM folders f
+            JOIN locked_folders lf ON f.parentId = lf.id
+        )
         SELECT l.* FROM links l 
-        LEFT JOIN folders f ON l.folderId = f.id 
-        WHERE l.inBin = 0 AND l.isFavorite = 1 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
+        WHERE l.inBin = 0 AND l.isFavorite = 1 AND (:isFolderLockEnabled = 0 OR l.folderId IS NULL OR l.folderId NOT IN (SELECT id FROM locked_folders)) 
         ORDER BY l.createdAt DESC
     """)
     fun getFavoriteLinks(isFolderLockEnabled: Boolean): Flow<List<LinkEntity>>
 
     @Query("""
+        WITH RECURSIVE locked_folders(id) AS (
+            SELECT id FROM folders WHERE isLocked = 1
+            UNION ALL
+            SELECT f.id FROM folders f
+            JOIN locked_folders lf ON f.parentId = lf.id
+        )
         SELECT l.* FROM links l 
-        LEFT JOIN folders f ON l.folderId = f.id 
-        WHERE l.inBin = 0 AND l.isRead = 0 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
+        WHERE l.inBin = 0 AND l.isRead = 0 AND (:isFolderLockEnabled = 0 OR l.folderId IS NULL OR l.folderId NOT IN (SELECT id FROM locked_folders)) 
         ORDER BY l.createdAt DESC
     """)
     fun getUnreadLinks(isFolderLockEnabled: Boolean): Flow<List<LinkEntity>>
 
     @Query(
         """
+        WITH RECURSIVE locked_folders(id) AS (
+            SELECT id FROM folders WHERE isLocked = 1
+            UNION ALL
+            SELECT f.id FROM folders f
+            JOIN locked_folders lf ON f.parentId = lf.id
+        )
         SELECT l.* FROM links l 
-        LEFT JOIN folders f ON l.folderId = f.id 
-        WHERE l.inBin = 0 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) AND (
+        WHERE l.inBin = 0 AND (:isFolderLockEnabled = 0 OR l.folderId IS NULL OR l.folderId NOT IN (SELECT id FROM locked_folders)) AND (
             url LIKE '%' || :query || '%' 
             OR title LIKE '%' || :query || '%' 
             OR description LIKE '%' || :query || '%'
@@ -53,9 +73,14 @@ interface LinkDao {
     fun searchLinks(query: String, isFolderLockEnabled: Boolean): Flow<List<LinkEntity>>
 
     @Query("""
+        WITH RECURSIVE locked_folders(id) AS (
+            SELECT id FROM folders WHERE isLocked = 1
+            UNION ALL
+            SELECT f.id FROM folders f
+            JOIN locked_folders lf ON f.parentId = lf.id
+        )
         SELECT l.* FROM links l 
-        LEFT JOIN folders f ON l.folderId = f.id 
-        WHERE l.inBin = 0 AND (:isFolderLockEnabled = 0 OR f.isLocked IS NULL OR f.isLocked = 0) 
+        WHERE l.inBin = 0 AND (:isFolderLockEnabled = 0 OR l.folderId IS NULL OR l.folderId NOT IN (SELECT id FROM locked_folders)) 
         AND reminderAt IS NOT NULL AND reminderAt > :now 
         ORDER BY reminderAt ASC
     """)
