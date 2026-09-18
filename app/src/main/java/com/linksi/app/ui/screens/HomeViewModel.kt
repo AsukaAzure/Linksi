@@ -29,6 +29,8 @@ data class HomeUiState(
     val sortOption: SortOption = SortOption.DATE_NEWEST,
     val isLoading: Boolean = false,
     val isRefreshingMetadata: Boolean = false,
+    val refreshCurrentCount: Int = 0,
+    val refreshTotalCount: Int = 0,
     val isFetchingMetadata: Boolean = false,
     val isAddingLink: Boolean = false,
     val showAddLinkDialog: Boolean = false,
@@ -66,6 +68,20 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
+
+    private var metadataRefreshJob: kotlinx.coroutines.Job? = null
+
+    fun cancelMetadataRefresh() {
+        metadataRefreshJob?.cancel()
+        metadataRefreshJob = null
+        _uiState.update {
+            it.copy(
+                isRefreshingMetadata = false,
+                refreshCurrentCount = 0,
+                refreshTotalCount = 0
+            )
+        }
+    }
 
     init {
         createNotificationChannel(context)
@@ -391,17 +407,24 @@ class HomeViewModel @Inject constructor(
     }
 
     fun refreshAllMetadata() {
-        viewModelScope.launch {
-            if (_uiState.value.isRefreshingMetadata) return@launch
-            _uiState.update { it.copy(isRefreshingMetadata = true) }
-            
-            val links = _uiState.value.links
-            if (links.isEmpty()) {
-                _uiState.update { it.copy(isRefreshingMetadata = false) }
-                return@launch
+        if (_uiState.value.isRefreshingMetadata) return
+        
+        val links = _uiState.value.links
+        if (links.isEmpty()) return
+
+        metadataRefreshJob?.cancel()
+        metadataRefreshJob = viewModelScope.launch {
+            _uiState.update { 
+                it.copy(
+                    isRefreshingMetadata = true,
+                    refreshCurrentCount = 0,
+                    refreshTotalCount = links.size
+                )
             }
 
-            links.forEach { link ->
+            links.forEachIndexed { index, link ->
+                if (kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]?.isActive != true) return@launch
+                _uiState.update { it.copy(refreshCurrentCount = index + 1) }
                 try {
                     val meta = MetadataFetcher.fetch(link.url, context)
                     val updatedLink = link.copy(
@@ -422,6 +445,8 @@ class HomeViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     isRefreshingMetadata = false,
+                    refreshCurrentCount = 0,
+                    refreshTotalCount = 0,
                     snackbarMessage = context.getString(R.string.metadata_refreshed)
                 )
             }

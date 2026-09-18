@@ -370,4 +370,5 @@
     <string name="restored_links">Восстановлено ссылок: %1$d</string>
     <string name="link_restored">Ссылка восстановлена</string>
     <string name="links_permanently_deleted">Навсегда удалено ссылок: %1$d</string>
+    <string name="refreshing_metadata_progress">Обновление метаданных (%1$d из %2$d)…</string>
 </resources>

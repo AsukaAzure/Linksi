@@ -101,6 +101,18 @@ fun HomeScreen(
     }
 
     var isFabVisible by remember { mutableStateOf(true) }
+    
+    val isMetadataRefreshingShowing = state.isRefreshingMetadata && state.refreshTotalCount > 0 && isFabVisible
+
+    val fabBottomPadding by animateDpAsState(
+        targetValue = if (isMetadataRefreshingShowing) 76.dp else 0.dp,
+        label = "fabBottomPadding"
+    )
+
+    val scrollToTopBottomPadding by animateDpAsState(
+        targetValue = if (isMetadataRefreshingShowing) 96.dp else 32.dp,
+        label = "scrollToTopBottomPadding"
+    )
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -257,7 +269,7 @@ fun HomeScreen(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
                         shape = CircleShape,
-                        modifier = Modifier
+                        modifier = Modifier.padding(bottom = fabBottomPadding)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Add,
@@ -648,6 +660,66 @@ fun HomeScreen(
             }
         }
 
+        // Metadata Refresh Progress Overlay
+        AnimatedVisibility(
+            visible = state.isRefreshingMetadata && state.refreshTotalCount > 0 && isFabVisible,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        ) {
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                modifier = Modifier
+                    .widthIn(max = 320.dp)
+                    .wrapContentWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(
+                                id = com.linksi.app.R.string.refreshing_metadata_progress,
+                                state.refreshCurrentCount,
+                                state.refreshTotalCount
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        val progressFraction = if (state.refreshTotalCount > 0) {
+                            state.refreshCurrentCount.toFloat() / state.refreshTotalCount.toFloat()
+                        } else 0f
+                        SimpleProgressBar(progress = progressFraction)
+                    }
+                    
+                    TextButton(
+                        onClick = viewModel::cancelMetadataRefresh,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text(
+                            text = stringResource(id = com.linksi.app.R.string.cancel),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            }
+        }
+
         // Scroll to Top Button
         AnimatedVisibility(
             visible = showScrollToTop && isFabVisible && !showSettings && !showFolders && browserUrl == null,
@@ -655,7 +727,7 @@ fun HomeScreen(
             exit = slideOutVertically { it } + fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp)
+                .padding(bottom = scrollToTopBottomPadding)
         ) {
             SmallFloatingActionButton(
                 onClick = {

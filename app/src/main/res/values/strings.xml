@@ -380,4 +380,5 @@
     <string name="links_permanently_deleted">Permanently deleted %1$d links</string>
     <string name="global_prevent_screenshot">App-wide Screenshot Protection</string>
     <string name="global_prevent_screenshot_desc">Disable screenshots and screen recording throughout the entire app</string>
+    <string name="refreshing_metadata_progress">Refreshing metadata (%1$d of %2$d)…</string>
 </resources>
