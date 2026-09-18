@@ -15,7 +15,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import org.jsoup.Jsoup
 import java.net.URI
-import java.net.URLEncoder
 
 data class LinkMetadata(
     val title: String = "",
@@ -27,26 +26,6 @@ data class LinkMetadata(
 
 object MetadataFetcher {
 
-    private const val SCRAPER_API_BASE = "https://link-metadata-scraper.vercel.app/api/scrape"
-
-    // Sites that reliably block/gate on-device scraping (login walls, bot
-    // detection) go straight to the hosted API instead of wasting a Jsoup
-    // round trip that's going to fail anyway. Add to this list as you find
-    // more sites that behave this way.
-    private val SOCIAL_MEDIA_DOMAINS = setOf(
-        "instagram.com",
-        "twitter.com",
-        "x.com",
-        "facebook.com",
-        "fb.com",
-        "tiktok.com",
-        "threads.net",
-        "linkedin.com",
-        "pinterest.com",
-        "snapchat.com",
-        "reddit.com"
-    )
-
     // Matches the title of common bot-challenge / login-wall interstitials
     // (Cloudflare "Just a moment...", login walls, etc.) so a blocked local
     // fetch doesn't get saved as if it were real page content.
@@ -55,30 +34,29 @@ object MetadataFetcher {
         RegexOption.IGNORE_CASE
     )
 
+    /**
+     * Resolution order:
+     *   1. A per-domain resolver from LinkResolvers.kt, if one matches. These
+     *      call the platform's own public embed/oEmbed endpoint instead of
+     *      scraping HTML that's behind a login wall.
+     *   2. Generic Open Graph scrape for everything else.
+     *   3. WebView, for JS-rendered pages that return an empty shell to Jsoup.
+     *   4. Domain-only placeholder card.
+     *
+     * Domains in NO_PREVIEW_DOMAINS skip straight past step 2 — there's no
+     * public surface to read, so a Jsoup round trip only buys a timeout.
+     */
     suspend fun fetch(url: String, context: Context? = null): LinkMetadata = withContext(Dispatchers.IO) {
         val normalizedUrl = normalizeUrl(url.trim())
         val domain = extractDomain(normalizedUrl)
 
-        // Special handling for Reddit to get high-quality previews
-        if (domain.contains("reddit.com") || domain.contains("redd.it")) {
-            val redditMeta = fetchRedditMetadata(normalizedUrl)
-            // ONLY return if we actually got an image. If no image, let it fall back
-            // to the Scraper API or local JS scraping which might have better luck.
-            if (redditMeta != null && redditMeta.previewImageUrl.isNotBlank()) {
-                return@withContext redditMeta
-            }
-        }
+        var result = resolverFor(domain)?.safeResolve(normalizedUrl)
+            ?: if (isNoPreviewDomain(domain)) null else fetchLocally(normalizedUrl)
 
-        var result = if (isSocialMediaDomain(domain)) {
-            fetchFromScraperApi(normalizedUrl)
-        } else {
-            fetchLocally(normalizedUrl)
-        }
-
-        // Fallback to WebView if local/API fetch failed or returned minimal data
+        // Fallback to WebView if the above failed or returned minimal data.
         if (context != null && (result == null || result.title.isBlank())) {
             val webViewResult = fetchWithWebView(normalizedUrl, context)
-            if (webViewResult != null) {
+            if (webViewResult != null && webViewResult.title.isNotBlank()) {
                 result = webViewResult
             }
         }
@@ -87,115 +65,14 @@ object MetadataFetcher {
             domain = domain,
             faviconUrl = "https://www.google.com/s2/favicons?domain=$domain&sz=64"
         )
-    }
-
-    /**
-     * Reddit-specific fetcher that hits the public .json endpoint.
-     * This is much more reliable for Reddit than scraping HTML.
-     */
-    private fun fetchRedditMetadata(url: String): LinkMetadata? {
-        return try {
-            // 1. Try Official oEmbed API first (Most reliable for titles/thumbnails)
-            val oEmbedUrl = "https://www.reddit.com/oembed?url=${URLEncoder.encode(url, "UTF-8")}"
-            val oEmbedResponse = Jsoup.connect(oEmbedUrl)
-                .timeout(5000)
-                .ignoreContentType(true)
-                .userAgent("Twitterbot/1.0")
-                .execute()
-            
-            val oEmbedJson = JSONObject(oEmbedResponse.body())
-            val oEmbedTitle = oEmbedJson.optString("title")
-            val oEmbedThumb = oEmbedJson.optString("thumbnail_url")
-
-            // 2. Try JSON API for high-resolution images and extra stats
-            val jsonUrl = if (url.contains("?")) {
-                url.substringBefore("?") + ".json?raw_json=1"
-            } else {
-                url.removeSuffix("/") + ".json?raw_json=1"
-            }
-
-            val response = Jsoup.connect(jsonUrl)
-                .timeout(10000)
-                .ignoreContentType(true)
-                .followRedirects(true)
-                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-                .execute()
-            
-            val body = response.body()
-            val postData = try {
-                val jsonArray = org.json.JSONArray(body)
-                jsonArray.getJSONObject(0)
-                    .getJSONObject("data")
-                    .getJSONArray("children")
-                    .getJSONObject(0)
-                    .getJSONObject("data")
-            } catch (e: Exception) {
-                val jsonObj = JSONObject(body)
-                if (jsonObj.has("data")) {
-                    jsonObj.getJSONObject("data")
-                        .getJSONArray("children")
-                        .getJSONObject(0)
-                        .getJSONObject("data")
-                } else null
-            }
-
-            if (postData != null) {
-                val title = postData.optString("title").ifBlank { oEmbedTitle }
-                val subreddit = postData.optString("subreddit_name_prefixed")
-                val selfText = postData.optString("selftext").take(250)
-                val ups = postData.optInt("ups", 0)
-                
-                var previewImage = ""
-                // Try high-res preview first
-                val preview = postData.optJSONObject("preview")
-                val images = preview?.optJSONArray("images")
-                if (images != null && images.length() > 0) {
-                    previewImage = images.getJSONObject(0).getJSONObject("source").optString("url")
-                }
-                
-                // Fallback to direct URL if it's an image
-                if (previewImage.isBlank()) {
-                    val destUrl = postData.optString("url_overridden_by_dest")
-                    if (destUrl.contains("i.redd.it") || destUrl.contains(".jpg") || destUrl.contains(".png")) {
-                        previewImage = destUrl
-                    }
-                }
-                
-                // Final fallbacks
-                if (previewImage.isBlank()) previewImage = oEmbedThumb
-                if (previewImage.isBlank()) {
-                    val thumb = postData.optString("thumbnail")
-                    if (thumb.startsWith("http")) previewImage = thumb
-                }
-
-                return LinkMetadata(
-                    title = title,
-                    description = if (subreddit.isNotBlank()) "$subreddit • $selfText" else selfText,
-                    faviconUrl = "https://www.redditstatic.com/desktop2x/img/favicon/android-icon-192x192.png",
-                    previewImageUrl = previewImage,
-                    domain = "reddit.com"
-                )
-            }
-
-            // If JSON failed but oEmbed worked
-            if (oEmbedTitle.isNotBlank()) {
-                return LinkMetadata(
-                    title = oEmbedTitle,
-                    faviconUrl = "https://www.redditstatic.com/desktop2x/img/favicon/android-icon-192x192.png",
-                    previewImageUrl = oEmbedThumb,
-                    domain = "reddit.com"
-                )
-            }
-            null
-        } catch (e: Exception) {
-            Log.w("MetadataFetcher", "Reddit fetch failed", e)
-            null
-        }
+    }.also {
+        Log.d("MetadataFetcher", "final result for $url -> title=\"${it.title}\" " +
+                "descLen=${it.description.length} image=\"${it.previewImageUrl}\" domain=${it.domain}")
     }
 
     private suspend fun fetchWithWebView(url: String, context: Context): LinkMetadata? = withContext(Dispatchers.Main) {
         val deferred = CompletableDeferred<LinkMetadata?>()
-        
+
         val webView = WebView(context)
         webView.settings.apply {
             javaScriptEnabled = true
@@ -212,28 +89,38 @@ object MetadataFetcher {
                         var ogDesc = document.querySelector('meta[property="og:description"]');
                         var ogImg = document.querySelector('meta[property="og:image"]');
                         var title = document.title;
-                        
+
                         meta.title = (ogTitle ? ogTitle.content : '') || title || '';
                         meta.description = (ogDesc ? ogDesc.content : '') || document.querySelector('meta[name="description"]')?.content || '';
                         meta.image = (ogImg ? ogImg.content : '') || '';
-                        
+
                         return JSON.stringify(meta);
                     })()
                 """.trimIndent()
 
-                webView.evaluateJavascript(js) { json ->
+                view?.evaluateJavascript(js) { json ->
                     try {
                         val cleanedJson = json.removePrefix("\"").removeSuffix("\"").replace("\\\"", "\"")
                         val obj = JSONObject(cleanedJson)
-                        val domain = extractDomain(url ?: "")
-                        
-                        deferred.complete(LinkMetadata(
-                            title = obj.optString("title"),
-                            description = obj.optString("description"),
-                            previewImageUrl = obj.optString("image"),
-                            domain = domain,
-                            faviconUrl = "https://www.google.com/s2/favicons?domain=$domain&sz=64"
-                        ))
+                        val pageDomain = extractDomain(url ?: "")
+                        val rawTitle = obj.optString("title")
+
+                        // Don't save a login wall or bot challenge as real content.
+                        if (BLOCKED_TITLE_PATTERN.containsMatchIn(rawTitle)) {
+                            Log.w("MetadataFetcher", "$url looks blocked/gated in WebView (title: \"$rawTitle\")")
+                            deferred.complete(null)
+                            return@evaluateJavascript
+                        }
+
+                        deferred.complete(
+                            LinkMetadata(
+                                title = rawTitle,
+                                description = obj.optString("description"),
+                                previewImageUrl = obj.optString("image"),
+                                domain = pageDomain,
+                                faviconUrl = "https://www.google.com/s2/favicons?domain=$pageDomain&sz=64"
+                            )
+                        )
                     } catch (e: Exception) {
                         deferred.complete(null)
                     }
@@ -247,57 +134,20 @@ object MetadataFetcher {
 
         webView.loadUrl(url)
 
-        // Timeout after 10 seconds
-        withTimeoutOrNull(10000) {
-            deferred.await()
-        } ?: run {
+        // Always tear the WebView down — the old code only destroyed it on the
+        // timeout path, so every successful (and every errored) fetch leaked one.
+        try {
+            withTimeoutOrNull(10_000) { deferred.await() }
+        } finally {
             webView.stopLoading()
             webView.destroy()
-            null
-        }
-    }
-
-    private fun isSocialMediaDomain(domain: String): Boolean {
-        return SOCIAL_MEDIA_DOMAINS.any { known ->
-            domain == known || domain.endsWith(".$known")
         }
     }
 
     /**
-     * Fetch metadata for many URLs (e.g. a bulk bookmark import) without
-     * overwhelming the network stack or the scraper's cold-start capacity.
-     *
-     * - Caps concurrency instead of firing every request at once.
-     * - One failing link never affects the others.
-     * - `onItemComplete` lets you update the UI incrementally instead of
-     *   blocking on the whole batch before showing anything.
-     *
-     * @param concurrency how many requests to run in parallel. 4-8 is a good
-     *   starting point.
-     */
-    suspend fun fetchAll(
-        urls: List<String>,
-        context: Context? = null,
-        concurrency: Int = 6,
-        onItemComplete: ((url: String, metadata: LinkMetadata) -> Unit)? = null
-    ): List<LinkMetadata> = withContext(Dispatchers.IO) {
-        val semaphore = Semaphore(concurrency)
-
-        urls.map { url ->
-            async {
-                semaphore.withPermit {
-                    val metadata = fetch(url, context)
-                    onItemComplete?.invoke(url, metadata)
-                    metadata
-                }
-            }
-        }.awaitAll()
-    }
-
-    /**
-     * Used for regular (non-social-media) sites. Returns null if the fetch
-     * fails, or if what came back looks like a bot-challenge/login-wall page
-     * rather than real content — the caller then shows a domain-only card.
+     * Generic Open Graph scrape. Returns null if the fetch fails, or if what
+     * came back looks like a bot-challenge/login-wall page rather than real
+     * content — the caller then tries WebView, then a domain-only card.
      */
     private fun fetchLocally(url: String): LinkMetadata? {
         return try {
@@ -305,7 +155,6 @@ object MetadataFetcher {
                 .timeout(10000)
                 .userAgent("facebookexternalhit/1.1")
                 .header("Accept-Language", "en-US,en;q=0.9")
-                .header("Referer", "https://www.facebook.com/")
                 .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
                 .followRedirects(true)
                 .ignoreHttpErrors(true)
@@ -348,10 +197,10 @@ object MetadataFetcher {
                     val src = img.attr("abs:src")
                     val w = img.attr("width").toIntOrNull() ?: 0
                     val h = img.attr("height").toIntOrNull() ?: 0
-                    
+
                     // Prioritize images that look like content, not icons
-                    src.isNotBlank() && 
-                            !src.contains("favicon") && 
+                    src.isNotBlank() &&
+                            !src.contains("favicon") &&
                             !src.contains("logo") &&
                             !src.contains("icon") &&
                             !src.contains("avatar") &&
@@ -385,53 +234,34 @@ object MetadataFetcher {
     }
 
     /**
-     * Used for social media domains. Calls the hosted Vercel scraper.
-     * Returns null if the request fails, or if the site is behind bot
-     * protection / a login wall the API couldn't get past.
+     * Fetch metadata for many URLs (e.g. a bulk bookmark import) without
+     * overwhelming the network stack or the resolvers' rate limits.
+     *
+     * - Caps concurrency instead of firing every request at once.
+     * - One failing link never affects the others.
+     * - `onItemComplete` lets you update the UI incrementally instead of
+     *   blocking on the whole batch before showing anything.
+     *
+     * @param concurrency how many requests to run in parallel. 4-8 is a good
+     *   starting point.
      */
-    private fun fetchFromScraperApi(url: String): LinkMetadata? {
-        return try {
-            val encoded = URLEncoder.encode(url, "UTF-8")
-            val endpoint = "$SCRAPER_API_BASE?url=$encoded"
+    suspend fun fetchAll(
+        urls: List<String>,
+        context: Context? = null,
+        concurrency: Int = 6,
+        onItemComplete: ((url: String, metadata: LinkMetadata) -> Unit)? = null
+    ): List<LinkMetadata> = withContext(Dispatchers.IO) {
+        val semaphore = Semaphore(concurrency)
 
-            val response = Jsoup.connect(endpoint)
-                .timeout(15000) // generous timeout to absorb Vercel cold starts
-                .ignoreContentType(true) // response is JSON, not HTML
-                .ignoreHttpErrors(true)
-                .userAgent("Linksi-Android/1.0")
-                .execute()
-
-            if (response.statusCode() !in 200..299) {
-                Log.w("MetadataFetcher", "Scraper API returned ${response.statusCode()} for $url")
-                return null
+        urls.map { url ->
+            async {
+                semaphore.withPermit {
+                    val metadata = fetch(url, context)
+                    onItemComplete?.invoke(url, metadata)
+                    metadata
+                }
             }
-
-            val json = JSONObject(response.body())
-
-            if (json.optBoolean("blocked", false)) {
-                Log.w("MetadataFetcher", "Scraper API reports $url as blocked")
-                return null
-            }
-
-            val remoteTitle = json.optString("title")
-            if (BLOCKED_TITLE_PATTERN.containsMatchIn(remoteTitle)) {
-                Log.w("MetadataFetcher", "Scraper API result for $url looks like a login/challenge page")
-                return null
-            }
-
-            val domain = extractDomain(json.optString("canonicalUrl", url).ifBlank { url })
-
-            LinkMetadata(
-                title = remoteTitle.take(200),
-                description = json.optString("description").take(500),
-                faviconUrl = "https://www.google.com/s2/favicons?domain=$domain&sz=64",
-                previewImageUrl = json.optString("image"),
-                domain = domain
-            )
-        } catch (e: Exception) {
-            Log.w("MetadataFetcher", "Scraper API call failed for $url", e)
-            null
-        }
+        }.awaitAll()
     }
 }
 
@@ -456,31 +286,44 @@ fun isValidUrl(url: String): Boolean {
     }
 }
 
+/**
+ * Normalizes scheme and host only.
+ *
+ * The previous version lowercased the entire URL, which silently corrupted
+ * every case-sensitive path segment — Instagram shortcodes (/p/DAbC_xYz/) and
+ * YouTube video IDs both are — so those links 404'd before any fetch happened.
+ * Host and scheme are case-insensitive by spec; paths and query strings are not.
+ */
 fun normalizeUrl(url: String): String {
     val trimmed = url.trim()
     if (trimmed.isBlank()) return ""
 
     var normalized = trimmed
-    
+
     // Convert to https if it's http
-    if (normalized.startsWith("http://")) {
+    if (normalized.startsWith("http://", ignoreCase = true)) {
         normalized = "https://" + normalized.substring(7)
-    } else if (!normalized.startsWith("https://")) {
+    } else if (!normalized.startsWith("https://", ignoreCase = true)) {
         normalized = "https://$normalized"
     }
 
     return try {
-        val uri = java.net.URI(normalized).normalize()
-        var result = uri.toString()
-        
-        // Remove trailing slash for root domains AND paths to be robust
-        if (result.endsWith("/")) {
-            result = result.substring(0, result.length - 1)
+        val uri = URI(normalized).normalize()
+        val host = uri.host?.lowercase() ?: return normalized
+
+        val path = uri.rawPath.orEmpty().let {
+            // Drop a trailing slash, but never reduce the path to nothing.
+            if (it.length > 1 && it.endsWith("/")) it.dropLast(1) else it
         }
-        
-        // Lowercase the entire URL for comparison consistency
-        result.lowercase()
+
+        buildString {
+            append("https://")
+            append(host)
+            if (uri.port != -1) append(":${uri.port}")
+            append(path)
+            uri.rawQuery?.let { append("?$it") }
+        }
     } catch (e: Exception) {
-        normalized.lowercase()
+        normalized
     }
 }
