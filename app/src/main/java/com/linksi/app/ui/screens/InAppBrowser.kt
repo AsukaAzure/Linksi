@@ -1,15 +1,21 @@
 package com.linksi.app.ui.screens
 
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
+import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,22 +26,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import android.content.Intent
-import android.net.Uri
-import android.app.Activity
-import android.view.WindowManager
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.linksi.app.R
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,18 +44,19 @@ fun InAppBrowser(
     title: String = "",
     isGlobalScreenshotProtectionEnabled: Boolean = false,
     onScrollChanged: (Int) -> Unit = {},
-    onDrag: (Float) -> Unit = {},      // add
+    onDrag: (Float) -> Unit = {},
     onDragEnd: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     var currentUrl by remember { mutableStateOf(url) }
     var currentTitle by remember { mutableStateOf(title) }
     var isLoading by remember { mutableStateOf(true) }
-    var progress by remember { mutableStateOf(0) }
+    var progress by remember { mutableIntStateOf(0) }
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
     var webView by remember { mutableStateOf<WebView?>(null) }
-    var dragOffset by remember { mutableStateOf(0f) }
+    var customView by remember { mutableStateOf<View?>(null) }
+    var customViewCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
 
     val activity = LocalContext.current as? Activity
     DisposableEffect(isGlobalScreenshotProtectionEnabled) {
@@ -70,163 +71,214 @@ fun InAppBrowser(
     }
 
     BackHandler {
-        if (canGoBack) webView?.goBack()
-        else onDismiss()
+        if (customView != null) {
+            customViewCallback?.onCustomViewHidden()
+            customView = null
+            customViewCallback = null
+        } else if (canGoBack) {
+            webView?.goBack()
+        } else {
+            onDismiss()
+        }
     }
 
-    Scaffold(
-        topBar = {
-            Column {
-                // Drag handle only at top
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(28.dp)
-                        .pointerInput(Unit) {
-                            detectVerticalDragGestures(
-                                onDragEnd = { onDragEnd() },
-                                onVerticalDrag = { _, dragAmount ->
-                                    onDrag(dragAmount)
-                                }
-                            )
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Surface(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                Column {
+                    // Drag handle only at top
+                    Box(
                         modifier = Modifier
-                            .width(40.dp)
-                            .height(4.dp),
-                        shape = RoundedCornerShape(2.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    ) {}
-                }
-
-                // Progress bar
-                if (isLoading) {
-                    LinearProgressIndicator(
-                        progress = { progress / 100f },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        },
-        bottomBar = {
-            Surface(
-                tonalElevation = 3.dp,
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    // Back
-                    IconButton(
-                        onClick = { webView?.goBack() },
-                        enabled = canGoBack
+                            .fillMaxWidth()
+                            .height(28.dp)
+                            .pointerInput(Unit) {
+                                detectVerticalDragGestures(
+                                    onDragEnd = { onDragEnd() },
+                                    onVerticalDrag = { _, dragAmount ->
+                                        onDrag(dragAmount)
+                                    }
+                                )
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Outlined.ArrowBack, stringResource(R.string.back))
+                        Surface(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(4.dp),
+                            shape = RoundedCornerShape(2.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        ) {}
                     }
 
-                    // Forward
-                    IconButton(
-                        onClick = { webView?.goForward() },
-                        enabled = canGoForward
-                    ) {
-                        Icon(Icons.Outlined.ArrowForward, stringResource(R.string.forward))
-                    }
-
-                    // URL bar in center
-                    val context = LocalContext.current
-
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(16.dp)) // match card shape
-                            .clickable {
-                                // Open current page in external browser
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl))
-                                context.startActivity(intent)
-                            }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                Icons.Outlined.Lock, null,
-                                Modifier.size(12.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                currentUrl
-                                    .removePrefix("https://")
-                                    .removePrefix("http://")
-                                    .removePrefix("www.")
-                                    .substringBefore("/"),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Icon(
-                                Icons.Outlined.OpenInBrowser, null,
-                                Modifier.size(12.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    // Reload / Stop
-                    IconButton(onClick = {
-                        if (isLoading) webView?.stopLoading()
-                        else webView?.reload()
-                    }) {
-                        Icon(
-                            if (isLoading) Icons.Outlined.Close
-                            else Icons.Outlined.Refresh,
-                            stringResource(if (isLoading) R.string.close else R.string.refresh)
+                    // Progress bar
+                    if (isLoading) {
+                        LinearProgressIndicator(
+                            progress = { progress / 100f },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
+                }
+            },
+            bottomBar = {
+                Surface(
+                    tonalElevation = 3.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Back
+                        IconButton(
+                            onClick = { webView?.goBack() },
+                            enabled = canGoBack
+                        ) {
+                            Icon(Icons.Outlined.ArrowBack, stringResource(R.string.back))
+                        }
 
-                    // Close browser
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Outlined.Close, stringResource(R.string.close))
+                        // Forward
+                        IconButton(
+                            onClick = { webView?.goForward() },
+                            enabled = canGoForward
+                        ) {
+                            Icon(Icons.Outlined.ArrowForward, stringResource(R.string.forward))
+                        }
+
+                        // URL bar in center
+                        val context = LocalContext.current
+
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl))
+                                    context.startActivity(intent)
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Lock, null,
+                                    Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    currentUrl
+                                        .removePrefix("https://")
+                                        .removePrefix("http://")
+                                        .removePrefix("www.")
+                                        .substringBefore("/"),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    Icons.Outlined.OpenInBrowser, null,
+                                    Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Reload / Stop
+                        IconButton(onClick = {
+                            if (isLoading) webView?.stopLoading()
+                            else webView?.reload()
+                        }) {
+                            Icon(
+                                if (isLoading) Icons.Outlined.Close
+                                else Icons.Outlined.Refresh,
+                                stringResource(if (isLoading) R.string.close else R.string.refresh)
+                            )
+                        }
+
+                        // Close browser
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Outlined.Close, stringResource(R.string.close))
+                        }
                     }
                 }
+            },
+            containerColor = MaterialTheme.colorScheme.background
+        ) { padding ->
+            WebViewContent(
+                url = url,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                onWebViewCreated = { webView = it },
+                onPageStarted = { pageUrl, pageTitle ->
+                    currentUrl = pageUrl
+                    currentTitle = pageTitle ?: ""
+                    isLoading = true
+                },
+                onPageFinished = { pageUrl, pageTitle ->
+                    currentUrl = pageUrl
+                    currentTitle = pageTitle ?: ""
+                    isLoading = false
+                    canGoBack = webView?.canGoBack() ?: false
+                    canGoForward = webView?.canGoForward() ?: false
+                },
+                onProgressChanged = { progress = it },
+                onScrollChanged = onScrollChanged,
+                onShowCustomView = { view, callback ->
+                    customViewCallback?.onCustomViewHidden()
+                    customView = view
+                    customViewCallback = callback
+                },
+                onHideCustomView = {
+                    customViewCallback?.onCustomViewHidden()
+                    customView = null
+                    customViewCallback = null
+                }
+            )
+        }
+
+        // Fullscreen video view overlay
+        customView?.let { view ->
+            DisposableEffect(Unit) {
+                val window = activity?.window
+                val decorView = window?.decorView
+                val insetsController = if (window != null && decorView != null) {
+                    WindowCompat.getInsetsController(window, decorView)
+                } else null
+
+                insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+                insetsController?.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+                onDispose {
+                    insetsController?.show(WindowInsetsCompat.Type.systemBars())
+                }
             }
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
-        WebViewContent(
-            url = url,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            onWebViewCreated = { webView = it },
-            onPageStarted = { pageUrl, pageTitle ->
-                currentUrl = pageUrl
-                currentTitle = pageTitle ?: ""
-                isLoading = true
-            },
-            onPageFinished = { pageUrl, pageTitle ->
-                currentUrl = pageUrl
-                currentTitle = pageTitle ?: ""
-                isLoading = false
-                canGoBack = webView?.canGoBack() ?: false
-                canGoForward = webView?.canGoForward() ?: false
-            },
-            onProgressChanged = { progress = it },
-            onScrollChanged = onScrollChanged
-        )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                AndroidView(
+                    factory = {
+                        (view.parent as? ViewGroup)?.removeView(view)
+                        view
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
     }
 }
 
@@ -239,7 +291,9 @@ fun WebViewContent(
     onPageStarted: (String, String?) -> Unit,
     onPageFinished: (String, String?) -> Unit,
     onProgressChanged: (Int) -> Unit,
-    onScrollChanged: (Int) -> Unit
+    onScrollChanged: (Int) -> Unit,
+    onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
+    onHideCustomView: () -> Unit
 ) {
     val context = LocalContext.current
     AndroidView(
@@ -257,6 +311,7 @@ fun WebViewContent(
                     builtInZoomControls = true
                     displayZoomControls = false
                     setSupportZoom(true)
+                    mediaPlaybackRequiresUserGesture = false
                 }
                 // Override scroll change to report position
                 setOnScrollChangeListener { _, _, scrollY, _, _ ->
@@ -269,6 +324,21 @@ fun WebViewContent(
 
                     override fun onPageFinished(view: WebView, url: String) {
                         onPageFinished(url, view.title)
+                        // Ensure pinch-and-zoom is allowed on all pages by overriding user-scalable=no
+                        view.evaluateJavascript(
+                            """
+                            (function() {
+                                var meta = document.querySelector('meta[name="viewport"]');
+                                if (meta) {
+                                    var content = meta.getAttribute('content') || '';
+                                    content = content.replace(/user-scalable\s*=\s*no/gi, 'user-scalable=yes');
+                                    content = content.replace(/maximum-scale\s*=\s*1(\.0)?/gi, 'maximum-scale=10.0');
+                                    meta.setAttribute('content', content);
+                                }
+                            })();
+                            """.trimIndent(),
+                            null
+                        )
                     }
 
                     override fun shouldOverrideUrlLoading(
@@ -300,7 +370,7 @@ fun WebViewContent(
                                         }
                                     }
                                 } catch (e: Exception) {
-                                    // Can't parse intent — ignore
+                                    // Can'parse intent — ignore
                                 }
                                 true
                             }
@@ -342,6 +412,18 @@ fun WebViewContent(
 
                     override fun onReceivedTitle(view: WebView, title: String) {
                         onPageFinished(view.url ?: url, title)
+                    }
+
+                    override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
+                        super.onShowCustomView(view, callback)
+                        if (view != null && callback != null) {
+                            onShowCustomView(view, callback)
+                        }
+                    }
+
+                    override fun onHideCustomView() {
+                        super.onHideCustomView()
+                        onHideCustomView()
                     }
                 }
                 loadUrl(url)
