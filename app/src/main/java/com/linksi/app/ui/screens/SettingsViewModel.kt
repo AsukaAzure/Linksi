@@ -16,7 +16,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.datastore.core.DataStore
-import com.linksi.app.domain.model.AI_MODELS
 import com.linksi.app.domain.model.AiProvider
 import com.linksi.app.domain.model.Link
 import kotlinx.coroutines.Dispatchers
@@ -44,7 +43,8 @@ data class SettingsUiState(
     val isImportMinimized: Boolean = false,
     val importPhase: String = "",
     val apiKeys: Map<AiProvider, String> = emptyMap(),
-    val availableModels: List<com.linksi.app.domain.model.AiModel> = com.linksi.app.domain.model.AI_MODELS,
+    val apiBaseUrls: Map<AiProvider, String> = emptyMap(),
+    val availableModels: List<com.linksi.app.domain.model.AiModel> = emptyList(),
     val modelStatus: SettingsViewModel.ModelStatus = SettingsViewModel.ModelStatus.UNKNOWN,
     val isTestingModel: Boolean = false,
     val selectedLanguage: String = "",
@@ -96,11 +96,18 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             context.dataStore.data.collect { prefs ->
                 val keys = mapOf(
-                    AiProvider.OPENAI    to (prefs[AI_KEY_OPENAI]    ?: ""),
-                    AiProvider.ANTHROPIC to (prefs[AI_KEY_ANTHROPIC] ?: ""),
-                    AiProvider.GEMINI    to (prefs[AI_KEY_GEMINI]    ?: ""),
-                    AiProvider.DEEPSEEK  to (prefs[AI_KEY_DEEPSEEK]  ?: ""),
-                    AiProvider.GROK      to (prefs[AI_KEY_GROK]      ?: "")
+                    AiProvider.OPENAI    to SecureKeyStorage.getKey(context, AiProvider.OPENAI),
+                    AiProvider.ANTHROPIC to SecureKeyStorage.getKey(context, AiProvider.ANTHROPIC),
+                    AiProvider.GEMINI    to SecureKeyStorage.getKey(context, AiProvider.GEMINI),
+                    AiProvider.DEEPSEEK  to SecureKeyStorage.getKey(context, AiProvider.DEEPSEEK),
+                    AiProvider.GROK      to SecureKeyStorage.getKey(context, AiProvider.GROK)
+                )
+                val urls = mapOf(
+                    AiProvider.OPENAI    to (prefs[AI_URL_OPENAI]    ?: ""),
+                    AiProvider.ANTHROPIC to (prefs[AI_URL_ANTHROPIC] ?: ""),
+                    AiProvider.GEMINI    to (prefs[AI_URL_GEMINI]    ?: ""),
+                    AiProvider.DEEPSEEK  to (prefs[AI_URL_DEEPSEEK]  ?: ""),
+                    AiProvider.GROK      to (prefs[AI_URL_GROK]      ?: "")
                 )
                 _uiState.update {
                     it.copy(
@@ -108,6 +115,7 @@ class SettingsViewModel @Inject constructor(
                         aiEnabled        = prefs[AI_ENABLED]        ?: false,
                         selectedModelId  = prefs[AI_SELECTED_MODEL] ?: "claude35sonnet",
                         apiKeys          = keys,
+                        apiBaseUrls      = urls,
                         selectedLanguage = prefs[APP_LANGUAGE] ?: "",
                         themeMode        = prefs[APP_THEME] ?: "system",
                         useAmoled        = prefs[APP_AMOLED] ?: false,
@@ -161,7 +169,7 @@ class SettingsViewModel @Inject constructor(
 
     fun refreshModels() {
         viewModelScope.launch {
-            AiModelRegistry.refreshAll(context, _uiState.value.apiKeys)
+            AiModelRegistry.refreshAll(context, _uiState.value.apiKeys, _uiState.value.apiBaseUrls)
         }
     }
 
@@ -305,17 +313,60 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setApiKey(provider: AiProvider, key: String) {
+        setApiCredentials(provider, key, _uiState.value.apiBaseUrls[provider] ?: "")
+    }
+
+    fun setApiCredentials(provider: AiProvider, key: String, baseUrl: String) {
         viewModelScope.launch {
+            SecureKeyStorage.saveKey(context, provider, key)
             context.dataStore.edit { prefs ->
                 when (provider) {
-                    AiProvider.OPENAI -> prefs[AI_KEY_OPENAI] = key
-                    AiProvider.ANTHROPIC -> prefs[AI_KEY_ANTHROPIC] = key
-                    AiProvider.GEMINI -> prefs[AI_KEY_GEMINI] = key
-                    AiProvider.DEEPSEEK -> prefs[AI_KEY_DEEPSEEK] = key
-                    AiProvider.GROK -> prefs[AI_KEY_GROK] = key
+                    AiProvider.OPENAI -> prefs[AI_URL_OPENAI] = baseUrl
+                    AiProvider.ANTHROPIC -> prefs[AI_URL_ANTHROPIC] = baseUrl
+                    AiProvider.GEMINI -> prefs[AI_URL_GEMINI] = baseUrl
+                    AiProvider.DEEPSEEK -> prefs[AI_URL_DEEPSEEK] = baseUrl
+                    AiProvider.GROK -> prefs[AI_URL_GROK] = baseUrl
                 }
             }
-            refreshModels()
+            _uiState.update { state ->
+                state.copy(
+                    apiKeys = state.apiKeys + (provider to key),
+                    apiBaseUrls = state.apiBaseUrls + (provider to baseUrl)
+                )
+            }
+            try {
+                AiModelRegistry.refreshProvider(context, provider, key, baseUrl)
+                _uiState.update { it.copy(modelStatus = ModelStatus.ACTIVE, updateCheckError = null) }
+            } catch (e: Exception) {
+                val isAuthError = e.message?.contains("401") == true || e.message?.contains("403") == true || e.message?.contains("unauthorized", ignoreCase = true) == true || e.message?.contains("invalid", ignoreCase = true) == true
+                _uiState.update { it.copy(
+                    modelStatus = ModelStatus.ERROR,
+                    updateCheckError = if (isAuthError) context.getString(R.string.invalid_api_key_error) else e.message
+                )}
+            }
+        }
+    }
+
+    fun clearApiKey(provider: AiProvider) {
+        viewModelScope.launch {
+            SecureKeyStorage.clearKey(context, provider)
+            context.dataStore.edit { prefs ->
+                when (provider) {
+                    AiProvider.OPENAI -> prefs.remove(AI_URL_OPENAI)
+                    AiProvider.ANTHROPIC -> prefs.remove(AI_URL_ANTHROPIC)
+                    AiProvider.GEMINI -> prefs.remove(AI_URL_GEMINI)
+                    AiProvider.DEEPSEEK -> prefs.remove(AI_URL_DEEPSEEK)
+                    AiProvider.GROK -> prefs.remove(AI_URL_GROK)
+                }
+            }
+            _uiState.update { state ->
+                state.copy(
+                    apiKeys = state.apiKeys - provider,
+                    apiBaseUrls = state.apiBaseUrls - provider,
+                    modelStatus = ModelStatus.UNKNOWN
+                )
+            }
+            AiModelRegistry.updateModels(context, emptyList(), provider)
         }
     }
 
@@ -479,7 +530,8 @@ class SettingsViewModel @Inject constructor(
                     ),
                     existingFolders = emptyList(),
                     model = model,
-                    apiKey = apiKey
+                    apiKey = apiKey,
+                    baseUrl = _uiState.value.apiBaseUrls[model.provider] ?: ""
                 )
                 result.fold(
                     onSuccess = {

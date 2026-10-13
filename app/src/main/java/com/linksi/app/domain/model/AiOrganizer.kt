@@ -4,7 +4,9 @@ data class AiModel(
     val id: String,
     val name: String,
     val provider: AiProvider,
-    val modelId: String
+    val modelId: String,
+    val isLatest: Boolean = false,
+    val isRecommended: Boolean = false
 )
 
 enum class AiProvider {
@@ -12,71 +14,11 @@ enum class AiProvider {
 }
 
 val AI_MODELS = listOf(
-    // OpenAI
-    AiModel("gpt4o", "GPT-4o", AiProvider.OPENAI, "gpt-4o"),
-    AiModel("gpt41", "GPT-4.1", AiProvider.OPENAI, "gpt-4.1"),
-    AiModel("gpt41mini", "GPT-4.1 Mini", AiProvider.OPENAI, "gpt-4.1-mini"),
-    AiModel("o3", "o3", AiProvider.OPENAI, "o3"),
-
-    // Anthropic
-    AiModel(
-        "claudeSonnet4",
-        "Claude Sonnet 4",
-        AiProvider.ANTHROPIC,
-        "claude-sonnet-4"
-    ),
-
-    AiModel(
-        "claudeOpus4",
-        "Claude Opus 4",
-        AiProvider.ANTHROPIC,
-        "claude-opus-4"
-    ),
-
-    // Gemini
-    AiModel(
-        "gemini25pro",
-        "Gemini 2.5 Pro",
-        AiProvider.GEMINI,
-        "gemini-2.5-pro"
-    ),
-
-    AiModel(
-        "gemini25flash",
-        "Gemini 2.5 Flash",
-        AiProvider.GEMINI,
-        "gemini-2.5-flash"
-    ),
-
-    // DeepSeek
-    AiModel(
-        "deepseekv3",
-        "DeepSeek V3",
-        AiProvider.DEEPSEEK,
-        "deepseek-chat"
-    ),
-
-    AiModel(
-        "deepseekr1",
-        "DeepSeek R1",
-        AiProvider.DEEPSEEK,
-        "deepseek-reasoner"
-    ),
-
-    // Grok
-    AiModel(
-        "grok3",
-        "Grok 3",
-        AiProvider.GROK,
-        "grok-3"
-    ),
-
-    AiModel(
-        "grok3mini",
-        "Grok 3 Mini",
-        AiProvider.GROK,
-        "grok-3-mini"
-    )
+    AiModel("claude-3-5-sonnet-20241022", "Claude 3.5 Sonnet", AiProvider.ANTHROPIC, "claude-3-5-sonnet-20241022", isLatest = true, isRecommended = true),
+    AiModel("gpt-4o", "GPT-4o", AiProvider.OPENAI, "gpt-4o", isLatest = true, isRecommended = true),
+    AiModel("gemini-1.5-pro", "Gemini 1.5 Pro", AiProvider.GEMINI, "gemini-1.5-pro", isLatest = true, isRecommended = true),
+    AiModel("deepseek-chat", "DeepSeek Chat", AiProvider.DEEPSEEK, "deepseek-chat", isLatest = true, isRecommended = true),
+    AiModel("grok-beta", "Grok Beta", AiProvider.GROK, "grok-beta", isLatest = true, isRecommended = true)
 )
 
 class OrganizeScope {

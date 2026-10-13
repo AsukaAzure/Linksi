@@ -381,4 +381,6 @@
     <string name="global_prevent_screenshot">App-wide Screenshot Protection</string>
     <string name="global_prevent_screenshot_desc">Disable screenshots and screen recording throughout the entire app</string>
     <string name="refreshing_metadata_progress">Refreshing metadata (%1$d of %2$d)…</string>
+    <string name="api_link_hint">API Link / Base URL (optional)</string>
+    <string name="api_link_label">API Link (Base URL)</string>
 </resources>

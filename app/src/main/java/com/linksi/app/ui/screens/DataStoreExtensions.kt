@@ -22,6 +22,12 @@ val AI_KEY_ANTHROPIC = stringPreferencesKey("ai_key_anthropic")
 val AI_KEY_GEMINI = stringPreferencesKey("ai_key_gemini")
 val AI_KEY_DEEPSEEK = stringPreferencesKey("ai_key_deepseek")
 val AI_KEY_GROK = stringPreferencesKey("ai_key_grok")
+// Store API URLs per provider
+val AI_URL_OPENAI = stringPreferencesKey("ai_url_openai")
+val AI_URL_ANTHROPIC = stringPreferencesKey("ai_url_anthropic")
+val AI_URL_GEMINI = stringPreferencesKey("ai_url_gemini")
+val AI_URL_DEEPSEEK = stringPreferencesKey("ai_url_deepseek")
+val AI_URL_GROK = stringPreferencesKey("ai_url_grok")
 val APP_LANGUAGE = stringPreferencesKey("app_language")
 val APP_THEME = stringPreferencesKey("app_theme") // Values: "system", "light", "dark"
 val APP_AMOLED = booleanPreferencesKey("app_amoled")

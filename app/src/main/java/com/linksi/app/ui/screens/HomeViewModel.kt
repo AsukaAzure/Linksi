@@ -93,11 +93,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             context.dataStore.data.collect { prefs ->
                 val keys = mapOf(
-                    AiProvider.OPENAI    to (prefs[AI_KEY_OPENAI]    ?: ""),
-                    AiProvider.ANTHROPIC to (prefs[AI_KEY_ANTHROPIC] ?: ""),
-                    AiProvider.GEMINI    to (prefs[AI_KEY_GEMINI]    ?: ""),
-                    AiProvider.DEEPSEEK  to (prefs[AI_KEY_DEEPSEEK]  ?: ""),
-                    AiProvider.GROK      to (prefs[AI_KEY_GROK]      ?: "")
+                    AiProvider.OPENAI    to SecureKeyStorage.getKey(context, AiProvider.OPENAI),
+                    AiProvider.ANTHROPIC to SecureKeyStorage.getKey(context, AiProvider.ANTHROPIC),
+                    AiProvider.GEMINI    to SecureKeyStorage.getKey(context, AiProvider.GEMINI),
+                    AiProvider.DEEPSEEK  to SecureKeyStorage.getKey(context, AiProvider.DEEPSEEK),
+                    AiProvider.GROK      to SecureKeyStorage.getKey(context, AiProvider.GROK)
                 )
                 _uiState.update {
                     it.copy(
@@ -246,16 +246,30 @@ class HomeViewModel @Inject constructor(
                 return@launch
             }
 
-            val domain = extractDomain(normalizedUrl)
-            val faviconUrl = "https://www.google.com/s2/favicons?domain=$domain&sz=64"
+            val cachedMeta = repository.getMetadataFromCache(normalizedUrl)
+
+            val domain = cachedMeta?.domain?.ifBlank { null } ?: extractDomain(normalizedUrl)
+            val faviconUrl = cachedMeta?.faviconUrl?.ifBlank { null } ?: "https://www.google.com/s2/favicons?domain=$domain&sz=64"
+
+            val initialTitle = titleOverride?.takeIf { it.isNotBlank() }
+                ?: cachedMeta?.title?.takeIf { it.isNotBlank() }
+                ?: ""
+
+            val initialDescription = descriptionOverride?.takeIf { it.isNotBlank() }
+                ?: cachedMeta?.description?.takeIf { it.isNotBlank() }
+                ?: ""
+
+            val initialPreviewImage = previewImageOverride?.takeIf { it.isNotBlank() }
+                ?: cachedMeta?.previewImageUrl?.takeIf { it.isNotBlank() }
+                ?: ""
 
             val link = Link(
                 url = normalizedUrl,
-                title = titleOverride ?: "",
-                description = descriptionOverride ?: "",
+                title = initialTitle,
+                description = initialDescription,
                 folderId = folderId,
                 reminderAt = reminderAt,
-                previewImageUrl = previewImageOverride ?: "",
+                previewImageUrl = initialPreviewImage,
                 faviconUrl = faviconUrl,
                 domain = domain,
                 note = note,
@@ -263,8 +277,36 @@ class HomeViewModel @Inject constructor(
                 expiresAt = expiresAt
             )
             try {
-                repository.insertLink(link)
+                val insertedId = repository.insertLink(link)
                 _uiState.update { it.copy(snackbarMessage = context.getString(R.string.link_saved), scrollToTop = true) }
+
+                // Auto-fetch in background if metadata is missing/incomplete
+                if (initialTitle.isBlank() || initialPreviewImage.isBlank()) {
+                    viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            val meta = MetadataFetcher.fetch(normalizedUrl, context)
+                            repository.saveMetadataToCache(normalizedUrl, meta)
+
+                            val savedLink = repository.getLinkById(insertedId)
+                                ?: repository.getLinkByUrl(normalizedUrl)
+
+                            if (savedLink != null) {
+                                val updated = savedLink.copy(
+                                    title = if (savedLink.title.isBlank()) meta.title.take(200) else savedLink.title,
+                                    description = if (savedLink.description.isBlank()) meta.description.take(500) else savedLink.description,
+                                    previewImageUrl = if (savedLink.previewImageUrl.isBlank()) meta.previewImageUrl else savedLink.previewImageUrl,
+                                    faviconUrl = if (savedLink.faviconUrl.isBlank()) meta.faviconUrl else savedLink.faviconUrl,
+                                    domain = if (savedLink.domain.isBlank()) meta.domain else savedLink.domain
+                                )
+                                if (updated != savedLink) {
+                                    repository.updateLink(updated)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Non-critical background metadata fetch error
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 _uiState.update { it.copy(snackbarMessage = context.getString(R.string.link_save_failed)) }
             }

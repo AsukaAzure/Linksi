@@ -12,16 +12,17 @@ class AiOrganizerService {
         links: List<Link>,
         existingFolders: List<Folder>,
         model: AiModel,
-        apiKey: String
+        apiKey: String,
+        baseUrl: String = ""
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
             val prompt = buildPrompt(links, existingFolders)
             val response = when (model.provider) {
-                AiProvider.OPENAI -> callOpenAi(prompt, model.modelId, apiKey)
-                AiProvider.ANTHROPIC -> callAnthropic(prompt, model.modelId, apiKey)
-                AiProvider.GEMINI -> callGemini(prompt, model.modelId, apiKey)
-                AiProvider.DEEPSEEK -> callDeepSeek(prompt, model.modelId, apiKey)
-                AiProvider.GROK -> callGrok(prompt, model.modelId, apiKey)
+                AiProvider.OPENAI -> callOpenAi(prompt, model.modelId, apiKey, baseUrl)
+                AiProvider.ANTHROPIC -> callAnthropic(prompt, model.modelId, apiKey, baseUrl)
+                AiProvider.GEMINI -> callGemini(prompt, model.modelId, apiKey, baseUrl)
+                AiProvider.DEEPSEEK -> callDeepSeek(prompt, model.modelId, apiKey, baseUrl)
+                AiProvider.GROK -> callGrok(prompt, model.modelId, apiKey, baseUrl)
             }
             Result.success(response)
         } catch (e: Exception) {
@@ -72,8 +73,9 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         """.trimIndent()
     }
 
-    private fun callOpenAi(prompt: String, modelId: String, apiKey: String): String {
-        val url = java.net.URL("https://api.openai.com/v1/chat/completions")
+    private fun callOpenAi(prompt: String, modelId: String, apiKey: String, baseUrl: String): String {
+        val endpoint = if (baseUrl.isNotBlank()) "${baseUrl.removeSuffix("/")}/chat/completions" else "https://api.openai.com/v1/chat/completions"
+        val url = java.net.URL(endpoint)
         val body = JSONObject().apply {
             put("model", modelId)
             put("messages", JSONArray().apply {
@@ -97,8 +99,9 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         }
     }
 
-    private fun callAnthropic(prompt: String, modelId: String, apiKey: String): String {
-        val url = java.net.URL("https://api.anthropic.com/v1/messages")
+    private fun callAnthropic(prompt: String, modelId: String, apiKey: String, baseUrl: String): String {
+        val endpoint = if (baseUrl.isNotBlank()) "${baseUrl.removeSuffix("/")}/messages" else "https://api.anthropic.com/v1/messages"
+        val url = java.net.URL(endpoint)
         val body = JSONObject().apply {
             put("model", modelId)
             put("max_tokens", 2000)
@@ -122,10 +125,13 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         }
     }
 
-    private fun callGemini(prompt: String, modelId: String, apiKey: String): String {
-        val url = java.net.URL(
+    private fun callGemini(prompt: String, modelId: String, apiKey: String, baseUrl: String): String {
+        val endpoint = if (baseUrl.isNotBlank()) {
+            if (baseUrl.contains("?")) baseUrl else "$baseUrl/models/$modelId:generateContent?key=$apiKey"
+        } else {
             "https://generativelanguage.googleapis.com/v1beta/models/$modelId:generateContent?key=$apiKey"
-        )
+        }
+        val url = java.net.URL(endpoint)
         val body = JSONObject().apply {
             put("contents", JSONArray().apply {
                 put(JSONObject().apply {
@@ -152,8 +158,9 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         }
     }
 
-    private fun callDeepSeek(prompt: String, modelId: String, apiKey: String): String {
-        val url = java.net.URL("https://api.deepseek.com/chat/completions")
+    private fun callDeepSeek(prompt: String, modelId: String, apiKey: String, baseUrl: String): String {
+        val endpoint = if (baseUrl.isNotBlank()) "${baseUrl.removeSuffix("/")}/chat/completions" else "https://api.deepseek.com/chat/completions"
+        val url = java.net.URL(endpoint)
         val body = JSONObject().apply {
             put("model", modelId)
             put("messages", JSONArray().apply {
@@ -177,8 +184,9 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         }
     }
 
-    private fun callGrok(prompt: String, modelId: String, apiKey: String): String {
-        val url = java.net.URL("https://api.x.ai/v1/chat/completions")
+    private fun callGrok(prompt: String, modelId: String, apiKey: String, baseUrl: String): String {
+        val endpoint = if (baseUrl.isNotBlank()) "${baseUrl.removeSuffix("/")}/chat/completions" else "https://api.x.ai/v1/chat/completions"
+        val url = java.net.URL(endpoint)
         val body = JSONObject().apply {
             put("model", modelId)
             put("messages", JSONArray().apply {
@@ -227,7 +235,6 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
             val errorBody = connection.errorStream?.bufferedReader()?.readText() ?: ""
             val detailedMessage = try {
                 val json = JSONObject(errorBody)
-                // Try to find common error message fields
                 when {
                     json.has("error") -> {
                         val errorObj = json.get("error")
@@ -246,8 +253,9 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         return parseResponse(responseText)
     }
 
-    suspend fun discoverOpenAiModels(apiKey: String): List<AiModel> = withContext(Dispatchers.IO) {
-        val url = java.net.URL("https://api.openai.com/v1/models")
+    suspend fun discoverOpenAiModels(apiKey: String, baseUrl: String = ""): List<AiModel> = withContext(Dispatchers.IO) {
+        val endpoint = if (baseUrl.isNotBlank()) "${baseUrl.removeSuffix("/")}/models" else "https://api.openai.com/v1/models"
+        val url = java.net.URL(endpoint)
         val response = makeHttpRequest(url, null, mapOf(
             "Authorization" to "Bearer $apiKey"
         ), "GET") { it }
@@ -256,21 +264,22 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         val data = json.getJSONArray("data")
         val models = mutableListOf<AiModel>()
         
-        // Match gpt, o1, o3, etc. but exclude embeddings, dall-e, etc.
         val chatRegex = Regex("^(gpt|o1|o3).*", RegexOption.IGNORE_CASE)
         
         for (i in 0 until data.length()) {
             val m = data.getJSONObject(i)
             val id = m.getString("id")
-            if (chatRegex.containsMatchIn(id) && !id.contains("vision") && !id.contains("audio")) {
-                models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.OPENAI, id))
+            if (chatRegex.containsMatchIn(id) && !id.contains("embedding") && !id.contains("audio") && !id.contains("vision") && !id.contains("moderation") && !id.contains("realtime") && !id.contains("tts") && !id.contains("whisper") && !id.contains("dall-e")) {
+                val isRec = id.contains("gpt-4o") || id.contains("o1") || id.contains("o3-mini")
+                models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.OPENAI, id, isLatest = true, isRecommended = isRec))
             }
         }
         models.sortedByDescending { it.id }
     }
 
-    suspend fun discoverAnthropicModels(apiKey: String): List<AiModel> = withContext(Dispatchers.IO) {
-        val url = java.net.URL("https://api.anthropic.com/v1/models")
+    suspend fun discoverAnthropicModels(apiKey: String, baseUrl: String = ""): List<AiModel> = withContext(Dispatchers.IO) {
+        val endpoint = if (baseUrl.isNotBlank()) "${baseUrl.removeSuffix("/")}/models" else "https://api.anthropic.com/v1/models"
+        val url = java.net.URL(endpoint)
         val response = makeHttpRequest(url, null, mapOf(
             "x-api-key" to apiKey,
             "anthropic-version" to "2023-06-01"
@@ -282,14 +291,22 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         for (i in 0 until data.length()) {
             val m = data.getJSONObject(i)
             val id = m.getString("id")
-            val displayName = m.optString("display_name", id)
-            models.add(AiModel(id, displayName, AiProvider.ANTHROPIC, id))
+            if (id.startsWith("claude", ignoreCase = true) && !id.contains("embedding")) {
+                val displayName = m.optString("display_name", id)
+                val isRec = id.contains("claude-3-5")
+                models.add(AiModel(id, displayName, AiProvider.ANTHROPIC, id, isLatest = true, isRecommended = isRec))
+            }
         }
-        models
+        models.sortedByDescending { it.id }
     }
 
-    suspend fun discoverGeminiModels(apiKey: String): List<AiModel> = withContext(Dispatchers.IO) {
-        val url = java.net.URL("https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey")
+    suspend fun discoverGeminiModels(apiKey: String, baseUrl: String = ""): List<AiModel> = withContext(Dispatchers.IO) {
+        val endpoint = if (baseUrl.isNotBlank()) {
+            if (baseUrl.contains("?")) baseUrl else "$baseUrl/models?key=$apiKey"
+        } else {
+            "https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey"
+        }
+        val url = java.net.URL(endpoint)
         val response = makeHttpRequest(url, null, emptyMap(), "GET") { it }
 
         val json = JSONObject(response)
@@ -298,26 +315,42 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         for (i in 0 until data.length()) {
             val m = data.getJSONObject(i)
             val name = m.getString("name").removePrefix("models/")
-            val displayName = m.getString("displayName")
-            val supportedMethods = m.getJSONArray("supportedGenerationMethods")
+            val displayName = m.optString("displayName", name)
+            val supportedMethods = m.optJSONArray("supportedGenerationMethods")
             
             var supportsChat = false
-            for (j in 0 until supportedMethods.length()) {
-                if (supportedMethods.getString(j) == "generateContent") {
-                    supportsChat = true
-                    break
+            if (supportedMethods != null) {
+                for (j in 0 until supportedMethods.length()) {
+                    if (supportedMethods.getString(j) == "generateContent") {
+                        supportsChat = true
+                        break
+                    }
                 }
+            } else {
+                supportsChat = true // fallback if field missing
             }
 
-            if (supportsChat && !name.contains("vision") && !name.contains("embedding")) {
-                models.add(AiModel(name, displayName, AiProvider.GEMINI, name))
+            val isGeminiChat = name.startsWith("gemini-", ignoreCase = true) &&
+                    (name.contains("flash") || name.contains("pro") || name.contains("ultra")) &&
+                    !name.contains("embedding") &&
+                    !name.contains("vision") &&
+                    !name.contains("audio") &&
+                    !name.contains("imagen") &&
+                    !name.contains("gemma") &&
+                    !name.contains("lyria") &&
+                    !name.contains("nano")
+
+            if (supportsChat && isGeminiChat) {
+                val isRec = name.contains("flash") || name.contains("pro")
+                models.add(AiModel(name, displayName, AiProvider.GEMINI, name, isLatest = true, isRecommended = isRec))
             }
         }
-        models
+        models.sortedByDescending { it.id }
     }
 
-    suspend fun discoverDeepSeekModels(apiKey: String): List<AiModel> = withContext(Dispatchers.IO) {
-        val url = java.net.URL("https://api.deepseek.com/models")
+    suspend fun discoverDeepSeekModels(apiKey: String, baseUrl: String = ""): List<AiModel> = withContext(Dispatchers.IO) {
+        val endpoint = if (baseUrl.isNotBlank()) "${baseUrl.removeSuffix("/")}/models" else "https://api.deepseek.com/models"
+        val url = java.net.URL(endpoint)
         val response = makeHttpRequest(url, null, mapOf(
             "Authorization" to "Bearer $apiKey"
         ), "GET") { it }
@@ -328,13 +361,17 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         for (i in 0 until data.length()) {
             val m = data.getJSONObject(i)
             val id = m.getString("id")
-            models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.DEEPSEEK, id))
+            if ((id.contains("chat") || id.contains("reasoner")) && !id.contains("embedding")) {
+                val isRec = id.contains("chat") || id.contains("reasoner")
+                models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.DEEPSEEK, id, isLatest = true, isRecommended = isRec))
+            }
         }
-        models
+        models.sortedByDescending { it.id }
     }
 
-    suspend fun discoverGrokModels(apiKey: String): List<AiModel> = withContext(Dispatchers.IO) {
-        val url = java.net.URL("https://api.x.ai/v1/models")
+    suspend fun discoverGrokModels(apiKey: String, baseUrl: String = ""): List<AiModel> = withContext(Dispatchers.IO) {
+        val endpoint = if (baseUrl.isNotBlank()) "${baseUrl.removeSuffix("/")}/models" else "https://api.x.ai/v1/models"
+        val url = java.net.URL(endpoint)
         val response = makeHttpRequest(url, null, mapOf(
             "Authorization" to "Bearer $apiKey"
         ), "GET") { it }
@@ -345,9 +382,11 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         for (i in 0 until data.length()) {
             val m = data.getJSONObject(i)
             val id = m.getString("id")
-            models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.GROK, id))
+            if (id.contains("grok", ignoreCase = true) && !id.contains("embedding") && !id.contains("image") && !id.contains("vision")) {
+                models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.GROK, id, isLatest = true, isRecommended = true))
+            }
         }
-        models
+        models.sortedByDescending { it.id }
     }
 
     private fun String.capitalizeWords(): String = split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
@@ -357,7 +396,6 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         links: List<Link>,
         existingFolders: List<Folder>
     ): OrganizePlan {
-        // Strip markdown code blocks if present
         val cleaned = response
             .replace("```json", "")
             .replace("```", "")
@@ -380,7 +418,6 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
                         )
                     )
                 } else if (item is String) {
-                    // Fallback for older models/unexpected formats
                     newFolders.add(NewFolderPlan(item, "folder", "#6750A4", null))
                 }
             }

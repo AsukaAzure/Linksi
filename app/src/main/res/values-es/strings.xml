@@ -374,4 +374,6 @@
     <string name="link_restored">Enlace restaurado</string>
     <string name="links_permanently_deleted">Eliminados permanentemente %1$d enlaces</string>
     <string name="refreshing_metadata_progress">Actualizando metadatos (%1$d de %2$d)…</string>
+    <string name="api_link_hint">Enlace API / URL base (opcional)</string>
+    <string name="api_link_label">Enlace API (URL Base)</string>
 </resources>

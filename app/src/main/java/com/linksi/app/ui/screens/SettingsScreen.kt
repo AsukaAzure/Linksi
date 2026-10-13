@@ -135,22 +135,7 @@ fun SettingsScreen(
                         modifier = Modifier.padding(horizontal = 16.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                     )
-                    SettingsItem(
-                        icon = Icons.Outlined.AutoAwesome,
-                        title = stringResource(id = com.linksi.app.R.string.ai_organizer),
-                        subtitle = stringResource(id = com.linksi.app.R.string.ai_organizer_subtitle),
-                        onClick = { showAiSettings = true },
-                        trailingContent = {
-                            Icon(
-                                Icons.Outlined.ChevronRight, null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    )
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
+
                     SettingsItem(
                         icon = Icons.Outlined.DeleteOutline,
                         title = stringResource(id = com.linksi.app.R.string.trash_bin),
@@ -921,11 +906,13 @@ fun LanguagePickerSheet(
 fun ApiKeyItem(
     provider: AiProvider,
     currentKey: String,
-    onSave: (String) -> Unit,
+    currentUrl: String = "",
+    onSave: (String, String) -> Unit,
     enabled: Boolean = true
 ) {
     var editing by remember { mutableStateOf(false) }
     var keyInput by remember { mutableStateOf(currentKey) }
+    var urlInput by remember { mutableStateOf(currentUrl) }
     var showKey by remember { mutableStateOf(false) }
 
     val providerName = when (provider) {
@@ -957,7 +944,7 @@ fun ApiKeyItem(
                 )
             }
             TextButton(
-                onClick = { editing = !editing; keyInput = currentKey },
+                onClick = { editing = !editing; keyInput = currentKey; urlInput = currentUrl },
                 enabled = enabled
             ) {
                 Text(if (editing) stringResource(id = com.linksi.app.R.string.cancel) else if (currentKey.isBlank()) stringResource(id = com.linksi.app.R.string.add) else stringResource(id = com.linksi.app.R.string.edit))
@@ -965,17 +952,17 @@ fun ApiKeyItem(
         }
 
         if (editing && enabled) {
-            OutlinedTextField(
-                value = keyInput,
-                onValueChange = { keyInput = it },
-                placeholder = { Text(stringResource(id = com.linksi.app.R.string.paste_api_key)) },
-                singleLine = true,
-                visualTransformation = if (showKey)
-                    androidx.compose.ui.text.input.VisualTransformation.None
-                else
-                    androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                trailingIcon = {
-                    Row {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = keyInput,
+                    onValueChange = { keyInput = it },
+                    placeholder = { Text(stringResource(id = com.linksi.app.R.string.paste_api_key)) },
+                    singleLine = true,
+                    visualTransformation = if (showKey)
+                        androidx.compose.ui.text.input.VisualTransformation.None
+                    else
+                        androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    trailingIcon = {
                         IconButton(onClick = { showKey = !showKey }) {
                             Icon(
                                 if (showKey) Icons.Outlined.VisibilityOff
@@ -983,29 +970,51 @@ fun ApiKeyItem(
                                 null
                             )
                         }
-                        IconButton(
-                            onClick = {
-                                onSave(keyInput.trim())
-                                editing = false
-                            },
-                            enabled = keyInput.isNotBlank()
-                        ) {
-                            Icon(
-                                Icons.Outlined.Check, null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = urlInput,
+                    onValueChange = { urlInput = it },
+                    placeholder = { Text(stringResource(id = com.linksi.app.R.string.api_link_hint)) },
+                    label = { Text(stringResource(id = com.linksi.app.R.string.api_link_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = {
+                            onSave(keyInput.trim(), urlInput.trim())
+                            editing = false
+                        },
+                        enabled = keyInput.isNotBlank()
+                    ) {
+                        Text(stringResource(id = com.linksi.app.R.string.save))
                     }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
+                }
+            }
         } else if (currentKey.isNotBlank()) {
-            Text(
-                "••••••••${currentKey.takeLast(4)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha)
-            )
+            Column {
+                Text(
+                    "••••••••${currentKey.takeLast(4)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha)
+                )
+                if (currentUrl.isNotBlank()) {
+                    Text(
+                        currentUrl,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = alpha)
+                    )
+                }
+            }
         }
     }
 }

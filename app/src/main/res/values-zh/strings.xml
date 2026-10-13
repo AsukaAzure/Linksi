@@ -371,4 +371,6 @@
     <string name="link_restored">链接已恢复</string>
     <string name="links_permanently_deleted">已永久删除 %1$d 个链接</string>
     <string name="refreshing_metadata_progress">正在刷新元数据（%1$d/%2$d）…</string>
+    <string name="api_link_hint">API 链接 / 基础 URL（可选）</string>
+    <string name="api_link_label">API 链接（基础 URL）</string>
 </resources>

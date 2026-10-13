@@ -30,6 +30,7 @@ data class AiOrganizerUiState(
     val isEnabled: Boolean = false,
     val selectedModelId: String = "claude3sonnet",
     val apiKeys: Map<AiProvider, String> = emptyMap(),
+    val apiBaseUrls: Map<AiProvider, String> = emptyMap(),
     val availableModels: List<AiModel> = AI_MODELS,
 
     // Organize flow
@@ -82,7 +83,7 @@ class AiOrganizerViewModel @Inject constructor(
 
     fun refreshModels() {
         viewModelScope.launch {
-            AiModelRegistry.refreshAll(context, _uiState.value.apiKeys)
+            AiModelRegistry.refreshAll(context, _uiState.value.apiKeys, _uiState.value.apiBaseUrls)
         }
     }
 
@@ -92,17 +93,25 @@ class AiOrganizerViewModel @Inject constructor(
         viewModelScope.launch {
             context.dataStore.data.collect { prefs ->
                 val keys = mapOf(
-                    AiProvider.OPENAI to (prefs[AI_KEY_OPENAI] ?: ""),
-                    AiProvider.ANTHROPIC to (prefs[AI_KEY_ANTHROPIC] ?: ""),
-                    AiProvider.GEMINI to (prefs[AI_KEY_GEMINI] ?: ""),
-                    AiProvider.DEEPSEEK to (prefs[AI_KEY_DEEPSEEK] ?: ""),
-                    AiProvider.GROK to (prefs[AI_KEY_GROK] ?: "")
+                    AiProvider.OPENAI to SecureKeyStorage.getKey(context, AiProvider.OPENAI),
+                    AiProvider.ANTHROPIC to SecureKeyStorage.getKey(context, AiProvider.ANTHROPIC),
+                    AiProvider.GEMINI to SecureKeyStorage.getKey(context, AiProvider.GEMINI),
+                    AiProvider.DEEPSEEK to SecureKeyStorage.getKey(context, AiProvider.DEEPSEEK),
+                    AiProvider.GROK to SecureKeyStorage.getKey(context, AiProvider.GROK)
+                )
+                val urls = mapOf(
+                    AiProvider.OPENAI to (prefs[AI_URL_OPENAI] ?: ""),
+                    AiProvider.ANTHROPIC to (prefs[AI_URL_ANTHROPIC] ?: ""),
+                    AiProvider.GEMINI to (prefs[AI_URL_GEMINI] ?: ""),
+                    AiProvider.DEEPSEEK to (prefs[AI_URL_DEEPSEEK] ?: ""),
+                    AiProvider.GROK to (prefs[AI_URL_GROK] ?: "")
                 )
                 _uiState.update {
                     it.copy(
                         isEnabled = prefs[AI_ENABLED] ?: false,
                         selectedModelId = prefs[AI_SELECTED_MODEL] ?: "claude3sonnet",
-                        apiKeys = keys
+                        apiKeys = keys,
+                        apiBaseUrls = urls
                     )
                 }
             }
@@ -118,6 +127,7 @@ class AiOrganizerViewModel @Inject constructor(
             val state = _uiState.value
             val model = state.availableModels.find { it.id == state.selectedModelId } ?: return@launch
             val apiKey = state.apiKeys[model.provider] ?: ""
+            val baseUrl = state.apiBaseUrls[model.provider] ?: ""
 
             if (apiKey.isBlank()) {
                 _uiState.update { it.copy(
@@ -145,7 +155,8 @@ class AiOrganizerViewModel @Inject constructor(
                     ),
                     existingFolders = emptyList(),
                     model = model,
-                    apiKey = apiKey
+                    apiKey = apiKey,
+                    baseUrl = baseUrl
                 )
                 result.fold(
                     onSuccess = {
@@ -175,7 +186,6 @@ class AiOrganizerViewModel @Inject constructor(
 
     private fun mapErrorToMessage(e: Throwable): String {
         val msg = e.message ?: ""
-        // If it's a known resource-mapped error, return the resource
         return when {
             msg.contains("400") && msg.contains("invalid", ignoreCase = true) -> context.getString(com.linksi.app.R.string.error_invalid_request)
             msg.contains("401") -> context.getString(com.linksi.app.R.string.invalid_api_key_error)
@@ -184,7 +194,6 @@ class AiOrganizerViewModel @Inject constructor(
                 context.getString(com.linksi.app.R.string.quota_exceeded_error)
             msg.contains("insufficient", ignoreCase = true) -> context.getString(com.linksi.app.R.string.error_insufficient_credits)
             msg.contains("Unable to resolve host") -> context.getString(com.linksi.app.R.string.error_network)
-            // If the message contains actual details (more than 10 chars and not just a code), show it
             msg.length > 10 && !msg.startsWith("HTTP") -> msg
             else -> context.getString(com.linksi.app.R.string.generic_error_prefix, msg.take(100))
         }
@@ -205,17 +214,13 @@ class AiOrganizerViewModel @Inject constructor(
 
     fun setApiKey(provider: AiProvider, key: String) {
         viewModelScope.launch {
-            context.dataStore.edit { prefs ->
-                when (provider) {
-                    AiProvider.OPENAI -> prefs[AI_KEY_OPENAI] = key
-                    AiProvider.ANTHROPIC -> prefs[AI_KEY_ANTHROPIC] = key
-                    AiProvider.GEMINI -> prefs[AI_KEY_GEMINI] = key
-                    AiProvider.DEEPSEEK -> prefs[AI_KEY_DEEPSEEK] = key
-                    AiProvider.GROK -> prefs[AI_KEY_GROK] = key
-                }
+            SecureKeyStorage.saveKey(context, provider, key)
+            _uiState.update { it.copy(modelStatus = SettingsViewModel.ModelStatus.UNKNOWN, testErrorMessage = null, apiKeys = it.apiKeys + (provider to key)) }
+            try {
+                AiModelRegistry.refreshProvider(context, provider, key, _uiState.value.apiBaseUrls[provider] ?: "")
+            } catch (e: Exception) {
+                // Ignore background refresh failure
             }
-            _uiState.update { it.copy(modelStatus = SettingsViewModel.ModelStatus.UNKNOWN, testErrorMessage = null) }
-            refreshModels()
         }
     }
 
@@ -244,6 +249,7 @@ class AiOrganizerViewModel @Inject constructor(
             val state = _uiState.value
             val model = state.availableModels.find { it.id == state.selectedModelId } ?: return@launch
             val apiKey = state.apiKeys[model.provider] ?: ""
+            val baseUrl = state.apiBaseUrls[model.provider] ?: ""
 
             if (apiKey.isBlank()) {
                 _uiState.update { it.copy(
@@ -286,7 +292,8 @@ class AiOrganizerViewModel @Inject constructor(
                     links = batch,
                     existingFolders = folders,
                     model = model,
-                    apiKey = apiKey
+                    apiKey = apiKey,
+                    baseUrl = baseUrl
                 )
 
                 result.fold(
@@ -317,7 +324,8 @@ class AiOrganizerViewModel @Inject constructor(
                 step = AiOrganizerStep.PREVIEW,
                 plan = OrganizePlan(
                     linkPlans = allLinkPlans,
-                    allNewFolders.distinctBy { it.name }                 )
+                    newFolders = allNewFolders.distinctBy { it.name }
+                )
             )}
         }
     }
@@ -335,12 +343,10 @@ class AiOrganizerViewModel @Inject constructor(
                 )
             }
 
-            // Save snapshot for revert BEFORE making any changes
             val snapshot = plan.linkPlans.map { lp ->
                 LinkSnapshot(linkId = lp.link.id, originalFolderId = lp.link.folderId)
             }
 
-            // Create new folders first — maintaining hierarchy
             val newFolderIdMap = mutableMapOf<String, Long>()
             val remainingFolders = plan.newFolders.toMutableList()
             
@@ -348,78 +354,46 @@ class AiOrganizerViewModel @Inject constructor(
                 val iterator = remainingFolders.iterator()
                 var insertedThisPass = 0
                 while (iterator.hasNext()) {
-                    val folderPlan = iterator.next()
-                    val parentRef = folderPlan.parentId
-                    
-                    // Can we insert this folder? Yes if:
-                    // 1. No parent
-                    // 2. Parent is an existing ID (Long)
-                    // 3. Parent is a new folder name that was already inserted
-                    val parentId = when {
-                        parentRef == null -> null
-                        parentRef.toLongOrNull() != null -> parentRef.toLong()
-                        newFolderIdMap.containsKey(parentRef) -> newFolderIdMap[parentRef]
-                        else -> null // We'll try next pass if it refers to a new folder not yet created
-                    }
-                    
-                    val shouldWait = parentRef != null && 
-                                   parentRef.toLongOrNull() == null && 
-                                   !newFolderIdMap.containsKey(parentRef)
-                    
-                    if (!shouldWait) {
-                        // Check if a folder with this name and parent already exists to avoid duplicates
-                        val existingFolder = repository.getFolderByNameAndParent(folderPlan.name, parentId)
-                        val newId = if (existingFolder != null) {
-                            existingFolder.id
-                        } else {
-                            repository.insertFolder(
-                                Folder(
-                                    name = folderPlan.name,
-                                    icon = folderPlan.icon,
-                                    color = folderPlan.color,
-                                    parentId = parentId
-                                )
-                            )
+                    val nf = iterator.next()
+                    val resolvedParentId = when {
+                        nf.parentId == null -> null
+                        newFolderIdMap.containsKey(nf.parentId) -> newFolderIdMap[nf.parentId]
+                        else -> {
+                            nf.parentId.toLongOrNull()
                         }
-                        newFolderIdMap[folderPlan.name] = newId
+                    }
+
+                    if (nf.parentId == null || resolvedParentId != null) {
+                        val newFolder = Folder(
+                            name = nf.name,
+                            icon = nf.icon,
+                            color = nf.color,
+                            parentId = resolvedParentId
+                        )
+                        val newId = repository.insertFolder(newFolder)
+                        newFolderIdMap[nf.name] = newId
                         iterator.remove()
                         insertedThisPass++
                     }
                 }
-                if (insertedThisPass == 0) {
-                    // Circular or missing — just insert the rest as root
-                    remainingFolders.forEach { folderPlan ->
-                        val existingFolder = repository.getFolderByNameAndParent(folderPlan.name, null)
-                        val newId = if (existingFolder != null) {
-                            existingFolder.id
-                        } else {
-                            repository.insertFolder(
-                                Folder(
-                                    name = folderPlan.name,
-                                    icon = folderPlan.icon,
-                                    color = folderPlan.color,
-                                    parentId = null
-                                )
-                            )
-                        }
-                        newFolderIdMap[folderPlan.name] = newId
+                if (insertedThisPass == 0 && remainingFolders.isNotEmpty()) {
+                    for (nf in remainingFolders) {
+                        val newFolder = Folder(name = nf.name, icon = nf.icon, color = nf.color, parentId = null)
+                        val newId = repository.insertFolder(newFolder)
+                        newFolderIdMap[nf.name] = newId
                     }
                     remainingFolders.clear()
                 }
             }
 
-            // Apply link assignments
-            plan.linkPlans.forEachIndexed { index, lp ->
-                val targetFolderId = if (lp.isNewFolder) {
-                    newFolderIdMap[lp.targetFolderName]
-                } else {
-                    lp.targetFolderId
+            for ((index, lp) in plan.linkPlans.withIndex()) {
+                val targetFolderId = lp.targetFolderId ?: newFolderIdMap[lp.targetFolderName]
+                if (targetFolderId != null) {
+                    repository.moveToFolder(lp.link.id, targetFolderId)
                 }
-                repository.moveToFolder(lp.link.id, targetFolderId)
                 _uiState.update { it.copy(applyProgress = index + 1) }
             }
 
-            // Save session for revert
             val session = AiOrganizerSession(
                 sessionId = plan.sessionId,
                 timestamp = System.currentTimeMillis(),
@@ -438,133 +412,95 @@ class AiOrganizerViewModel @Inject constructor(
         }
     }
 
-    fun resetToIdle() {
-        _uiState.update {
-            it.copy(
-                step = AiOrganizerStep.IDLE,
-                plan = null,
-                errorMessage = null
-            )
-        }
-    }
-
-    fun onScreenOpened() {
-        refreshModels()
-        val currentStep = _uiState.value.step
-        if (currentStep == AiOrganizerStep.DONE || currentStep == AiOrganizerStep.ERROR) {
-            _uiState.update {
-                it.copy(
-                    step = AiOrganizerStep.IDLE,
-                    plan = null,
-                    errorMessage = null
-                )
-            }
-        }
-    }
-
-    // ── Revert ────────────────────────────────────────────────
-
-    fun revertLastSession() {
+    fun revertLastOrganization() {
+        val session = _uiState.value.lastSession ?: return
         viewModelScope.launch {
-            val session = _uiState.value.lastSession ?: return@launch
-
-            // Restore each link to original folder
-            session.movedLinks.forEach { snapshot ->
+            for (snapshot in session.movedLinks) {
                 repository.moveToFolder(snapshot.linkId, snapshot.originalFolderId)
             }
-
-            // Delete folders that were created by AI
-            session.createdFolderNames.forEach { name ->
-                val folder = repository.getFolderByName(name)
-                folder?.let { repository.deleteFolder(it) }
-            }
-
-            clearSession()
+            clearLastSession()
             _uiState.update {
                 it.copy(
-                    hasRevertableSession = false,
                     lastSession = null,
-                    step = AiOrganizerStep.IDLE
+                    hasRevertableSession = false,
+                    snackbarMessage = context.getString(com.linksi.app.R.string.undo_organization)
                 )
             }
         }
     }
-
-    // ── Session persistence ───────────────────────────────────
-
-    fun dismissSnackbar() {
-        _uiState.update { it.copy(snackbarMessage = null, testErrorMessage = null) }
-    }
-
-    private val SESSION_KEY = stringPreferencesKey("ai_last_session")
 
     private fun saveSession(session: AiOrganizerSession) {
         viewModelScope.launch {
-            try {
-                val sessionKey = stringPreferencesKey("ai_last_session")
-                val json = JSONObject().apply {
+            context.dataStore.edit { prefs ->
+                prefs[AI_LAST_SESSION] = JSONObject().apply {
                     put("sessionId", session.sessionId)
                     put("timestamp", session.timestamp)
-                    put("movedLinks", JSONArray(session.movedLinks.map { snap ->
-                        JSONObject().apply {
-                            put("linkId", snap.linkId)
-                            put("originalFolderId", snap.originalFolderId ?: JSONObject.NULL)
+                    put("movedLinks", JSONArray().apply {
+                        session.movedLinks.forEach { ml ->
+                            put(JSONObject().apply {
+                                put("linkId", ml.linkId)
+                                put("originalFolderId", ml.originalFolderId ?: -1L)
+                            })
                         }
-                    }))
-                    put("createdFolderNames", JSONArray(session.createdFolderNames))
+                    })
                 }.toString()
-                context.dataStore.edit { it[sessionKey] = json }
-            } catch (e: Exception) {
             }
         }
     }
 
     private fun loadLastSession() {
         viewModelScope.launch {
-            try {
-                val sessionKey = stringPreferencesKey("ai_last_session")
-                val prefs = context.dataStore.data.first()
-                val json = prefs[sessionKey] ?: return@launch
-
-                val obj = JSONObject(json)
-                val movedLinks = mutableListOf<LinkSnapshot>()
-                val arr = obj.getJSONArray("movedLinks")
-                for (i in 0 until arr.length()) {
-                    val snap = arr.getJSONObject(i)
-                    movedLinks.add(
-                        LinkSnapshot(
-                            linkId = snap.getLong("linkId"),
-                            originalFolderId = if (snap.isNull("originalFolderId")) null
-                            else snap.getLong("originalFolderId")
+            context.dataStore.data.collect { prefs ->
+                val jsonStr = prefs[AI_LAST_SESSION] ?: return@collect
+                try {
+                    val obj = JSONObject(jsonStr)
+                    val sessionId = obj.getString("sessionId")
+                    val timestamp = obj.getLong("timestamp")
+                    val linksArr = obj.getJSONArray("movedLinks")
+                    val movedLinks = mutableListOf<LinkSnapshot>()
+                    for (i in 0 until linksArr.length()) {
+                        val mlObj = linksArr.getJSONObject(i)
+                        val linkId = mlObj.getLong("linkId")
+                        val origId = mlObj.getLong("originalFolderId").let { if (it == -1L) null else it }
+                        movedLinks.add(LinkSnapshot(linkId, origId))
+                    }
+                    val session = AiOrganizerSession(sessionId, timestamp, movedLinks, emptyList())
+                    _uiState.update {
+                        it.copy(
+                            lastSession = session,
+                            hasRevertableSession = true
                         )
-                    )
+                    }
+                } catch (e: Exception) {
+                    // ignore
                 }
-                val createdNames = mutableListOf<String>()
-                val namesArr = obj.getJSONArray("createdFolderNames")
-                for (i in 0 until namesArr.length()) {
-                    createdNames.add(namesArr.getString(i))
-                }
-                val session = AiOrganizerSession(
-                    sessionId = obj.getString("sessionId"),
-                    timestamp = obj.getLong("timestamp"),
-                    movedLinks = movedLinks,
-                    createdFolderNames = createdNames
-                )
-                _uiState.update {
-                    it.copy(
-                        lastSession = session,
-                        hasRevertableSession = true
-                    )
-                }
-            } catch (e: Exception) {
-                // Silently ignore — no session or corrupted
             }
         }
     }
 
-    private fun clearSession() {
+    private fun clearLastSession() {
         viewModelScope.launch {
-            context.dataStore.edit { it.remove(SESSION_KEY) }
+            context.dataStore.edit { prefs ->
+                prefs.remove(AI_LAST_SESSION)
+            }
         }
+    }
+
+    fun clearSnackbar() {
+        _uiState.update { it.copy(snackbarMessage = null) }
+    }
+
+    fun onScreenOpened() {}
+
+    fun revertLastSession() {
+        revertLastOrganization()
+    }
+
+    fun resetToIdle() {
+        cancelOrganize()
+    }
+
+    companion object {
+        private val AI_LAST_SESSION = stringPreferencesKey("ai_last_session")
     }
 }

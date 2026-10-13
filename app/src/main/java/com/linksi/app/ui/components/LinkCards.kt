@@ -3,8 +3,10 @@ package com.linksi.app.ui.components
 import android.content.Intent
 import android.net.Uri
 import androidx.core.net.toUri
+import kotlin.math.abs
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1129,7 +1131,7 @@ fun LinkOptionsSheet(
                     OptionsFullRow(
                         icon = Icons.Outlined.Folder,
                         title = stringResource(R.string.move_to_folder),
-                        onClick = { onMoveToFolder(); dismiss() }
+                        onClick = { onMoveToFolder() }
                     )
 
                     // ── Set note ──────────────────────────────────────
@@ -1188,7 +1190,7 @@ fun LinkOptionsSheet(
                         title = if (link.isPinned) stringResource(R.string.unpin_link) else stringResource(R.string.pin_to_top),
                         subtitle = if (!link.isPinned) stringResource(R.string.keep_pinned_desc) else null,
                         iconTint = if (link.isPinned) MaterialTheme.colorScheme.primary else null,
-                        onClick = { onPin(); dismiss() }
+                        onClick = { onPin() }
                     )
 
                     Spacer(Modifier.height(4.dp))
@@ -1217,7 +1219,7 @@ fun LinkOptionsSheet(
     if (showNoteSheet) {
         NoteBottomSheet(
             currentNote = link.note,
-            onSave = { note -> onSetNote(note); showNoteSheet = false; dismiss() },
+            onSave = { note -> onSetNote(note); showNoteSheet = false },
             onDismiss = { showNoteSheet = false }
         )
     }
@@ -1225,7 +1227,7 @@ fun LinkOptionsSheet(
     if (showReminderSheet) {
         ReminderBottomSheet(
             currentReminder = link.reminderAt,
-            onSet = { time -> onSetReminder(time); showReminderSheet = false; dismiss() },
+            onSet = { time -> onSetReminder(time); showReminderSheet = false },
             onDismiss = { showReminderSheet = false }
         )
     }
@@ -1233,7 +1235,7 @@ fun LinkOptionsSheet(
     if (showExpirySheet) {
         ExpiryBottomSheet(
             currentExpiry = link.expiresAt,
-            onSet = { time -> onSetExpiry(time); showExpirySheet = false; dismiss() },
+            onSet = { time -> onSetExpiry(time); showExpirySheet = false },
             onDismiss = { showExpirySheet = false }
         )
     }
@@ -1242,7 +1244,7 @@ fun LinkOptionsSheet(
         TagManagerSheet(
             currentTags = link.tags,
             allExistingTags = allTags,
-            onSave = { tags -> onSetTags(tags); showTagSheet = false; dismiss() },
+            onSave = { tags -> onSetTags(tags); showTagSheet = false },
             onDismiss = { showTagSheet = false },
             onDeleteTagGlobally = onDeleteTagGlobally
         )
@@ -1424,35 +1426,28 @@ fun ReminderBottomSheet(
     val scope = rememberCoroutineScope()
 
     val now = System.currentTimeMillis()
-    val cal = Calendar.getInstance()
 
-    // Tonight 9:30 PM
-    val tonightTime = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, 21)
-        set(Calendar.MINUTE, 30)
-        set(Calendar.SECOND, 0)
-        if (timeInMillis < now) add(Calendar.DAY_OF_YEAR, 1)
-    }.timeInMillis
+    val oneHourLater = now + 60 * 60 * 1000L
+    val twelveHoursLater = now + 12 * 60 * 60 * 1000L
+    val oneDayLater = now + 24 * 60 * 60 * 1000L
 
-    // Tomorrow 8:30 PM
-    val tomorrowTime = Calendar.getInstance().apply {
-        add(Calendar.DAY_OF_YEAR, 1)
-        set(Calendar.HOUR_OF_DAY, 20)
-        set(Calendar.MINUTE, 30)
-        set(Calendar.SECOND, 0)
-    }.timeInMillis
-
-    // Next week same time
-    val nextWeekTime = Calendar.getInstance().apply {
-        add(Calendar.WEEK_OF_YEAR, 1)
-        set(Calendar.HOUR_OF_DAY, 20)
-        set(Calendar.MINUTE, 30)
-        set(Calendar.SECOND, 0)
-    }.timeInMillis
+    val is1HrActive = currentReminder != null && abs((currentReminder - now) - 3600_000L) < 15 * 60 * 1000L
+    val is12HrActive = currentReminder != null && abs((currentReminder - now) - 12 * 3600_000L) < 45 * 60 * 1000L
+    val is1DayActive = currentReminder != null && abs((currentReminder - now) - 24 * 3600_000L) < 90 * 60 * 1000L
+    val isCustomActive = currentReminder != null && !is1HrActive && !is12HrActive && !is1DayActive
 
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val dateFormatter = remember { SimpleDateFormat("EEE h:mm a", Locale.getDefault()) }
-    val fullFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+
+    val customSubtitle = if (isCustomActive) {
+        dateFormatter.format(Date(currentReminder))
+    } else {
+        "Pick date & time"
+    }
+
+    val greenColor = Color(0xFF22C55E)
+    val greenContainer = Color(0xFF22C55E).copy(alpha = 0.15f)
+    val greenText = Color(0xFF166534)
 
     fun dismiss() {
         scope.launch { sheetState.hide(); onDismiss() }
@@ -1501,21 +1496,37 @@ fun ReminderBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Later today
+                // 1 hr
                 ReminderOptionCard(
-                    icon = Icons.Outlined.WbTwilight,
-                    title = stringResource(R.string.later_today),
-                    subtitle = timeFormatter.format(Date(tonightTime)),
+                    icon = Icons.Outlined.HourglassTop,
+                    title = "1 hour",
+                    subtitle = timeFormatter.format(Date(oneHourLater)),
+                    isSelected = is1HrActive,
+                    selectedContainerColor = greenContainer,
+                    selectedBorderColor = greenColor,
+                    selectedIconColor = greenColor,
+                    selectedTextColor = greenText,
                     modifier = Modifier.weight(1f),
-                    onClick = { onSet(tonightTime); dismiss() }
+                    onClick = {
+                        if (is1HrActive) onSet(null) else onSet(oneHourLater)
+                        dismiss()
+                    }
                 )
-                // Tomorrow
+                // 12 hr
                 ReminderOptionCard(
-                    icon = Icons.Outlined.LightMode,
-                    title = stringResource(R.string.tomorrow),
-                    subtitle = timeFormatter.format(Date(tomorrowTime)),
+                    icon = Icons.Outlined.Update,
+                    title = "12 hours",
+                    subtitle = dateFormatter.format(Date(twelveHoursLater)),
+                    isSelected = is12HrActive,
+                    selectedContainerColor = greenContainer,
+                    selectedBorderColor = greenColor,
+                    selectedIconColor = greenColor,
+                    selectedTextColor = greenText,
                     modifier = Modifier.weight(1f),
-                    onClick = { onSet(tomorrowTime); dismiss() }
+                    onClick = {
+                        if (is12HrActive) onSet(null) else onSet(twelveHoursLater)
+                        dismiss()
+                    }
                 )
             }
 
@@ -1525,38 +1536,42 @@ fun ReminderBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Next week
+                // 1 day
                 ReminderOptionCard(
-                    icon = Icons.Outlined.CalendarMonth,
-                    title = stringResource(R.string.next_week),
-                    subtitle = dateFormatter.format(Date(nextWeekTime)),
+                    icon = Icons.Outlined.CalendarToday,
+                    title = "1 day",
+                    subtitle = dateFormatter.format(Date(oneDayLater)),
+                    isSelected = is1DayActive,
+                    selectedContainerColor = greenContainer,
+                    selectedBorderColor = greenColor,
+                    selectedIconColor = greenColor,
+                    selectedTextColor = greenText,
                     modifier = Modifier.weight(1f),
-                    onClick = { onSet(nextWeekTime); dismiss() }
+                    onClick = {
+                        if (is1DayActive) onSet(null) else onSet(oneDayLater)
+                        dismiss()
+                    }
                 )
-                // Pick custom
+                // Custom
                 ReminderOptionCard(
                     icon = Icons.Outlined.EditCalendar,
-                    title = stringResource(R.string.pick_date_time),
-                    subtitle = fullFormatter.format(Date(now)),
+                    title = "Custom",
+                    subtitle = customSubtitle,
+                    isSelected = isCustomActive,
+                    selectedContainerColor = greenContainer,
+                    selectedBorderColor = greenColor,
+                    selectedIconColor = greenColor,
+                    selectedTextColor = greenText,
                     modifier = Modifier.weight(1f),
-                    onClick = { showDatePicker = true }
+                    onClick = {
+                        if (isCustomActive) {
+                            onSet(null)
+                            dismiss()
+                        } else {
+                            showDatePicker = true
+                        }
+                    }
                 )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            if (currentReminder != null) {
-                OutlinedButton(
-                    onClick = { onSet(null); dismiss() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(Icons.Outlined.NotificationsOff, null, Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.remove_reminder))
-                }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -1630,16 +1645,33 @@ fun ReminderOptionCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    isSelected: Boolean = false,
+    selectedContainerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    selectedBorderColor: Color = MaterialTheme.colorScheme.primary,
+    selectedIconColor: Color = MaterialTheme.colorScheme.primary,
+    selectedTextColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val surfaceColor = if (isSelected) selectedContainerColor else MaterialTheme.colorScheme.surfaceVariant
+    val contentColor = if (isSelected) selectedTextColor else MaterialTheme.colorScheme.onSurface
+    val iconTint = if (isSelected) selectedIconColor else MaterialTheme.colorScheme.onSurfaceVariant
+    val borderColor = if (isSelected) selectedBorderColor else Color.Transparent
+
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = surfaceColor,
         modifier = modifier
             .height(90.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() }
+            .then(
+                if (isSelected) Modifier.border(
+                    2.dp,
+                    borderColor,
+                    RoundedCornerShape(16.dp)
+                ) else Modifier
+            )
     ) {
         Row(
             modifier = Modifier
@@ -1651,18 +1683,19 @@ fun ReminderOptionCard(
             Icon(
                 icon, null,
                 Modifier.size(28.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = iconTint
             )
             Column {
                 Text(
                     title,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = contentColor
                 )
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isSelected) contentColor.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -1758,29 +1791,27 @@ fun ExpiryBottomSheet(
         scope.launch { sheetState.hide(); onDismiss() }
     }
 
-    val laterToday = Calendar.getInstance().apply {
-        add(Calendar.HOUR_OF_DAY, 1)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-    }.timeInMillis
+    val oneHourLater = now + 60 * 60 * 1000L
+    val twelveHoursLater = now + 12 * 60 * 60 * 1000L
+    val oneDayLater = now + 24 * 60 * 60 * 1000L
 
-    val tomorrow = Calendar.getInstance().apply {
-        add(Calendar.DAY_OF_YEAR, 1)
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-    }.timeInMillis
-
-    val nextWeek = Calendar.getInstance().apply {
-        add(Calendar.WEEK_OF_YEAR, 1)
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-    }.timeInMillis
+    val is1HrActive = currentExpiry != null && abs((currentExpiry - now) - 3600_000L) < 15 * 60 * 1000L
+    val is12HrActive = currentExpiry != null && abs((currentExpiry - now) - 12 * 3600_000L) < 45 * 60 * 1000L
+    val is1DayActive = currentExpiry != null && abs((currentExpiry - now) - 24 * 3600_000L) < 90 * 60 * 1000L
+    val isCustomActive = currentExpiry != null && !is1HrActive && !is12HrActive && !is1DayActive
 
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val dateFormatter = remember { SimpleDateFormat("EEE h:mm a", Locale.getDefault()) }
-    val fullFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+
+    val customSubtitle = if (isCustomActive) {
+        dateFormatter.format(Date(currentExpiry))
+    } else {
+        "Pick date & time"
+    }
+
+    val redColor = MaterialTheme.colorScheme.error
+    val redContainer = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+    val redText = MaterialTheme.colorScheme.onErrorContainer
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1795,7 +1826,7 @@ fun ExpiryBottomSheet(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp), //horizontal 16
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
@@ -1825,18 +1856,34 @@ fun ExpiryBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 ReminderOptionCard(
-                    icon = Icons.Outlined.WbTwilight,
-                    title = stringResource(R.string.later_today),
-                    subtitle = timeFormatter.format(Date(laterToday)),
+                    icon = Icons.Outlined.HourglassTop,
+                    title = "1 hour",
+                    subtitle = timeFormatter.format(Date(oneHourLater)),
+                    isSelected = is1HrActive,
+                    selectedContainerColor = redContainer,
+                    selectedBorderColor = redColor,
+                    selectedIconColor = redColor,
+                    selectedTextColor = redText,
                     modifier = Modifier.weight(1f),
-                    onClick = { onSet(laterToday); dismiss() }
+                    onClick = {
+                        if (is1HrActive) onSet(null) else onSet(oneHourLater)
+                        dismiss()
+                    }
                 )
                 ReminderOptionCard(
-                    icon = Icons.Outlined.LightMode,
-                    title = stringResource(R.string.tomorrow),
-                    subtitle = timeFormatter.format(Date(tomorrow)),
+                    icon = Icons.Outlined.Update,
+                    title = "12 hours",
+                    subtitle = dateFormatter.format(Date(twelveHoursLater)),
+                    isSelected = is12HrActive,
+                    selectedContainerColor = redContainer,
+                    selectedBorderColor = redColor,
+                    selectedIconColor = redColor,
+                    selectedTextColor = redText,
                     modifier = Modifier.weight(1f),
-                    onClick = { onSet(tomorrow); dismiss() }
+                    onClick = {
+                        if (is12HrActive) onSet(null) else onSet(twelveHoursLater)
+                        dismiss()
+                    }
                 )
             }
 
@@ -1845,35 +1892,42 @@ fun ExpiryBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 ReminderOptionCard(
-                    icon = Icons.Outlined.CalendarMonth,
-                    title = stringResource(R.string.next_week),
-                    subtitle = dateFormatter.format(Date(nextWeek)),
+                    icon = Icons.Outlined.CalendarToday,
+                    title = "1 day",
+                    subtitle = dateFormatter.format(Date(oneDayLater)),
+                    isSelected = is1DayActive,
+                    selectedContainerColor = redContainer,
+                    selectedBorderColor = redColor,
+                    selectedIconColor = redColor,
+                    selectedTextColor = redText,
                     modifier = Modifier.weight(1f),
-                    onClick = { onSet(nextWeek); dismiss() }
+                    onClick = {
+                        if (is1DayActive) onSet(null) else onSet(oneDayLater)
+                        dismiss()
+                    }
                 )
                 ReminderOptionCard(
                     icon = Icons.Outlined.EditCalendar,
-                    title = stringResource(R.string.pick_date_time),
-                    subtitle = fullFormatter.format(Date(now)),
+                    title = "Custom",
+                    subtitle = customSubtitle,
+                    isSelected = isCustomActive,
+                    selectedContainerColor = redContainer,
+                    selectedBorderColor = redColor,
+                    selectedIconColor = redColor,
+                    selectedTextColor = redText,
                     modifier = Modifier.weight(1f),
-                    onClick = { showDatePicker = true }
+                    onClick = {
+                        if (isCustomActive) {
+                            onSet(null)
+                            dismiss()
+                        } else {
+                            showDatePicker = true
+                        }
+                    }
                 )
             }
 
-            // Remove expiry if set
-            if (currentExpiry != null) {
-                OutlinedButton(
-                    onClick = { onSet(null); dismiss() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(Icons.Outlined.Clear, null, Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.remove_expiration))
-                }
-            }
+            Spacer(Modifier.height(4.dp))
 
             // Save button (dismiss without changing)
             Button(
