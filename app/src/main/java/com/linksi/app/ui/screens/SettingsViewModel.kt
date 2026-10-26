@@ -17,6 +17,7 @@ import androidx.datastore.preferences.core.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.datastore.core.DataStore
 import com.linksi.app.domain.model.AiProvider
+import com.linksi.app.domain.model.DEFAULT_AI_MODEL_ID
 import com.linksi.app.domain.model.Link
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -47,6 +48,7 @@ data class SettingsUiState(
     val availableModels: List<com.linksi.app.domain.model.AiModel> = emptyList(),
     val modelStatus: SettingsViewModel.ModelStatus = SettingsViewModel.ModelStatus.UNKNOWN,
     val isTestingModel: Boolean = false,
+    val isRefreshingModels: Boolean = false,
     val selectedLanguage: String = "",
     val themeMode: String = "system",
     val useAmoled: Boolean = false,
@@ -100,20 +102,22 @@ class SettingsViewModel @Inject constructor(
                     AiProvider.ANTHROPIC to SecureKeyStorage.getKey(context, AiProvider.ANTHROPIC),
                     AiProvider.GEMINI    to SecureKeyStorage.getKey(context, AiProvider.GEMINI),
                     AiProvider.DEEPSEEK  to SecureKeyStorage.getKey(context, AiProvider.DEEPSEEK),
-                    AiProvider.GROK      to SecureKeyStorage.getKey(context, AiProvider.GROK)
+                    AiProvider.GROK      to SecureKeyStorage.getKey(context, AiProvider.GROK),
+                    AiProvider.OPENROUTER to SecureKeyStorage.getKey(context, AiProvider.OPENROUTER)
                 )
                 val urls = mapOf(
                     AiProvider.OPENAI    to (prefs[AI_URL_OPENAI]    ?: ""),
                     AiProvider.ANTHROPIC to (prefs[AI_URL_ANTHROPIC] ?: ""),
                     AiProvider.GEMINI    to (prefs[AI_URL_GEMINI]    ?: ""),
                     AiProvider.DEEPSEEK  to (prefs[AI_URL_DEEPSEEK]  ?: ""),
-                    AiProvider.GROK      to (prefs[AI_URL_GROK]      ?: "")
+                    AiProvider.GROK      to (prefs[AI_URL_GROK]      ?: ""),
+                    AiProvider.OPENROUTER to (prefs[AI_URL_OPENROUTER] ?: "")
                 )
                 _uiState.update {
                     it.copy(
                         useInAppBrowser  = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true,
                         aiEnabled        = prefs[AI_ENABLED]        ?: false,
-                        selectedModelId  = prefs[AI_SELECTED_MODEL] ?: "claude35sonnet",
+                        selectedModelId  = prefs[AI_SELECTED_MODEL] ?: DEFAULT_AI_MODEL_ID,
                         apiKeys          = keys,
                         apiBaseUrls      = urls,
                         selectedLanguage = prefs[APP_LANGUAGE] ?: "",
@@ -169,7 +173,9 @@ class SettingsViewModel @Inject constructor(
 
     fun refreshModels() {
         viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshingModels = true) }
             AiModelRegistry.refreshAll(context, _uiState.value.apiKeys, _uiState.value.apiBaseUrls)
+            _uiState.update { it.copy(isRefreshingModels = false) }
         }
     }
 
@@ -326,6 +332,7 @@ class SettingsViewModel @Inject constructor(
                     AiProvider.GEMINI -> prefs[AI_URL_GEMINI] = baseUrl
                     AiProvider.DEEPSEEK -> prefs[AI_URL_DEEPSEEK] = baseUrl
                     AiProvider.GROK -> prefs[AI_URL_GROK] = baseUrl
+                    AiProvider.OPENROUTER -> prefs[AI_URL_OPENROUTER] = baseUrl
                 }
             }
             _uiState.update { state ->
@@ -357,6 +364,7 @@ class SettingsViewModel @Inject constructor(
                     AiProvider.GEMINI -> prefs.remove(AI_URL_GEMINI)
                     AiProvider.DEEPSEEK -> prefs.remove(AI_URL_DEEPSEEK)
                     AiProvider.GROK -> prefs.remove(AI_URL_GROK)
+                    AiProvider.OPENROUTER -> prefs.remove(AI_URL_OPENROUTER)
                 }
             }
             _uiState.update { state ->
@@ -507,9 +515,25 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Resolve the selected model, healing a stored id that no longer exists
+     * (renamed/deprecated model) to the best available option.
+     */
+    private fun resolveModel(): com.linksi.app.domain.model.AiModel? {
+        val state = _uiState.value
+        state.availableModels.find { it.id == state.selectedModelId }?.let { return it }
+        val configured = state.availableModels.filter { !state.apiKeys[it.provider].isNullOrBlank() }
+        val healed = configured.find { it.isRecommended }
+            ?: configured.firstOrNull()
+            ?: state.availableModels.find { it.isRecommended }
+            ?: state.availableModels.firstOrNull()
+        healed?.let { setSelectedModel(it.id) }
+        return healed
+    }
+
     fun testSelectedModel() {
         viewModelScope.launch {
-            val model = _uiState.value.availableModels.find { it.id == _uiState.value.selectedModelId } ?: return@launch
+            val model = resolveModel() ?: return@launch
             val apiKey = _uiState.value.apiKeys[model.provider] ?: ""
 
             if (apiKey.isBlank()) {

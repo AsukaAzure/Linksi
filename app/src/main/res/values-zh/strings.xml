@@ -38,6 +38,16 @@
     <string name="ai_model_active">激活 — %1$s</string>
     <string name="ai_model_error">错误 — 请检查 API 密钥</string>
     <string name="ai_model_select">选择模型</string>
+    <string name="ai_refresh_models">更新模型列表</string>
+    <string name="ai_refresh_models_subtitle">从已配置的提供商获取最新模型</string>
+    <string name="ai_models_available">%1$d 个可用模型</string>
+    <string name="ai_add_key_first">请先为此提供商添加 API 密钥以使用其模型</string>
+    <string name="no_model_selected">请先在 AI 设置中选择模型</string>
+    <string name="ai_section_model">模型</string>
+    <string name="ai_section_api_keys">API 密钥</string>
+    <string name="ai_key_configured">已配置</string>
+    <string name="ai_add_key">添加密钥</string>
+    <string name="ai_use_custom_model">使用自定义模型 ID</string>
     <string name="organize_my_links">整理我的链接</string>
     <string name="organize_now">现在开始整理</string>
 

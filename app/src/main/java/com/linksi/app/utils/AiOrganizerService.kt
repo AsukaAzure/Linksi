@@ -23,6 +23,7 @@ class AiOrganizerService {
                 AiProvider.GEMINI -> callGemini(prompt, model.modelId, apiKey, baseUrl)
                 AiProvider.DEEPSEEK -> callDeepSeek(prompt, model.modelId, apiKey, baseUrl)
                 AiProvider.GROK -> callGrok(prompt, model.modelId, apiKey, baseUrl)
+                AiProvider.OPENROUTER -> callOpenRouter(prompt, model.modelId, apiKey, baseUrl)
             }
             Result.success(response)
         } catch (e: Exception) {
@@ -210,6 +211,34 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         }
     }
 
+    private fun callOpenRouter(prompt: String, modelId: String, apiKey: String, baseUrl: String): String {
+        val endpoint = if (baseUrl.isNotBlank()) "${baseUrl.removeSuffix("/")}/chat/completions" else "https://openrouter.ai/api/v1/chat/completions"
+        val url = java.net.URL(endpoint)
+        val body = JSONObject().apply {
+            put("model", modelId)
+            put("messages", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", prompt)
+                })
+            })
+            put("temperature", 0.3)
+        }.toString()
+
+        return makeHttpRequest(url, body, mapOf(
+            "Authorization" to "Bearer $apiKey",
+            "Content-Type" to "application/json",
+            "HTTP-Referer" to "https://github.com/AsukaAzure/Linksi",
+            "X-Title" to "Linksi"
+        )) { response ->
+            JSONObject(response)
+                .getJSONArray("choices")
+                .getJSONObject(0)
+                .getJSONObject("message")
+                .getString("content")
+        }
+    }
+
     private fun makeHttpRequest(
         url: java.net.URL,
         body: String?,
@@ -264,17 +293,17 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         val data = json.getJSONArray("data")
         val models = mutableListOf<AiModel>()
         
-        val chatRegex = Regex("^(gpt|o1|o3).*", RegexOption.IGNORE_CASE)
-        
+        val latestRegex = Regex("^(gpt-[5-9]|o[4-9]).*", RegexOption.IGNORE_CASE)
+
         for (i in 0 until data.length()) {
             val m = data.getJSONObject(i)
             val id = m.getString("id")
-            if (chatRegex.containsMatchIn(id) && !id.contains("embedding") && !id.contains("audio") && !id.contains("vision") && !id.contains("moderation") && !id.contains("realtime") && !id.contains("tts") && !id.contains("whisper") && !id.contains("dall-e")) {
-                val isRec = id.contains("gpt-4o") || id.contains("o1") || id.contains("o3-mini")
+            if (latestRegex.containsMatchIn(id) && !id.contains("embedding") && !id.contains("audio") && !id.contains("vision") && !id.contains("moderation") && !id.contains("realtime") && !id.contains("tts") && !id.contains("whisper") && !id.contains("dall-e") && !id.contains("transcribe") && !id.contains("image")) {
+                val isRec = id.contains("gpt-5.1") || id.contains("gpt-5")
                 models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.OPENAI, id, isLatest = true, isRecommended = isRec))
             }
         }
-        models.sortedByDescending { it.id }
+        latestOnly(models, 6)
     }
 
     suspend fun discoverAnthropicModels(apiKey: String, baseUrl: String = ""): List<AiModel> = withContext(Dispatchers.IO) {
@@ -288,16 +317,18 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         val json = JSONObject(response)
         val data = json.getJSONArray("data")
         val models = mutableListOf<AiModel>()
+        val latestRegex = Regex("^(claude-(?:opus|sonnet|haiku)-[4-9]|fable)", RegexOption.IGNORE_CASE)
+
         for (i in 0 until data.length()) {
             val m = data.getJSONObject(i)
             val id = m.getString("id")
-            if (id.startsWith("claude", ignoreCase = true) && !id.contains("embedding")) {
+            if (latestRegex.containsMatchIn(id) && !id.contains("embedding")) {
                 val displayName = m.optString("display_name", id)
-                val isRec = id.contains("claude-3-5")
+                val isRec = id.contains("sonnet") || id.contains("opus") || id.contains("fable")
                 models.add(AiModel(id, displayName, AiProvider.ANTHROPIC, id, isLatest = true, isRecommended = isRec))
             }
         }
-        models.sortedByDescending { it.id }
+        latestOnly(models, 6)
     }
 
     suspend fun discoverGeminiModels(apiKey: String, baseUrl: String = ""): List<AiModel> = withContext(Dispatchers.IO) {
@@ -330,22 +361,26 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
                 supportsChat = true // fallback if field missing
             }
 
-            val isGeminiChat = name.startsWith("gemini-", ignoreCase = true) &&
-                    (name.contains("flash") || name.contains("pro") || name.contains("ultra")) &&
-                    !name.contains("embedding") &&
-                    !name.contains("vision") &&
-                    !name.contains("audio") &&
-                    !name.contains("imagen") &&
-                    !name.contains("gemma") &&
-                    !name.contains("lyria") &&
-                    !name.contains("nano")
+            val isLatestGeminiChat = Regex("^gemini-(?:[3-9]|2\\.5)", RegexOption.IGNORE_CASE).containsMatchIn(name) &&
+                    (name.contains("flash") || name.contains("pro") || name.contains("ultra") || name.contains("lite"))
 
-            if (supportsChat && isGeminiChat) {
-                val isRec = name.contains("flash") || name.contains("pro")
+            if (supportsChat && isLatestGeminiChat &&
+                !name.contains("embedding") &&
+                !name.contains("vision") &&
+                !name.contains("audio") &&
+                !name.contains("imagen") &&
+                !name.contains("gemma") &&
+                !name.contains("lyria") &&
+                !name.contains("nano") &&
+                !name.contains("tts") &&
+                !name.contains("live") &&
+                !name.contains("image")
+            ) {
+                val isRec = name.contains("pro") || name.contains("flash")
                 models.add(AiModel(name, displayName, AiProvider.GEMINI, name, isLatest = true, isRecommended = isRec))
             }
         }
-        models.sortedByDescending { it.id }
+        latestOnly(models, 6)
     }
 
     suspend fun discoverDeepSeekModels(apiKey: String, baseUrl: String = ""): List<AiModel> = withContext(Dispatchers.IO) {
@@ -379,17 +414,69 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         val json = JSONObject(response)
         val data = json.getJSONArray("data")
         val models = mutableListOf<AiModel>()
+        val latestRegex = Regex("^grok-[4-9]", RegexOption.IGNORE_CASE)
+        for (i in 0 until data.length()) {
+            val id = data.getJSONObject(i).getString("id")
+            if (latestRegex.containsMatchIn(id) &&
+                listOf("embedding", "image", "vision", "voice", "imagine", "tts", "moderation").none { id.contains(it, ignoreCase = true) }
+            ) {
+                val isRec = id.contains("grok-4") || id.contains("grok-5")
+                models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.GROK, id, isLatest = true, isRecommended = isRec))
+            }
+        }
+        latestOnly(models, 5)
+    }
+
+    suspend fun discoverOpenRouterModels(apiKey: String, baseUrl: String = ""): List<AiModel> = withContext(Dispatchers.IO) {
+        val endpoint = if (baseUrl.isNotBlank()) "${baseUrl.removeSuffix("/")}/models" else "https://openrouter.ai/api/v1/models"
+        val url = java.net.URL(endpoint)
+        val response = makeHttpRequest(url, null, mapOf(
+            "Authorization" to "Bearer $apiKey"
+        ), "GET") { it }
+
+        val json = JSONObject(response)
+        val data = json.getJSONArray("data")
+        val models = mutableListOf<AiModel>()
+
+        // OpenRouter returns hundreds of models across all vendors; keep only the
+        // latest generation of chat models from major vendors.
+        val latestRegex = Regex(
+            "^(openai/gpt-[5-9]|anthropic/(?:claude-(?:opus|sonnet|haiku)-[4-9]|fable)|google/gemini-(?:[3-9]|2\\.5)|deepseek/deepseek-(?:chat|reasoner)|x-ai/grok-[4-9]|meta-llama/llama-[4-9]|qwen/qwen[3-9])",
+            RegexOption.IGNORE_CASE
+        )
+        val excluded = listOf("embedding", "whisper", "tts", "image", "video", "moderation", "dall-e", "sora", "stable-diffusion", "flux", "imagen", "veo", "rerank", "guard", "voice", "transcribe", "ocr", "audio", "live")
         for (i in 0 until data.length()) {
             val m = data.getJSONObject(i)
             val id = m.getString("id")
-            if (id.contains("grok", ignoreCase = true) && !id.contains("embedding") && !id.contains("image") && !id.contains("vision")) {
-                models.add(AiModel(id, id.replace("-", " ").capitalizeWords(), AiProvider.GROK, id, isLatest = true, isRecommended = true))
-            }
+            if (!latestRegex.containsMatchIn(id)) continue
+            if (excluded.any { id.contains(it, ignoreCase = true) }) continue
+            val displayName = m.optString("name", id).removeSuffix(":free").trim()
+            val isFree = id.endsWith(":free")
+            val isRec = id.startsWith("openai/gpt-5") || id.startsWith("anthropic/claude-") || id.startsWith("google/gemini-")
+            models.add(AiModel(
+                id = id,
+                name = if (isFree) "$displayName (free)" else displayName,
+                provider = AiProvider.OPENROUTER,
+                modelId = id,
+                isLatest = true,
+                isRecommended = isRec
+            ))
         }
-        models.sortedByDescending { it.id }
+        // Newest first, capped — the full catalog is intentionally not shown.
+        latestOnly(models, 12)
     }
 
     private fun String.capitalizeWords(): String = split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+
+    // Newest-first ordering: pull the first version number out of the model id.
+    private fun versionOf(id: String): Double {
+        val m = Regex("(\\d+(?:\\.\\d+)?)").find(id.substringAfterLast('/'))
+        return m?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+    }
+
+    // Only the latest generation of each provider is offered, capped per provider.
+    private fun latestOnly(models: List<AiModel>, cap: Int): List<AiModel> =
+        models.sortedWith(compareByDescending<AiModel> { versionOf(it.id) }.thenByDescending { it.id }).take(cap)
 
     fun parseAiResponse(
         response: String,

@@ -1102,12 +1102,15 @@ fun AiDoneScreen(onBack: () -> Unit, onRevert: () -> Unit, onOrganizeAgain: () -
 fun ModelPickerSheet(
     currentModelId: String,
     models: List<AiModel>,
+    configuredProviders: Set<AiProvider> = emptySet(),
     onModelSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedProvider by remember {
         mutableStateOf(
-            models.find { it.id == currentModelId }?.provider ?: AiProvider.ANTHROPIC
+            models.find { it.id == currentModelId }?.provider
+                ?: configuredProviders.firstOrNull()
+                ?: AiProvider.GEMINI
         )
     }
 
@@ -1152,7 +1155,8 @@ fun ModelPickerSheet(
                 AiProvider.ANTHROPIC to "Anthropic",
                 AiProvider.GEMINI    to "Gemini",
                 AiProvider.DEEPSEEK  to "DeepSeek",
-                AiProvider.GROK      to "Grok"
+                AiProvider.GROK      to "Grok",
+                AiProvider.OPENROUTER to "OpenRouter"
             )
 
             LazyRow(
@@ -1164,6 +1168,15 @@ fun ModelPickerSheet(
                         selected = selectedProvider == provider,
                         onClick = { selectedProvider = provider },
                         label = { Text(providerNames[provider] ?: provider.name) },
+                        leadingIcon = if (provider in configuredProviders) {
+                            {
+                                Icon(
+                                    Icons.Outlined.Check, null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        } else null,
                         shape = RoundedCornerShape(12.dp)
                     )
                 }
@@ -1174,6 +1187,7 @@ fun ModelPickerSheet(
             // Models for selected provider
             val providerModels = models.filter { it.provider == selectedProvider }
             var customModelInput by remember { mutableStateOf("") }
+            var showCustomInput by remember { mutableStateOf(false) }
 
             Column(
                 modifier = Modifier
@@ -1199,6 +1213,32 @@ fun ModelPickerSheet(
                 ) { provider ->
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         val provModels = models.filter { it.provider == provider }
+
+                        if (provider !in configuredProviders) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.VpnKey, null,
+                                        Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                    Text(
+                                        stringResource(R.string.ai_add_key_first),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            }
+                        }
+
                         if (provModels.isEmpty()) {
                             Text(
                                 "No models discovered for this provider yet. Enter your API key in Settings or type a custom model ID below.",
@@ -1207,121 +1247,143 @@ fun ModelPickerSheet(
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         } else {
-                            provModels.forEach { model ->
-                                val isSelected = model.id == currentModelId
-                                Surface(
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = if (isSelected)
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            onModelSelected(model.id)
-                                            dismissWithAnimation()
-                                        }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                    ) {
-                                        IconContainer(
-                                            icon = Icons.Outlined.SmartToy,
-                                            enabled = isSelected
-                                        )
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    model.name,
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    fontWeight = if (isSelected)
-                                                        FontWeight.Bold
-                                                    else
-                                                        FontWeight.Medium,
-                                                    color = if (isSelected)
-                                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                                    else
-                                                        MaterialTheme.colorScheme.onSurface
-                                                )
-                                                if (model.isLatest) {
-                                                    Surface(
-                                                        shape = RoundedCornerShape(6.dp),
-                                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                                    ) {
-                                                        Text(
-                                                            "Latest",
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            color = MaterialTheme.colorScheme.primary,
-                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
-                                                }
-                                                if (model.isRecommended) {
-                                                    Surface(
-                                                        shape = RoundedCornerShape(6.dp),
-                                                        color = Color(0xFF22C55E).copy(alpha = 0.15f)
-                                                    ) {
-                                                        Text(
-                                                            "Recommended",
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            color = Color(0xFF22C55E),
-                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
-                                                }
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 380.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(provModels, key = { it.id }) { model ->
+                                    val isSelected = model.id == currentModelId
+                                    Surface(
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = if (isSelected)
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        else
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                onModelSelected(model.id)
+                                                dismissWithAnimation()
                                             }
-                                            Spacer(Modifier.height(2.dp))
-                                            Text(
-                                                model.modelId,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = if (isSelected)
-                                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                                else
-                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(16.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            IconContainer(
+                                                icon = Icons.Outlined.SmartToy,
+                                                enabled = isSelected
                                             )
-                                        }
-                                        if (isSelected) {
-                                            Icon(
-                                                Icons.Outlined.CheckCircle, null,
-                                                Modifier.size(24.dp),
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        model.name,
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        fontWeight = if (isSelected)
+                                                            FontWeight.Bold
+                                                        else
+                                                            FontWeight.Medium,
+                                                        color = if (isSelected)
+                                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                                        else
+                                                            MaterialTheme.colorScheme.onSurface,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    if (model.isLatest) {
+                                                        Surface(
+                                                            shape = RoundedCornerShape(6.dp),
+                                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                                        ) {
+                                                            Text(
+                                                                "Latest",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = MaterialTheme.colorScheme.primary,
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+                                                    }
+                                                    if (model.isRecommended) {
+                                                        Surface(
+                                                            shape = RoundedCornerShape(6.dp),
+                                                            color = Color(0xFF22C55E).copy(alpha = 0.15f)
+                                                        ) {
+                                                            Text(
+                                                                "Recommended",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = Color(0xFF22C55E),
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                                Spacer(Modifier.height(2.dp))
+                                                Text(
+                                                    model.modelId,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = if (isSelected)
+                                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                                    else
+                                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            if (isSelected) {
+                                                Icon(
+                                                    Icons.Outlined.CheckCircle, null,
+                                                    Modifier.size(24.dp),
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
 
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = customModelInput,
-                            onValueChange = { customModelInput = it },
-                            label = { Text("Custom Model ID (e.g. gpt-4o)") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Button(
-                            onClick = {
-                                if (customModelInput.isNotBlank()) {
-                                    val customId = customModelInput.trim()
-                                    onModelSelected(customId)
-                                    dismissWithAnimation()
-                                }
-                            },
-                            enabled = customModelInput.isNotBlank(),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Use Custom Model")
+                        if (showCustomInput) {
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = customModelInput,
+                                onValueChange = { customModelInput = it },
+                                label = { Text("Custom Model ID (e.g. gpt-4o)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = {
+                                    if (customModelInput.isNotBlank()) {
+                                        val customId = customModelInput.trim()
+                                        onModelSelected(customId)
+                                        dismissWithAnimation()
+                                    }
+                                },
+                                enabled = customModelInput.isNotBlank(),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Use Custom Model")
+                            }
+                        } else {
+                            TextButton(
+                                onClick = { showCustomInput = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Outlined.Edit, null, Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(stringResource(R.string.ai_use_custom_model))
+                            }
                         }
                     }
                 }

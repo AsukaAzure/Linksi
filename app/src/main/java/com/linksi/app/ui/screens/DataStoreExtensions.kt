@@ -28,6 +28,7 @@ val AI_URL_ANTHROPIC = stringPreferencesKey("ai_url_anthropic")
 val AI_URL_GEMINI = stringPreferencesKey("ai_url_gemini")
 val AI_URL_DEEPSEEK = stringPreferencesKey("ai_url_deepseek")
 val AI_URL_GROK = stringPreferencesKey("ai_url_grok")
+val AI_URL_OPENROUTER = stringPreferencesKey("ai_url_openrouter")
 val APP_LANGUAGE = stringPreferencesKey("app_language")
 val APP_THEME = stringPreferencesKey("app_theme") // Values: "system", "light", "dark"
 val APP_AMOLED = booleanPreferencesKey("app_amoled")

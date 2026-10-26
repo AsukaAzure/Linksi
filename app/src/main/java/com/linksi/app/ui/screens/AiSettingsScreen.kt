@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -24,6 +25,17 @@ import com.linksi.app.R
 import com.linksi.app.domain.model.AiProvider
 import com.linksi.app.ui.components.ExpressiveSettingsCard
 import com.linksi.app.ui.components.IconContainer
+
+// Display names per provider — single source for the AI settings UI.
+internal val AiProvider.displayName: String
+    get() = when (this) {
+        AiProvider.OPENAI -> "OpenAI"
+        AiProvider.ANTHROPIC -> "Anthropic"
+        AiProvider.GEMINI -> "Google Gemini"
+        AiProvider.DEEPSEEK -> "DeepSeek"
+        AiProvider.GROK -> "Grok (xAI)"
+        AiProvider.OPENROUTER -> "OpenRouter"
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,15 +120,15 @@ fun AiSettingsScreen(
                 }
             }
 
+            // Enable toggle
             item {
                 ExpressiveSettingsCard {
-                    // Enable toggle
                     ListItem(
-                        headlineContent = { 
+                        headlineContent = {
                             Text(
                                 stringResource(R.string.ai_organizer),
                                 fontWeight = FontWeight.SemiBold
-                            ) 
+                            )
                         },
                         supportingContent = {
                             Text(
@@ -135,46 +147,41 @@ fun AiSettingsScreen(
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
+                }
+            }
 
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-
-                    // Model selector
+            // Model section
+            item { AiSectionLabel(stringResource(R.string.ai_section_model)) }
+            item {
+                ExpressiveSettingsCard {
                     val selectedModel = state.availableModels.find { it.id == state.selectedModelId }
                     ListItem(
-                        headlineContent = { 
+                        headlineContent = {
                             Text(
                                 stringResource(R.string.ai_model),
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (state.aiEnabled) 1f else 0.38f)
-                            ) 
+                            )
                         },
                         supportingContent = {
-                            val color = if (state.aiEnabled) {
-                                if (state.modelStatus == SettingsViewModel.ModelStatus.ACTIVE) Color(0xFF22C55E)
-                                else if (state.modelStatus == SettingsViewModel.ModelStatus.ERROR) MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                            }
-                            
                             when (state.modelStatus) {
                                 SettingsViewModel.ModelStatus.ACTIVE -> Text(
                                     stringResource(R.string.ai_model_active, selectedModel?.name ?: ""),
-                                    color = color,
+                                    color = Color(0xFF22C55E),
                                     style = MaterialTheme.typography.labelMedium
                                 )
                                 SettingsViewModel.ModelStatus.ERROR -> Text(
                                     state.updateCheckError ?: stringResource(R.string.ai_model_error),
-                                    color = color,
+                                    color = MaterialTheme.colorScheme.error,
                                     style = MaterialTheme.typography.labelMedium
                                 )
                                 SettingsViewModel.ModelStatus.UNKNOWN -> Text(
-                                    selectedModel?.name ?: stringResource(R.string.ai_model_select),
+                                    selectedModel?.let { "${it.name} · ${it.provider.displayName}" }
+                                        ?: stringResource(R.string.ai_model_select),
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = color
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                        alpha = if (state.aiEnabled) 1f else 0.38f
+                                    )
                                 )
                             }
                         },
@@ -185,109 +192,75 @@ fun AiSettingsScreen(
                             )
                         },
                         trailingContent = {
-                            Icon(
-                                Icons.Outlined.ChevronRight, null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (state.aiEnabled) 1f else 0.38f)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (state.isRefreshingModels) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    IconButton(
+                                        onClick = { viewModel.refreshModels() },
+                                        enabled = state.aiEnabled,
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Refresh,
+                                            stringResource(R.string.ai_refresh_models),
+                                            modifier = Modifier.size(20.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                alpha = if (state.aiEnabled) 1f else 0.38f
+                                            )
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    Icons.Outlined.ChevronRight, null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                        alpha = if (state.aiEnabled) 1f else 0.38f
+                                    )
+                                )
+                            }
                         },
                         modifier = Modifier.clickable(enabled = state.aiEnabled) { showModelPicker = true },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
+                }
+            }
 
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-
-                    // API Keys Header & Compact Provider Cards
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                "API Keys",
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (state.aiEnabled) 1f else 0.38f)
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                "Tap a provider to add, update, or clear its API key",
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        },
-                        leadingContent = {
-                            IconContainer(
-                                icon = Icons.Outlined.VpnKey,
-                                enabled = state.aiEnabled
-                            )
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                    )
-
+            // API keys section
+            item { AiSectionLabel(stringResource(R.string.ai_section_api_keys)) }
+            item {
+                ExpressiveSettingsCard {
                     var selectedApiKeyProvider by remember { mutableStateOf<AiProvider?>(null) }
 
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        AiProvider.entries.forEach { provider ->
-                            val hasKey = !(state.apiKeys[provider].isNullOrBlank())
-                            val providerName = when (provider) {
-                                AiProvider.OPENAI -> "OpenAI"
-                                AiProvider.ANTHROPIC -> "Anthropic"
-                                AiProvider.GEMINI -> "Google Gemini"
-                                AiProvider.DEEPSEEK -> "DeepSeek"
-                                AiProvider.GROK -> "Grok (xAI)"
-                            }
-
-                            Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (state.aiEnabled) 0.5f else 0.2f),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(enabled = state.aiEnabled) {
-                                        selectedApiKeyProvider = provider
-                                    }
+                        AiProvider.entries.chunked(2).forEach { rowProviders ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    IconContainer(
-                                        icon = Icons.Outlined.SmartToy,
-                                        enabled = state.aiEnabled && hasKey
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            providerName,
-                                            fontWeight = FontWeight.SemiBold,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (state.aiEnabled) 1f else 0.38f)
-                                        )
-                                        Text(
-                                            if (hasKey) "API Key Configured" else "No API Key Added",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = if (hasKey) Color(0xFF22C55E) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (state.aiEnabled) 1f else 0.38f)
-                                        )
-                                    }
-                                    if (hasKey) {
-                                        Icon(
-                                            Icons.Outlined.CheckCircle, null,
-                                            tint = Color(0xFF22C55E),
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                    Icon(
-                                        Icons.Outlined.ChevronRight, null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (state.aiEnabled) 1f else 0.38f)
+                                rowProviders.forEach { provider ->
+                                    val hasKey = !state.apiKeys[provider].isNullOrBlank()
+                                    val modelCount = state.availableModels.count { it.provider == provider }
+                                    ProviderTile(
+                                        providerName = provider.displayName,
+                                        hasKey = hasKey,
+                                        modelCount = modelCount,
+                                        enabled = state.aiEnabled,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { selectedApiKeyProvider = provider }
                                     )
                                 }
+                                if (rowProviders.size == 1) Spacer(Modifier.weight(1f))
                             }
                         }
                     }
@@ -302,21 +275,20 @@ fun AiSettingsScreen(
                             onDismiss = { selectedApiKeyProvider = null }
                         )
                     }
+                }
+            }
 
-                    if (state.aiEnabled) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
-
-                        // Open organizer
+            // Organize action
+            if (state.aiEnabled) {
+                item {
+                    ExpressiveSettingsCard {
                         ListItem(
-                            headlineContent = { 
+                            headlineContent = {
                                 Text(
                                     stringResource(R.string.organize_my_links),
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
-                                ) 
+                                )
                             },
                             supportingContent = {
                                 Text(
@@ -349,9 +321,82 @@ fun AiSettingsScreen(
         ModelPickerSheet(
             currentModelId = state.selectedModelId,
             models = state.availableModels,
+            configuredProviders = state.apiKeys.filterValues { it.isNotBlank() }.keys,
             onModelSelected = { viewModel.setSelectedModel(it) },
             onDismiss = { showModelPicker = false }
         )
+    }
+}
+
+@Composable
+private fun AiSectionLabel(text: String) {
+    Text(
+        text.uppercase(),
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 4.dp)
+    )
+}
+
+@Composable
+private fun ProviderTile(
+    providerName: String,
+    hasKey: Boolean,
+    modelCount: Int,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (enabled) 0.5f else 0.2f),
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Icon(
+                    Icons.Outlined.SmartToy, null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f)
+                )
+                if (hasKey) {
+                    Icon(
+                        Icons.Outlined.CheckCircle, null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFF22C55E)
+                    )
+                }
+            }
+            Text(
+                providerName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f)
+            )
+            Text(
+                when {
+                    hasKey && modelCount > 0 -> stringResource(R.string.ai_models_available, modelCount)
+                    hasKey -> stringResource(R.string.ai_key_configured)
+                    else -> stringResource(R.string.ai_add_key)
+                },
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (hasKey) Color(0xFF22C55E) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else 0.38f)
+            )
+        }
     }
 }
 
@@ -369,13 +414,7 @@ fun ApiKeySheet(
     var urlInput by remember { mutableStateOf(currentUrl) }
     var showKey by remember { mutableStateOf(false) }
 
-    val providerName = when (provider) {
-        AiProvider.OPENAI -> "OpenAI"
-        AiProvider.ANTHROPIC -> "Anthropic"
-        AiProvider.GEMINI -> "Google Gemini"
-        AiProvider.DEEPSEEK -> "DeepSeek"
-        AiProvider.GROK -> "Grok (xAI)"
-    }
+    val providerName = provider.displayName
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()

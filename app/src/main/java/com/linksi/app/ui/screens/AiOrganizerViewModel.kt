@@ -97,19 +97,21 @@ class AiOrganizerViewModel @Inject constructor(
                     AiProvider.ANTHROPIC to SecureKeyStorage.getKey(context, AiProvider.ANTHROPIC),
                     AiProvider.GEMINI to SecureKeyStorage.getKey(context, AiProvider.GEMINI),
                     AiProvider.DEEPSEEK to SecureKeyStorage.getKey(context, AiProvider.DEEPSEEK),
-                    AiProvider.GROK to SecureKeyStorage.getKey(context, AiProvider.GROK)
+                    AiProvider.GROK to SecureKeyStorage.getKey(context, AiProvider.GROK),
+                    AiProvider.OPENROUTER to SecureKeyStorage.getKey(context, AiProvider.OPENROUTER)
                 )
                 val urls = mapOf(
                     AiProvider.OPENAI to (prefs[AI_URL_OPENAI] ?: ""),
                     AiProvider.ANTHROPIC to (prefs[AI_URL_ANTHROPIC] ?: ""),
                     AiProvider.GEMINI to (prefs[AI_URL_GEMINI] ?: ""),
                     AiProvider.DEEPSEEK to (prefs[AI_URL_DEEPSEEK] ?: ""),
-                    AiProvider.GROK to (prefs[AI_URL_GROK] ?: "")
+                    AiProvider.GROK to (prefs[AI_URL_GROK] ?: ""),
+                    AiProvider.OPENROUTER to (prefs[AI_URL_OPENROUTER] ?: "")
                 )
                 _uiState.update {
                     it.copy(
                         isEnabled = prefs[AI_ENABLED] ?: false,
-                        selectedModelId = prefs[AI_SELECTED_MODEL] ?: "claude3sonnet",
+                        selectedModelId = prefs[AI_SELECTED_MODEL] ?: DEFAULT_AI_MODEL_ID,
                         apiKeys = keys,
                         apiBaseUrls = urls
                     )
@@ -122,10 +124,33 @@ class AiOrganizerViewModel @Inject constructor(
         _uiState.update { it.copy(batchSize = size) }
     }
 
+    /**
+     * Resolve the selected model, healing a stored id that no longer exists
+     * (renamed/deprecated model) to the best available option.
+     */
+    private fun resolveModel(): AiModel? {
+        val state = _uiState.value
+        state.availableModels.find { it.id == state.selectedModelId }?.let { return it }
+        val configured = state.availableModels.filter { !state.apiKeys[it.provider].isNullOrBlank() }
+        val healed = configured.find { it.isRecommended }
+            ?: configured.firstOrNull()
+            ?: state.availableModels.find { it.isRecommended }
+            ?: state.availableModels.firstOrNull()
+        healed?.let { setSelectedModel(it.id) }
+        return healed
+    }
+
     fun testModel() {
         viewModelScope.launch {
             val state = _uiState.value
-            val model = state.availableModels.find { it.id == state.selectedModelId } ?: return@launch
+            val model = resolveModel()
+            if (model == null) {
+                _uiState.update { it.copy(
+                    modelStatus = SettingsViewModel.ModelStatus.ERROR,
+                    testErrorMessage = context.getString(com.linksi.app.R.string.no_model_selected)
+                )}
+                return@launch
+            }
             val apiKey = state.apiKeys[model.provider] ?: ""
             val baseUrl = state.apiBaseUrls[model.provider] ?: ""
 
@@ -247,7 +272,14 @@ class AiOrganizerViewModel @Inject constructor(
     fun generatePlan() {
         viewModelScope.launch {
             val state = _uiState.value
-            val model = state.availableModels.find { it.id == state.selectedModelId } ?: return@launch
+            val model = resolveModel()
+            if (model == null) {
+                _uiState.update { it.copy(
+                    step = AiOrganizerStep.ERROR,
+                    errorMessage = context.getString(com.linksi.app.R.string.no_model_selected)
+                )}
+                return@launch
+            }
             val apiKey = state.apiKeys[model.provider] ?: ""
             val baseUrl = state.apiBaseUrls[model.provider] ?: ""
 

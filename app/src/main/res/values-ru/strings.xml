@@ -38,6 +38,16 @@
     <string name="ai_model_active">Активно — %1$s</string>
     <string name="ai_model_error">Ошибка — проверьте API ключ</string>
     <string name="ai_model_select">Выберите модель</string>
+    <string name="ai_refresh_models">Обновить список моделей</string>
+    <string name="ai_refresh_models_subtitle">Получить новейшие модели от настроенных провайдеров</string>
+    <string name="ai_models_available">Доступно моделей: %1$d</string>
+    <string name="ai_add_key_first">Добавьте API-ключ для этого провайдера, чтобы использовать его модели</string>
+    <string name="no_model_selected">Сначала выберите модель в настройках AI</string>
+    <string name="ai_section_model">Модель</string>
+    <string name="ai_section_api_keys">API-ключи</string>
+    <string name="ai_key_configured">Настроено</string>
+    <string name="ai_add_key">Добавить ключ</string>
+    <string name="ai_use_custom_model">Указать свой ID модели</string>
     <string name="organize_my_links">Организовать мои ссылки</string>
     <string name="organize_now">Начать организацию сейчас</string>
 

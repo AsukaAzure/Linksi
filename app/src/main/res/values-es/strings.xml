@@ -40,6 +40,16 @@
     <string name="ai_model_active">Activo — %1$s</string>
     <string name="ai_model_error">Error — compruebe la clave API</string>
     <string name="ai_model_select">Seleccionar un modelo</string>
+    <string name="ai_refresh_models">Actualizar lista de modelos</string>
+    <string name="ai_refresh_models_subtitle">Obtener los últimos modelos de tus proveedores configurados</string>
+    <string name="ai_models_available">%1$d modelos disponibles</string>
+    <string name="ai_add_key_first">Añade una clave API para este proveedor para usar sus modelos</string>
+    <string name="no_model_selected">Selecciona primero un modelo en Ajustes de IA</string>
+    <string name="ai_section_model">Modelo</string>
+    <string name="ai_section_api_keys">Claves API</string>
+    <string name="ai_key_configured">Configurado</string>
+    <string name="ai_add_key">Añadir clave</string>
+    <string name="ai_use_custom_model">Usar un ID de modelo personalizado</string>
     <string name="organize_my_links">Organizar mis enlaces</string>
     <string name="organize_now">Empezar a organizar ahora</string>
 

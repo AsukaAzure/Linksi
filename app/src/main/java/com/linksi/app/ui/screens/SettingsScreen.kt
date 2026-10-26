@@ -248,6 +248,27 @@ fun SettingsScreen(
                 }
             }
 
+            // ── AI Organizer ──────────────────────────────────────
+            item {
+                SectionHeader(stringResource(id = com.linksi.app.R.string.ai_organizer), Icons.Outlined.AutoAwesome)
+            }
+            item {
+                SettingsCard {
+                    SettingsItem(
+                        icon = Icons.Outlined.AutoAwesome,
+                        title = stringResource(id = com.linksi.app.R.string.ai_link_organizer),
+                        subtitle = stringResource(id = com.linksi.app.R.string.ai_organizer_subtitle),
+                        onClick = { showAiSettings = true },
+                        trailingContent = {
+                            Icon(
+                                Icons.Outlined.ChevronRight, null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    )
+                }
+            }
+
             // ── Updates ───────────────────────────────────────────
             item {
                 SectionHeader(stringResource(id = com.linksi.app.R.string.updates), Icons.Outlined.SystemUpdate)
@@ -921,6 +942,7 @@ fun ApiKeyItem(
         AiProvider.GEMINI -> "Google Gemini"
         AiProvider.DEEPSEEK -> "DeepSeek"
         AiProvider.GROK -> "Grok (xAI)"
+        AiProvider.OPENROUTER -> "OpenRouter"
     }
 
     val alpha = if (enabled) 1f else 0.38f

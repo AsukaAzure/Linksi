@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.linksi.app.domain.model.AI_MODELS
 import com.linksi.app.domain.model.AiModel
 import com.linksi.app.domain.model.AiProvider
 import kotlinx.coroutines.flow.Flow
@@ -19,7 +20,7 @@ object AiModelRegistry {
     fun getModels(context: Context): Flow<List<AiModel>> {
         return context.dataStore.data.map { prefs ->
             val json = prefs[MODELS_KEY]
-            if (json.isNullOrBlank()) {
+            val discovered = if (json.isNullOrBlank()) {
                 emptyList()
             } else {
                 try {
@@ -28,6 +29,10 @@ object AiModelRegistry {
                     emptyList()
                 }
             }
+            // Providers with no discovered models fall back to the curated lineup,
+            // so a model is always selectable before discovery has run.
+            val covered = discovered.map { it.provider }.toSet()
+            discovered + AI_MODELS.filter { it.provider !in covered }
         }
     }
 
@@ -52,6 +57,7 @@ object AiModelRegistry {
             AiProvider.GEMINI -> service.discoverGeminiModels(apiKey, baseUrl)
             AiProvider.DEEPSEEK -> service.discoverDeepSeekModels(apiKey, baseUrl)
             AiProvider.GROK -> service.discoverGrokModels(apiKey, baseUrl)
+            AiProvider.OPENROUTER -> service.discoverOpenRouterModels(apiKey, baseUrl)
         }
         updateModels(context, discovered, provider)
     }

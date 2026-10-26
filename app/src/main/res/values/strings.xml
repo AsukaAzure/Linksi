@@ -40,6 +40,16 @@
     <string name="ai_model_active">Active — %1$s</string>
     <string name="ai_model_error">Error — check API key</string>
     <string name="ai_model_select">Select a model</string>
+    <string name="ai_refresh_models">Update model list</string>
+    <string name="ai_refresh_models_subtitle">Fetch the latest models from your configured providers</string>
+    <string name="ai_models_available">%1$d models available</string>
+    <string name="ai_add_key_first">Add an API key for this provider to use its models</string>
+    <string name="no_model_selected">Select a model in AI Settings first</string>
+    <string name="ai_section_model">Model</string>
+    <string name="ai_section_api_keys">API Keys</string>
+    <string name="ai_key_configured">Configured</string>
+    <string name="ai_add_key">Add key</string>
+    <string name="ai_use_custom_model">Use a custom model ID</string>
     <string name="organize_my_links">Organize My Links</string>
     <string name="organize_now">Start organizing now</string>
 
