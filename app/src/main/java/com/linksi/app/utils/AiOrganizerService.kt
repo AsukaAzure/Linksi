@@ -244,14 +244,16 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         body: String?,
         headers: Map<String, String>,
         method: String = "POST",
+        connectTimeoutMs: Int = 30000,
+        readTimeoutMs: Int = 60000,
         parseResponse: (String) -> String
     ): String {
         val connection = url.openConnection() as java.net.HttpURLConnection
         connection.apply {
             requestMethod = method
             doOutput = body != null
-            connectTimeout = 30000
-            readTimeout = 60000
+            connectTimeout = connectTimeoutMs
+            readTimeout = readTimeoutMs
             headers.forEach { (k, v) -> setRequestProperty(k, v) }
         }
         body?.let {
@@ -280,6 +282,82 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
             throw Exception(detailedMessage.ifBlank { "HTTP $responseCode: Unknown Error" })
         }
         return parseResponse(responseText)
+    }
+
+    /**
+     * Lightweight check that a model works: a minimal completion (5 tokens) with
+     * short timeouts instead of a full organize request, so it responds in seconds.
+     */
+    suspend fun pingModel(model: AiModel, apiKey: String, baseUrl: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            when (model.provider) {
+                AiProvider.ANTHROPIC -> {
+                    val endpoint = if (baseUrl.isNotBlank()) "${baseUrl.removeSuffix("/")}/messages" else "https://api.anthropic.com/v1/messages"
+                    makeHttpRequest(java.net.URL(endpoint), JSONObject().apply {
+                        put("model", model.modelId)
+                        put("max_tokens", 5)
+                        put("messages", JSONArray().put(JSONObject().apply {
+                            put("role", "user")
+                            put("content", "ping")
+                        }))
+                    }.toString(), mapOf(
+                        "x-api-key" to apiKey,
+                        "anthropic-version" to "2023-06-01",
+                        "Content-Type" to "application/json"
+                    ), connectTimeoutMs = 10000, readTimeoutMs = 20000) { "" }
+                }
+                AiProvider.GEMINI -> {
+                    val endpoint = if (baseUrl.isNotBlank()) {
+                        if (baseUrl.contains("?")) baseUrl else "$baseUrl/models/${model.modelId}:generateContent?key=$apiKey"
+                    } else {
+                        "https://generativelanguage.googleapis.com/v1beta/models/${model.modelId}:generateContent?key=$apiKey"
+                    }
+                    makeHttpRequest(java.net.URL(endpoint), JSONObject().apply {
+                        put("contents", JSONArray().put(JSONObject().apply {
+                            put("parts", JSONArray().put(JSONObject().apply { put("text", "ping") }))
+                        }))
+                        put("generationConfig", JSONObject().apply {
+                            put("temperature", 0)
+                            put("maxOutputTokens", 5)
+                        })
+                    }.toString(), mapOf("Content-Type" to "application/json"),
+                        connectTimeoutMs = 10000, readTimeoutMs = 20000) { "" }
+                }
+                else -> {
+                    val defaultBase = when (model.provider) {
+                        AiProvider.DEEPSEEK -> "https://api.deepseek.com"
+                        AiProvider.GROK -> "https://api.x.ai/v1"
+                        AiProvider.OPENROUTER -> "https://openrouter.ai/api/v1"
+                        else -> "https://api.openai.com/v1"
+                    }
+                    val endpoint = "${(baseUrl.ifBlank { defaultBase }).removeSuffix("/")}/chat/completions"
+                    val body = JSONObject().apply {
+                        put("model", model.modelId)
+                        put("messages", JSONArray().put(JSONObject().apply {
+                            put("role", "user")
+                            put("content", "ping")
+                        }))
+                        // Newer OpenAI models reject max_tokens in favor of max_completion_tokens.
+                        if (model.provider == AiProvider.OPENAI) put("max_completion_tokens", 5)
+                        else put("max_tokens", 5)
+                    }.toString()
+                    val headers = if (model.provider == AiProvider.OPENROUTER) mapOf(
+                        "Authorization" to "Bearer $apiKey",
+                        "Content-Type" to "application/json",
+                        "HTTP-Referer" to "https://github.com/AsukaAzure/Linksi",
+                        "X-Title" to "Linksi"
+                    ) else mapOf(
+                        "Authorization" to "Bearer $apiKey",
+                        "Content-Type" to "application/json"
+                    )
+                    makeHttpRequest(java.net.URL(endpoint), body, headers,
+                        connectTimeoutMs = 10000, readTimeoutMs = 20000) { "" }
+                }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun discoverOpenAiModels(apiKey: String, baseUrl: String = ""): List<AiModel> = withContext(Dispatchers.IO) {

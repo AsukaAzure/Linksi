@@ -545,17 +545,10 @@ class SettingsViewModel @Inject constructor(
 
             try {
                 val service = AiOrganizerService()
-                val result = service.generateOrganizePlan(
-                    links = listOf(
-                        Link(
-                            id = 1, url = "https://google.com",
-                            title = "Google", domain = "google.com"
-                        )
-                    ),
-                    existingFolders = emptyList(),
-                    model = model,
-                    apiKey = apiKey,
-                    baseUrl = _uiState.value.apiBaseUrls[model.provider] ?: ""
+                val result = service.pingModel(
+                    model,
+                    apiKey,
+                    _uiState.value.apiBaseUrls[model.provider] ?: ""
                 )
                 result.fold(
                     onSuccess = {

@@ -3,6 +3,7 @@ package com.linksi.app.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -1185,7 +1186,6 @@ fun ModelPickerSheet(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             // Models for selected provider
-            val providerModels = models.filter { it.provider == selectedProvider }
             var customModelInput by remember { mutableStateOf("") }
             var showCustomInput by remember { mutableStateOf(false) }
 
@@ -1195,14 +1195,6 @@ fun ModelPickerSheet(
                     .padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    stringResource(R.string.models),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-
                 AnimatedContent(
                     targetState = selectedProvider,
                     transitionSpec = {
@@ -1256,11 +1248,14 @@ fun ModelPickerSheet(
                                 items(provModels, key = { it.id }) { model ->
                                     val isSelected = model.id == currentModelId
                                     Surface(
-                                        shape = RoundedCornerShape(16.dp),
+                                        shape = RoundedCornerShape(14.dp),
                                         color = if (isSelected)
-                                            MaterialTheme.colorScheme.primaryContainer
+                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
                                         else
-                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                        border = if (isSelected)
+                                            BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                                        else null,
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clickable {
@@ -1269,26 +1264,19 @@ fun ModelPickerSheet(
                                             }
                                     ) {
                                         Row(
-                                            modifier = Modifier.padding(16.dp),
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
-                                            IconContainer(
-                                                icon = Icons.Outlined.SmartToy,
-                                                enabled = isSelected
-                                            )
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                                 ) {
                                                     Text(
                                                         model.name,
-                                                        style = MaterialTheme.typography.bodyLarge,
-                                                        fontWeight = if (isSelected)
-                                                            FontWeight.Bold
-                                                        else
-                                                            FontWeight.Medium,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.SemiBold,
                                                         color = if (isSelected)
                                                             MaterialTheme.colorScheme.onPrimaryContainer
                                                         else
@@ -1296,36 +1284,7 @@ fun ModelPickerSheet(
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
-                                                    if (model.isLatest) {
-                                                        Surface(
-                                                            shape = RoundedCornerShape(6.dp),
-                                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                                        ) {
-                                                            Text(
-                                                                "Latest",
-                                                                style = MaterialTheme.typography.labelSmall,
-                                                                color = MaterialTheme.colorScheme.primary,
-                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                                fontWeight = FontWeight.Bold
-                                                            )
-                                                        }
-                                                    }
-                                                    if (model.isRecommended) {
-                                                        Surface(
-                                                            shape = RoundedCornerShape(6.dp),
-                                                            color = Color(0xFF22C55E).copy(alpha = 0.15f)
-                                                        ) {
-                                                            Text(
-                                                                "Recommended",
-                                                                style = MaterialTheme.typography.labelSmall,
-                                                                color = Color(0xFF22C55E),
-                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                                fontWeight = FontWeight.Bold
-                                                            )
-                                                        }
-                                                    }
                                                 }
-                                                Spacer(Modifier.height(2.dp))
                                                 Text(
                                                     model.modelId,
                                                     style = MaterialTheme.typography.labelSmall,
@@ -1340,7 +1299,7 @@ fun ModelPickerSheet(
                                             if (isSelected) {
                                                 Icon(
                                                     Icons.Outlined.CheckCircle, null,
-                                                    Modifier.size(24.dp),
+                                                    Modifier.size(20.dp),
                                                     tint = MaterialTheme.colorScheme.primary
                                                 )
                                             }

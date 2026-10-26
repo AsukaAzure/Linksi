@@ -169,20 +169,7 @@ class AiOrganizerViewModel @Inject constructor(
             )}
 
             try {
-                val result = service.generateOrganizePlan(
-                    links = listOf(
-                        Link(
-                            id = 1,
-                            url = "https://google.com",
-                            title = "Google",
-                            domain = "google.com"
-                        )
-                    ),
-                    existingFolders = emptyList(),
-                    model = model,
-                    apiKey = apiKey,
-                    baseUrl = baseUrl
-                )
+                val result = service.pingModel(model, apiKey, baseUrl)
                 result.fold(
                     onSuccess = {
                         _uiState.update { it.copy(
