@@ -26,33 +26,83 @@ import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.linksi.app.R
 import com.linksi.app.utils.SecurityManager
+import com.linksi.app.utils.SECURITY_FAILED_ATTEMPTS
+import com.linksi.app.utils.SECURITY_LOCKOUT_UNTIL
+import com.linksi.app.utils.dataStore
+import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 @Composable
 fun LockScreen(
-    savedPin: String,
+    verifyPin: (String) -> Boolean,
     isBiometricEnabled: Boolean,
     onUnlock: () -> Unit
 ) {
     var enteredPin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Brute-force protection: after 5 wrong attempts the numpad locks for an
+    // escalating delay (30s doubling, capped at 15 minutes). Persisted so
+    // force-quitting the app doesn't reset the counter.
+    val lockoutPrefs by remember {
+        context.dataStore.data.map { prefs ->
+            Pair(
+                prefs[SECURITY_FAILED_ATTEMPTS] ?: 0,
+                prefs[SECURITY_LOCKOUT_UNTIL] ?: 0L
+            )
+        }
+    }.collectAsState(initial = Pair(0, 0L))
+    val (failedAttempts, lockoutUntil) = lockoutPrefs
+    val now by produceState(System.currentTimeMillis()) {
+        while (lockoutUntil > value) {
+            delay(1000)
+            value = System.currentTimeMillis()
+        }
+    }
+    val lockedOut = lockoutUntil > now
+    val lockoutSecondsLeft = ((lockoutUntil - now) / 1000L).coerceAtLeast(0)
+
+    fun recordFailure() {
+        val attempts = failedAttempts + 1
+        val delayMs = if (attempts >= 5) {
+            (30_000L shl ((attempts - 5).coerceAtMost(5))).coerceAtMost(15 * 60_000L)
+        } else 0L
+        scope.launch {
+            context.dataStore.edit {
+                it[SECURITY_FAILED_ATTEMPTS] = attempts
+                if (delayMs > 0) {
+                    it[SECURITY_LOCKOUT_UNTIL] = System.currentTimeMillis() + delayMs
+                }
+            }
+        }
+    }
 
     LaunchedEffect(enteredPin) {
         if (enteredPin.length == 4) {
-            if (enteredPin == savedPin) {
+            if (verifyPin(enteredPin)) {
+                scope.launch {
+                    context.dataStore.edit {
+                        it[SECURITY_FAILED_ATTEMPTS] = 0
+                        it[SECURITY_LOCKOUT_UNTIL] = 0L
+                    }
+                }
                 onUnlock()
             } else {
                 error = true
                 delay(500)
                 enteredPin = ""
                 error = false
+                recordFailure()
             }
         }
     }
 
     LaunchedEffect(Unit) {
-        if (isBiometricEnabled && SecurityManager.canUseBiometric(context)) {
+        if (isBiometricEnabled && !lockedOut && SecurityManager.canUseBiometric(context)) {
             SecurityManager.showBiometricPrompt(
                 activity = context as FragmentActivity,
                 title = context.getString(R.string.unlock),
@@ -129,9 +179,13 @@ fun LockScreen(
                 )
                 
                 Text(
-                    text = stringResource(id = R.string.enter_pin_to_unlock),
+                    text = if (lockedOut) {
+                        stringResource(R.string.lockout_message, lockoutSecondsLeft)
+                    } else {
+                        stringResource(R.string.enter_pin_to_unlock)
+                    },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (lockedOut) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -192,7 +246,7 @@ fun LockScreen(
                         row.forEach { item ->
                             when (item) {
                                 "biometric" -> {
-                                    if (isBiometricEnabled && SecurityManager.canUseBiometric(context)) {
+                                    if (isBiometricEnabled && !lockedOut && SecurityManager.canUseBiometric(context)) {
                                         NumpadIconButton(
                                             onClick = {
                                                 SecurityManager.showBiometricPrompt(
@@ -220,7 +274,7 @@ fun LockScreen(
                                 else -> {
                                     NumpadButton(
                                         text = item,
-                                        onClick = { if (enteredPin.length < 4) enteredPin += item }
+                                        onClick = { if (!lockedOut && enteredPin.length < 4) enteredPin += item }
                                     )
                                 }
                             }

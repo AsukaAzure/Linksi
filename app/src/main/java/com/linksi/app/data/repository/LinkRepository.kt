@@ -36,6 +36,9 @@ class LinkRepository @Inject constructor(
     fun getLinksWithReminders(isFolderLockEnabled: Boolean = true): Flow<List<Link>> =
         linkDao.getLinksWithReminders(isFolderLockEnabled).map { it.map(::toLink) }
 
+    suspend fun getLinksWithFutureReminders(): List<Link> =
+        linkDao.getLinksWithFutureReminders().map(::toLink)
+
     suspend fun insertLink(link: Link): Long =
         linkDao.insertLink(toEntity(link.copy(url = com.linksi.app.utils.normalizeUrl(link.url))))
 

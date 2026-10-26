@@ -36,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linksi.app.domain.model.AiProvider
+import com.linksi.app.utils.PinStorage
 import com.linksi.app.utils.exportFileName
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -559,7 +560,7 @@ fun SettingsScreen(
     ) {
         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             LockScreen(
-                savedPin = state.pin,
+                verifyPin = { entered -> PinStorage.verify(entered, state.pin) },
                 isBiometricEnabled = state.isBiometricEnabled,
                 onUnlock = {
                     showSecurityAuth = false

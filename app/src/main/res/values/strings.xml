@@ -393,4 +393,7 @@
     <string name="refreshing_metadata_progress">Refreshing metadata (%1$d of %2$d)…</string>
     <string name="api_link_hint">API Link / Base URL (optional)</string>
     <string name="api_link_label">API Link (Base URL)</string>
+    <string name="lockout_message">Too many attempts — try again in %1$d s</string>
+    <string name="ai_links_unassigned">%1$d link(s) could not be assigned to a folder</string>
+    <string name="download_started">Download started</string>
 </resources>

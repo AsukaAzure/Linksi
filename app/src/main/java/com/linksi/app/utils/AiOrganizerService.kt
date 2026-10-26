@@ -31,24 +31,39 @@ class AiOrganizerService {
         }
     }
 
-    private fun buildPrompt(links: List<Link>, folders: List<Folder>): String {
-        val linksJson = links.mapIndexed { i, link ->
-            """{"index": $i, "id": ${link.id}, "title": "${link.title.replace("\"", "'")}", "domain": "${link.domain}", "url": "${link.url}"}"""
-        }.joinToString(",\n")
-
-        val foldersJson = folders.map { f ->
-            """{"id": ${f.id}, "name": "${f.name.replace("\"", "'")}", "parentId": ${f.parentId ?: "null"}}"""
-        }.joinToString(",\n")
+    internal fun buildPrompt(links: List<Link>, folders: List<Folder>): String {
+        // Built with real JSON types — link titles/URLs are user content and
+        // may contain quotes, backslashes or newlines that would corrupt a
+        // hand-concatenated payload (or smuggle prompt text).
+        val payload = JSONObject().apply {
+            put("existingFolders", JSONArray().apply {
+                folders.forEach { f ->
+                    put(JSONObject().apply {
+                        put("id", f.id)
+                        put("name", f.name)
+                        put("parentId", f.parentId ?: JSONObject.NULL)
+                    })
+                }
+            })
+            put("linksToOrganize", JSONArray().apply {
+                links.forEachIndexed { i, link ->
+                    put(JSONObject().apply {
+                        put("index", i)
+                        put("id", link.id)
+                        put("title", link.title)
+                        put("domain", link.domain)
+                        put("url", link.url)
+                    })
+                }
+            })
+        }
 
         return """
-You are a smart link organizer. Organize the following saved links into folders.
+You are a smart link organizer. Organize the saved links in the PAYLOAD JSON into folders.
 The app supports nested folders (folders within folders).
 
-EXISTING FOLDERS (with their parent IDs):
-[$foldersJson]
-
-LINKS TO ORGANIZE:
-[$linksJson]
+PAYLOAD:
+$payload
 
 RULES:
 1. Use existing folders when they fit well.
@@ -127,10 +142,13 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
     }
 
     private fun callGemini(prompt: String, modelId: String, apiKey: String, baseUrl: String): String {
+        // If the user's custom base URL already carries a key in its query
+        // string, use it verbatim; otherwise the key goes in a header — never
+        // in the URL, which would leak it into logs and proxies.
         val endpoint = if (baseUrl.isNotBlank()) {
-            if (baseUrl.contains("?")) baseUrl else "$baseUrl/models/$modelId:generateContent?key=$apiKey"
+            if (baseUrl.contains("?")) baseUrl else "$baseUrl/models/$modelId:generateContent"
         } else {
-            "https://generativelanguage.googleapis.com/v1beta/models/$modelId:generateContent?key=$apiKey"
+            "https://generativelanguage.googleapis.com/v1beta/models/$modelId:generateContent"
         }
         val url = java.net.URL(endpoint)
         val body = JSONObject().apply {
@@ -146,9 +164,15 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
             })
         }.toString()
 
-        return makeHttpRequest(url, body, mapOf(
-            "Content-Type" to "application/json"
-        )) { response ->
+        val headers = if (baseUrl.contains("?")) {
+            mapOf("Content-Type" to "application/json")
+        } else {
+            mapOf(
+                "Content-Type" to "application/json",
+                "x-goog-api-key" to apiKey
+            )
+        }
+        return makeHttpRequest(url, body, headers) { response ->
             JSONObject(response)
                 .getJSONArray("candidates")
                 .getJSONObject(0)
@@ -249,39 +273,43 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
         parseResponse: (String) -> String
     ): String {
         val connection = url.openConnection() as java.net.HttpURLConnection
-        connection.apply {
-            requestMethod = method
-            doOutput = body != null
-            connectTimeout = connectTimeoutMs
-            readTimeout = readTimeoutMs
-            headers.forEach { (k, v) -> setRequestProperty(k, v) }
-        }
-        body?.let {
-            connection.outputStream.use { os -> os.write(it.toByteArray()) }
-        }
-        val responseCode = connection.responseCode
-        val responseText = if (responseCode in 200..299) {
-            connection.inputStream.bufferedReader().readText()
-        } else {
-            val errorBody = connection.errorStream?.bufferedReader()?.readText() ?: ""
-            val detailedMessage = try {
-                val json = JSONObject(errorBody)
-                when {
-                    json.has("error") -> {
-                        val errorObj = json.get("error")
-                        if (errorObj is JSONObject) errorObj.optString("message", errorBody)
-                        else if (errorObj is String) errorObj
-                        else errorBody
-                    }
-                    json.has("message") -> json.getString("message")
-                    else -> errorBody
-                }
-            } catch (e: Exception) {
-                errorBody
+        try {
+            connection.apply {
+                requestMethod = method
+                doOutput = body != null
+                connectTimeout = connectTimeoutMs
+                readTimeout = readTimeoutMs
+                headers.forEach { (k, v) -> setRequestProperty(k, v) }
             }
-            throw Exception(detailedMessage.ifBlank { "HTTP $responseCode: Unknown Error" })
+            body?.let {
+                connection.outputStream.use { os -> os.write(it.toByteArray()) }
+            }
+            val responseCode = connection.responseCode
+            val responseText = if (responseCode in 200..299) {
+                connection.inputStream.bufferedReader().readText()
+            } else {
+                val errorBody = connection.errorStream?.bufferedReader()?.readText() ?: ""
+                val detailedMessage = try {
+                    val json = JSONObject(errorBody)
+                    when {
+                        json.has("error") -> {
+                            val errorObj = json.get("error")
+                            if (errorObj is JSONObject) errorObj.optString("message", errorBody)
+                            else if (errorObj is String) errorObj
+                            else errorBody
+                        }
+                        json.has("message") -> json.getString("message")
+                        else -> errorBody
+                    }
+                } catch (e: Exception) {
+                    errorBody
+                }
+                throw Exception(detailedMessage.ifBlank { "HTTP $responseCode: Unknown Error" })
+            }
+            return parseResponse(responseText)
+        } finally {
+            connection.disconnect()
         }
-        return parseResponse(responseText)
     }
 
     /**
@@ -308,9 +336,17 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
                 }
                 AiProvider.GEMINI -> {
                     val endpoint = if (baseUrl.isNotBlank()) {
-                        if (baseUrl.contains("?")) baseUrl else "$baseUrl/models/${model.modelId}:generateContent?key=$apiKey"
+                        if (baseUrl.contains("?")) baseUrl else "$baseUrl/models/${model.modelId}:generateContent"
                     } else {
-                        "https://generativelanguage.googleapis.com/v1beta/models/${model.modelId}:generateContent?key=$apiKey"
+                        "https://generativelanguage.googleapis.com/v1beta/models/${model.modelId}:generateContent"
+                    }
+                    val headers = if (baseUrl.contains("?")) {
+                        mapOf("Content-Type" to "application/json")
+                    } else {
+                        mapOf(
+                            "Content-Type" to "application/json",
+                            "x-goog-api-key" to apiKey
+                        )
                     }
                     makeHttpRequest(java.net.URL(endpoint), JSONObject().apply {
                         put("contents", JSONArray().put(JSONObject().apply {
@@ -320,7 +356,7 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
                             put("temperature", 0)
                             put("maxOutputTokens", 5)
                         })
-                    }.toString(), mapOf("Content-Type" to "application/json"),
+                    }.toString(), headers,
                         connectTimeoutMs = 10000, readTimeoutMs = 20000) { "" }
                 }
                 else -> {
@@ -411,12 +447,17 @@ If a new folder is a sub-folder, set parentId to the ID of the existing parent f
 
     suspend fun discoverGeminiModels(apiKey: String, baseUrl: String = ""): List<AiModel> = withContext(Dispatchers.IO) {
         val endpoint = if (baseUrl.isNotBlank()) {
-            if (baseUrl.contains("?")) baseUrl else "$baseUrl/models?key=$apiKey"
+            if (baseUrl.contains("?")) baseUrl else "$baseUrl/models"
         } else {
-            "https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey"
+            "https://generativelanguage.googleapis.com/v1beta/models"
         }
         val url = java.net.URL(endpoint)
-        val response = makeHttpRequest(url, null, emptyMap(), "GET") { it }
+        val headers = if (baseUrl.contains("?")) {
+            emptyMap()
+        } else {
+            mapOf("x-goog-api-key" to apiKey)
+        }
+        val response = makeHttpRequest(url, null, headers, "GET") { it }
 
         val json = JSONObject(response)
         val data = json.getJSONArray("models")

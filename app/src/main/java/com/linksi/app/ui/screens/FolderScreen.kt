@@ -65,6 +65,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.shape.CircleShape
 import com.linksi.app.utils.SECURITY_BIOMETRIC_ENABLED
 import com.linksi.app.utils.SECURITY_PIN
+import com.linksi.app.utils.PinStorage
 import com.linksi.app.utils.dataStore
 import kotlinx.coroutines.flow.map
 
@@ -174,7 +175,7 @@ fun FoldersScreen(
             folderToUnlock?.let { folder ->
                 Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                     LockScreen(
-                        savedPin = securityPrefs?.first ?: "",
+                        verifyPin = { entered -> PinStorage.verify(entered, securityPrefs?.first ?: "") },
                         isBiometricEnabled = securityPrefs?.second ?: false,
                         onUnlock = {
                             folderStack.add(folder)
@@ -203,7 +204,7 @@ fun FoldersScreen(
             folderToDelete?.let { folder ->
                 Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                     LockScreen(
-                        savedPin = securityPrefs?.first ?: "",
+                        verifyPin = { entered -> PinStorage.verify(entered, securityPrefs?.first ?: "") },
                         isBiometricEnabled = securityPrefs?.second ?: false,
                         onUnlock = {
                             viewModel.deleteFolder(folder)

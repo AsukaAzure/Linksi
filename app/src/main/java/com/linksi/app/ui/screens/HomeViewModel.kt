@@ -1,7 +1,5 @@
 package com.linksi.app.ui.screens
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -17,6 +15,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.linksi.app.R
+
+enum class AddLinkStatus { NONE, SAVED, DUPLICATE, FAILED }
 
 data class HomeUiState(
     val links: List<Link> = emptyList(),
@@ -55,7 +55,8 @@ data class HomeUiState(
     val folderLockEnabled: Boolean = false,
     val showQuickFilters: Boolean = true,
     val trashBinEnabled: Boolean = true,
-    val globalPreventScreenshot: Boolean = false
+    val globalPreventScreenshot: Boolean = false,
+    val addLinkStatus: AddLinkStatus = AddLinkStatus.NONE
 )
 
 @HiltViewModel
@@ -84,7 +85,6 @@ class HomeViewModel @Inject constructor(
     }
 
     init {
-        createNotificationChannel(context)
         observeData()
         observeFolders()
         startExpiryChecker()
@@ -92,13 +92,6 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             context.dataStore.data.collect { prefs ->
-                val keys = mapOf(
-                    AiProvider.OPENAI    to SecureKeyStorage.getKey(context, AiProvider.OPENAI),
-                    AiProvider.ANTHROPIC to SecureKeyStorage.getKey(context, AiProvider.ANTHROPIC),
-                    AiProvider.GEMINI    to SecureKeyStorage.getKey(context, AiProvider.GEMINI),
-                    AiProvider.DEEPSEEK  to SecureKeyStorage.getKey(context, AiProvider.DEEPSEEK),
-                    AiProvider.GROK      to SecureKeyStorage.getKey(context, AiProvider.GROK)
-                )
                 _uiState.update {
                     it.copy(
                         useInAppBrowser = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true,
@@ -198,7 +191,9 @@ class HomeViewModel @Inject constructor(
 
     fun deleteTagGlobally(tag: String) {
         viewModelScope.launch {
-            val allLinks = _uiState.value.links
+            // "Globally" means every link in the database, not just the ones
+            // visible under the current folder/filter.
+            val allLinks = repository.getAllLinks().first()
             allLinks.filter { tag in it.tags }.forEach { link ->
                 repository.updateLink(link.copy(tags = link.tags - tag))
             }
@@ -242,7 +237,12 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val normalizedUrl = normalizeUrl(url)
             if (repository.isUrlAlreadySaved(normalizedUrl)) {
-                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.link_already_saved)) }
+                _uiState.update {
+                    it.copy(
+                        snackbarMessage = context.getString(R.string.link_already_saved),
+                        addLinkStatus = AddLinkStatus.DUPLICATE
+                    )
+                }
                 return@launch
             }
 
@@ -278,7 +278,19 @@ class HomeViewModel @Inject constructor(
             )
             try {
                 val insertedId = repository.insertLink(link)
-                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.link_saved), scrollToTop = true) }
+                _uiState.update {
+                    it.copy(
+                        snackbarMessage = context.getString(R.string.link_saved),
+                        addLinkStatus = AddLinkStatus.SAVED,
+                        scrollToTop = true
+                    )
+                }
+                if (reminderAt != null) {
+                    scheduleReminder(
+                        context, insertedId,
+                        link.title.ifBlank { normalizedUrl }, normalizedUrl, reminderAt
+                    )
+                }
 
                 // Auto-fetch in background if metadata is missing/incomplete
                 if (initialTitle.isBlank() || initialPreviewImage.isBlank()) {
@@ -308,7 +320,12 @@ class HomeViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(snackbarMessage = context.getString(R.string.link_save_failed)) }
+                _uiState.update {
+                    it.copy(
+                        snackbarMessage = context.getString(R.string.link_save_failed),
+                        addLinkStatus = AddLinkStatus.FAILED
+                    )
+                }
             }
         }
     }
@@ -316,12 +333,19 @@ class HomeViewModel @Inject constructor(
     fun updateLink(link: Link) {
         viewModelScope.launch {
             repository.updateLink(link)
+            // Keep the scheduled alarm in sync with the link's reminder field
+            if (link.reminderAt != null && link.reminderAt > System.currentTimeMillis()) {
+                scheduleReminder(context, link.id, link.title.ifBlank { link.url }, link.url, link.reminderAt)
+            } else {
+                cancelReminder(context, link.id)
+            }
             _uiState.update { it.copy(snackbarMessage = context.getString(R.string.link_updated)) }
         }
     }
 
     fun deleteLink(link: Link) {
         viewModelScope.launch {
+            cancelReminder(context, link.id)
             if (_uiState.value.trashBinEnabled) {
                 repository.moveToBin(link.id)
                 _uiState.update {
@@ -349,6 +373,11 @@ class HomeViewModel @Inject constructor(
                     repository.restoreFromBin(it.id)
                 } else {
                     repository.insertLink(it)
+                }
+                it.reminderAt?.let { time ->
+                    if (time > System.currentTimeMillis()) {
+                        scheduleReminder(context, it.id, it.title.ifBlank { it.url }, it.url, time)
+                    }
                 }
             }
             _uiState.update { it.copy(lastDeletedLinks = emptyList(), snackbarMessage = null) }
@@ -398,7 +427,19 @@ class HomeViewModel @Inject constructor(
 
     fun deleteFolder(folder: Folder) {
         viewModelScope.launch {
-            val tree = repository.getFolderTree(folder.id)
+            val tree = repository.getFolderTree(folder.id) ?: return@launch
+            if (_uiState.value.trashBinEnabled) {
+                // The FK cascade would hard-delete every link in the tree, so
+                // bin them and detach from the folder first — links survive in
+                // the bin, folder deletion only removes the folder rows.
+                tree.allLinks.forEach {
+                    cancelReminder(context, it.id)
+                    repository.moveToBin(it.id)
+                    repository.moveToFolder(it.id, null)
+                }
+            } else {
+                tree.allLinks.forEach { cancelReminder(context, it.id) }
+            }
             repository.deleteFolder(folder)
             _uiState.update {
                 it.copy(
@@ -500,7 +541,22 @@ class HomeViewModel @Inject constructor(
             _uiState.value.lastDeletedFolderTree?.let { tree ->
                 repository.insertFolder(tree.rootFolder)
                 tree.descendantFolders.forEach { repository.insertFolder(it) }
-                tree.allLinks.forEach { repository.insertLink(it) }
+                tree.allLinks.forEach { link ->
+                    val existing = repository.getLinkById(link.id)
+                    if (existing != null) {
+                        // Links binned by deleteFolder: restore in place
+                        repository.restoreFromBin(link.id)
+                        repository.moveToFolder(link.id, link.folderId)
+                    } else {
+                        // Bin cleanup may have purged them; recreate
+                        repository.insertLink(link)
+                    }
+                    link.reminderAt?.let { time ->
+                        if (time > System.currentTimeMillis()) {
+                            scheduleReminder(context, link.id, link.title.ifBlank { link.url }, link.url, time)
+                        }
+                    }
+                }
             }
             _uiState.update {
                 it.copy(
@@ -567,9 +623,9 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             repository.updateLink(link.copy(reminderAt = time))
             if (time != null) {
-                scheduleNotification(context, link.id, link.title, time)
+                scheduleReminder(context, link.id, link.title.ifBlank { link.url }, link.url, time)
             } else {
-                cancelNotification(context, link.id)
+                cancelReminder(context, link.id)
             }
         }
     }
@@ -578,7 +634,13 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             while (true) {
                 val expired = repository.getExpiredLinks()
-                expired.forEach { repository.deleteLink(it) }
+                if (expired.isNotEmpty()) {
+                    val useBin = _uiState.value.trashBinEnabled
+                    expired.forEach {
+                        cancelReminder(context, it.id)
+                        if (useBin) repository.moveToBin(it.id) else repository.deleteLink(it)
+                    }
+                }
                 kotlinx.coroutines.delay(60000) // Check every minute
             }
         }
@@ -595,6 +657,7 @@ class HomeViewModel @Inject constructor(
 
     fun dismissSnackbar() { _uiState.update { it.copy(snackbarMessage = null) } }
     fun dismissFolderSnackbar() { _uiState.update { it.copy(folderSnackbarMessage = null) } }
+    fun consumeAddLinkStatus() { _uiState.update { it.copy(addLinkStatus = AddLinkStatus.NONE) } }
 
     fun showAddLinkDialog() { _uiState.update { it.copy(showAddLinkDialog = true) } }
     fun hideAddLinkDialog() { _uiState.update { it.copy(showAddLinkDialog = false) } }
@@ -644,6 +707,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val useBin = _uiState.value.trashBinEnabled
             linksToDelete.forEach {
+                cancelReminder(context, it.id)
                 if (useBin) repository.moveToBin(it.id)
                 else repository.deleteLink(it)
             }
@@ -694,25 +758,5 @@ class HomeViewModel @Inject constructor(
 
     fun setFolderLinksViewMode(mode: ViewMode) {
         viewModelScope.launch { context.dataStore.edit { it[FOLDER_LINKS_VIEW_MODE] = mode.name } }
-    }
-
-    private fun createNotificationChannel(context: Context) {
-        val name = context.getString(R.string.notification_channel_name)
-        val descriptionText = context.getString(R.string.notification_channel_desc)
-        val importance = NotificationManager.IMPORTANCE_DEFAULT
-        val channel = NotificationChannel("link_reminders", name, importance).apply {
-            description = descriptionText
-        }
-        val notificationManager: NotificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.createNotificationChannel(channel)
-    }
-
-    private fun scheduleNotification(context: Context, linkId: Long, title: String, time: Long) {
-        // Implementation for scheduling notification
-    }
-
-    private fun cancelNotification(context: Context, linkId: Long) {
-        // Implementation for canceling notification
     }
 }

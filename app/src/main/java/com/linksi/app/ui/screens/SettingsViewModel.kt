@@ -19,8 +19,6 @@ import androidx.datastore.core.DataStore
 import com.linksi.app.domain.model.AiProvider
 import com.linksi.app.domain.model.DEFAULT_AI_MODEL_ID
 import com.linksi.app.domain.model.Link
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 
 data class SettingsUiState(
@@ -81,6 +79,10 @@ class SettingsViewModel @Inject constructor(
         observeModels()
         observeImportProgress()
         viewModelScope.launch {
+            SecureKeyStorage.preload(context)
+            _uiState.update { it.copy(apiKeys = SecureKeyStorage.getAll()) }
+        }
+        viewModelScope.launch {
             combine(
                 repository.getAllLinks(),
                 repository.getAllFolders()
@@ -97,14 +99,6 @@ class SettingsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             context.dataStore.data.collect { prefs ->
-                val keys = mapOf(
-                    AiProvider.OPENAI    to SecureKeyStorage.getKey(context, AiProvider.OPENAI),
-                    AiProvider.ANTHROPIC to SecureKeyStorage.getKey(context, AiProvider.ANTHROPIC),
-                    AiProvider.GEMINI    to SecureKeyStorage.getKey(context, AiProvider.GEMINI),
-                    AiProvider.DEEPSEEK  to SecureKeyStorage.getKey(context, AiProvider.DEEPSEEK),
-                    AiProvider.GROK      to SecureKeyStorage.getKey(context, AiProvider.GROK),
-                    AiProvider.OPENROUTER to SecureKeyStorage.getKey(context, AiProvider.OPENROUTER)
-                )
                 val urls = mapOf(
                     AiProvider.OPENAI    to (prefs[AI_URL_OPENAI]    ?: ""),
                     AiProvider.ANTHROPIC to (prefs[AI_URL_ANTHROPIC] ?: ""),
@@ -118,7 +112,6 @@ class SettingsViewModel @Inject constructor(
                         useInAppBrowser  = prefs[booleanPreferencesKey("use_in_app_browser")] ?: true,
                         aiEnabled        = prefs[AI_ENABLED]        ?: false,
                         selectedModelId  = prefs[AI_SELECTED_MODEL] ?: DEFAULT_AI_MODEL_ID,
-                        apiKeys          = keys,
                         apiBaseUrls      = urls,
                         selectedLanguage = prefs[APP_LANGUAGE] ?: "",
                         themeMode        = prefs[APP_THEME] ?: "system",
@@ -182,62 +175,23 @@ class SettingsViewModel @Inject constructor(
     fun checkForUpdate() {
         viewModelScope.launch {
             _uiState.update { it.copy(isCheckingUpdate = true, updateCheckError = null) }
-            try {
-                // Fetch latest release from GitHub
-                val response = withContext(Dispatchers.IO) {
-                    java.net.URL("https://api.github.com/repos/AsukaAzure/Linksi/releases/latest")
-                        .openConnection()
-                        .apply {
-                            setRequestProperty("Accept", "application/vnd.github.v3+json")
-                            connectTimeout = 8000
-                            readTimeout = 8000
-                        }
-                        .getInputStream()
-                        .bufferedReader()
-                        .readText()
-                }
-
-                // Parse tag_name from JSON
-                val tagName = Regex(""""tag_name"\s*:\s*"([^"]+)"""")
-                    .find(response)?.groupValues?.get(1) ?: ""
-
-                val latestVersion = tagName.removePrefix("v")
-                val currentVersion = _uiState.value.currentVersion
-
-                val updateAvailable = isNewerVersion(latestVersion, currentVersion)
-
-                _uiState.update {
-                    it.copy(
-                        latestVersion = latestVersion,
-                        updateAvailable = updateAvailable,
-                        isCheckingUpdate = false
-                    )
-                }
-            } catch (e: Exception) {
+            val latestVersion = UpdateChecker.fetchLatestVersion()
+            if (latestVersion == null) {
                 _uiState.update {
                     it.copy(
                         isCheckingUpdate = false,
-                        updateCheckError = context.getString(R.string.update_check_error, e.message)
+                        updateCheckError = context.getString(R.string.update_check_error, "network error")
                     )
                 }
+                return@launch
             }
-        }
-    }
-
-
-    private fun isNewerVersion(latest: String, current: String): Boolean {
-        return try {
-            val latestParts = latest.split(".").map { it.toInt() }
-            val currentParts = current.split(".").map { it.toInt() }
-            for (i in 0 until maxOf(latestParts.size, currentParts.size)) {
-                val l = latestParts.getOrElse(i) { 0 }
-                val c = currentParts.getOrElse(i) { 0 }
-                if (l > c) return true
-                if (l < c) return false
+            _uiState.update {
+                it.copy(
+                    latestVersion = latestVersion,
+                    updateAvailable = UpdateChecker.isNewerVersion(latestVersion, _uiState.value.currentVersion),
+                    isCheckingUpdate = false
+                )
             }
-            false
-        } catch (e: Exception) {
-            false
         }
     }
 
@@ -438,7 +392,7 @@ class SettingsViewModel @Inject constructor(
     fun setPin(pin: String) {
         viewModelScope.launch {
             context.dataStore.edit { prefs ->
-                prefs[SECURITY_PIN] = pin
+                prefs[SECURITY_PIN] = PinStorage.hash(pin)
                 // Also reset pause time when setting/changing pin to prevent instant lock
                 if (prefs[SECURITY_LOCK_ENABLED] == true) {
                     prefs[LAST_APP_PAUSE_TIME] = Long.MAX_VALUE

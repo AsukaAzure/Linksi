@@ -12,6 +12,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -168,8 +169,11 @@ fun InAppBrowser(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
+                                // Only claim a padlock when the page is actually secure
                                 Icon(
-                                    Icons.Outlined.Lock, null,
+                                    if (currentUrl.startsWith("https://")) Icons.Outlined.Lock
+                                    else Icons.Outlined.LockOpen,
+                                    null,
                                     Modifier.size(12.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -298,8 +302,7 @@ fun WebViewContent(
     val context = LocalContext.current
     AndroidView(
         factory = { ctx ->
-            WebView(ctx).apply {
-                layoutParams = ViewGroup.LayoutParams(
+            WebView(ctx).apply {                layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
@@ -312,6 +315,24 @@ fun WebViewContent(
                     displayZoomControls = false
                     setSupportZoom(true)
                     mediaPlaybackRequiresUserGesture = false
+                }
+                // Basic download support — without a listener, tapping any
+                // download link silently did nothing.
+                setDownloadListener { url, _, _, _, _ ->
+                    try {
+                        val request = android.app.DownloadManager.Request(Uri.parse(url))
+                            .setNotificationVisibility(
+                                android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                            )
+                        val dm = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+                        dm.enqueue(request)
+                        Toast.makeText(context, R.string.download_started, Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        // Unhandled scheme or no DownloadManager — try external app
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        } catch (ignored: Exception) { }
+                    }
                 }
                 // Override scroll change to report position
                 setOnScrollChangeListener { _, _, scrollY, _, _ ->
@@ -429,6 +450,12 @@ fun WebViewContent(
                 loadUrl(url)
                 onWebViewCreated(this)
             }
+        },
+        onRelease = { webView ->
+            // Without this every open/close of the browser leaked a WebView
+            // and its renderer process memory.
+            webView.stopLoading()
+            webView.destroy()
         },
         modifier = modifier
     )

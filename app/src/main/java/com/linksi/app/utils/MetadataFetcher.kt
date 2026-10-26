@@ -127,8 +127,17 @@ object MetadataFetcher {
                 }
             }
 
-            override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
-                deferred.complete(null)
+            // Main-frame failures only — the legacy override below this used
+            // to fire for any subresource (an image 404 aborted metadata
+            // extraction of an otherwise fine page).
+            override fun onReceivedError(
+                view: WebView?,
+                request: android.webkit.WebResourceRequest?,
+                error: android.webkit.WebResourceError?
+            ) {
+                if (request?.isForMainFrame == true) {
+                    deferred.complete(null)
+                }
             }
         }
 
@@ -287,29 +296,26 @@ fun isValidUrl(url: String): Boolean {
 }
 
 /**
- * Normalizes scheme and host only.
+ * Normalizes scheme presence and host casing — nothing else.
  *
- * The previous version lowercased the entire URL, which silently corrupted
- * every case-sensitive path segment — Instagram shortcodes (/p/DAbC_xYz/) and
- * YouTube video IDs both are — so those links 404'd before any fetch happened.
- * Host and scheme are case-insensitive by spec; paths and query strings are not.
+ * The scheme the user saved is preserved: rewriting http:// to https:// used
+ * to silently break saved links on sites without TLS. Only a scheme-less URL
+ * gets https:// prepended. Host and scheme are case-insensitive by spec;
+ * paths and query strings are not — the earlier version lowercased the whole
+ * URL and corrupted case-sensitive paths (Instagram shortcodes, YouTube IDs).
  */
 fun normalizeUrl(url: String): String {
     val trimmed = url.trim()
     if (trimmed.isBlank()) return ""
 
-    var normalized = trimmed
-
-    // Convert to https if it's http
-    if (normalized.startsWith("http://", ignoreCase = true)) {
-        normalized = "https://" + normalized.substring(7)
-    } else if (!normalized.startsWith("https://", ignoreCase = true)) {
-        normalized = "https://$normalized"
-    }
+    val hasScheme = trimmed.startsWith("http://", ignoreCase = true) ||
+            trimmed.startsWith("https://", ignoreCase = true)
+    val normalized = if (hasScheme) trimmed else "https://$trimmed"
 
     return try {
         val uri = URI(normalized).normalize()
         val host = uri.host?.lowercase() ?: return normalized
+        val scheme = uri.scheme?.lowercase() ?: "https"
 
         val path = uri.rawPath.orEmpty().let {
             // Drop a trailing slash, but never reduce the path to nothing.
@@ -317,7 +323,8 @@ fun normalizeUrl(url: String): String {
         }
 
         buildString {
-            append("https://")
+            append(scheme)
+            append("://")
             append(host)
             if (uri.port != -1) append(":${uri.port}")
             append(path)

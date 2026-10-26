@@ -44,6 +44,14 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.linksi.app.ui.components.*
 import com.linksi.app.utils.MetadataFetcher
+import com.linksi.app.utils.PinStorage
+import com.linksi.app.utils.SecurityManager
+import com.linksi.app.utils.SECURITY_BIOMETRIC_ENABLED
+import com.linksi.app.utils.SECURITY_LOCK_ENABLED
+import com.linksi.app.utils.SECURITY_PIN
+import com.linksi.app.utils.dataStore
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -64,14 +72,43 @@ class ShareReceiverActivity : AppCompatActivity() {
 
         setContent {
             LinksTheme {
-                ShareReceiverSheet(
-                    url = sharedData.url,
-                    initialTitle = sharedData.title,
-                    initialImageUrl = sharedData.imageUrl,
-                    viewModel = viewModel,
-                    onDismiss = { finish() },
-                    onSaved = { finish() }
-                )
+                val context = LocalContext.current
+                val securityPrefs by remember {
+                    context.dataStore.data.map { prefs ->
+                        Triple(
+                            prefs[SECURITY_LOCK_ENABLED] ?: false,
+                            prefs[SECURITY_PIN] ?: "",
+                            prefs[SECURITY_BIOMETRIC_ENABLED] ?: false
+                        )
+                    }
+                }.collectAsState(initial = null)
+
+                // Same lock gate as MainActivity — the share sheet must not
+                // become a way around app lock.
+                var unlocked by remember { mutableStateOf(false) }
+                var lockDue by remember { mutableStateOf(false) }
+                LaunchedEffect(securityPrefs) {
+                    if (securityPrefs != null && !unlocked) {
+                        lockDue = SecurityManager.shouldLockApp(context)
+                    }
+                }
+
+                if (securityPrefs != null && lockDue && !unlocked) {
+                    LockScreen(
+                        verifyPin = { entered -> PinStorage.verify(entered, securityPrefs!!.second) },
+                        isBiometricEnabled = securityPrefs!!.third,
+                        onUnlock = { unlocked = true }
+                    )
+                } else {
+                    ShareReceiverSheet(
+                        url = sharedData.url,
+                        initialTitle = sharedData.title,
+                        initialImageUrl = sharedData.imageUrl,
+                        viewModel = viewModel,
+                        onDismiss = { finish() },
+                        onSaved = { finish() }
+                    )
+                }
             }
         }
     }
@@ -652,22 +689,30 @@ fun ShareReceiverSheet(
                                 tags = tags,
                                 expiresAt = expiresAt
                             )
-                            val result = snapshotFlow { state.snackbarMessage }
-                                .first { it != null }
+                            // Wait for the structured result, not a localized
+                            // snackbar string; never hang longer than 15s.
+                            val result = withTimeoutOrNull(15_000) {
+                                snapshotFlow { state.addLinkStatus }.first { it != AddLinkStatus.NONE }
+                            } ?: AddLinkStatus.FAILED
+                            viewModel.consumeAddLinkStatus()
 
-                            if (result == context.getString(R.string.link_already_saved)) {
-                                saveStatus = SaveStatus.IDLE
-                            } else if (result == context.getString(R.string.link_saved)) {
-                                saveStatus = SaveStatus.SUCCESS
-                                kotlinx.coroutines.delay(800)
-                                sheetState.hide()
-                                onSaved()
-                                viewModel.dismissSnackbar()
-                            } else {
-                                saveStatus = SaveStatus.FAILURE
-                                kotlinx.coroutines.delay(2000)
-                                saveStatus = SaveStatus.IDLE
-                                viewModel.dismissSnackbar()
+                            when (result) {
+                                AddLinkStatus.DUPLICATE -> {
+                                    saveStatus = SaveStatus.IDLE
+                                }
+                                AddLinkStatus.SAVED -> {
+                                    saveStatus = SaveStatus.SUCCESS
+                                    kotlinx.coroutines.delay(800)
+                                    sheetState.hide()
+                                    onSaved()
+                                    viewModel.dismissSnackbar()
+                                }
+                                else -> {
+                                    saveStatus = SaveStatus.FAILURE
+                                    kotlinx.coroutines.delay(2000)
+                                    saveStatus = SaveStatus.IDLE
+                                    viewModel.dismissSnackbar()
+                                }
                             }
                         }
                     },
@@ -752,7 +797,7 @@ fun ShareReceiverSheet(
 
     if (showFolderPicker) {
         FolderPickerDialog(
-            folders = state.allFolders,
+            folders = if (state.folderLockEnabled) state.allFolders.filter { !it.isLocked } else state.allFolders,
             currentFolderId = selectedFolderId,
             onSelect = { folderId ->
                 selectedFolderId = folderId

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -16,12 +17,7 @@ val HOME_VIEW_MODE = stringPreferencesKey("home_view_mode")
 val HOME_SORT_OPTION = stringPreferencesKey("home_sort_option")
 val AI_ENABLED = booleanPreferencesKey("ai_enabled")
 val AI_SELECTED_MODEL = stringPreferencesKey("ai_selected_model")
-// Store API keys per provider
-val AI_KEY_OPENAI = stringPreferencesKey("ai_key_openai")
-val AI_KEY_ANTHROPIC = stringPreferencesKey("ai_key_anthropic")
-val AI_KEY_GEMINI = stringPreferencesKey("ai_key_gemini")
-val AI_KEY_DEEPSEEK = stringPreferencesKey("ai_key_deepseek")
-val AI_KEY_GROK = stringPreferencesKey("ai_key_grok")
+// API keys live in SecureKeyStorage (EncryptedSharedPreferences), not here.
 // Store API URLs per provider
 val AI_URL_OPENAI = stringPreferencesKey("ai_url_openai")
 val AI_URL_ANTHROPIC = stringPreferencesKey("ai_url_anthropic")
@@ -43,6 +39,8 @@ val SECURITY_LOCK_DELAY = longPreferencesKey("security_lock_delay")
 val SECURITY_UNIVERSAL_LOCK = booleanPreferencesKey("security_universal_lock")
 val SECURITY_FOLDER_LOCK_ENABLED = booleanPreferencesKey("security_folder_lock_enabled")
 val LAST_APP_PAUSE_TIME = longPreferencesKey("last_app_pause_time")
+val SECURITY_FAILED_ATTEMPTS = intPreferencesKey("security_failed_attempts")
+val SECURITY_LOCKOUT_UNTIL = longPreferencesKey("security_lockout_until")
 val SKIP_UPDATE_UNTIL = longPreferencesKey("skip_update_until")
 val TRASH_BIN_ENABLED = booleanPreferencesKey("trash_bin_enabled")
 val GLOBAL_PREVENT_SCREENSHOT = booleanPreferencesKey("global_prevent_screenshot")

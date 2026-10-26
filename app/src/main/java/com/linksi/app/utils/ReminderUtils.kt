@@ -10,6 +10,12 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.linksi.app.R
+import com.linksi.app.data.repository.LinkRepository
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 const val CHANNEL_ID = "linksi_reminders"
 const val EXTRA_LINK_ID = "link_id"
@@ -69,6 +75,33 @@ fun cancelReminder(context: Context, linkId: Long) {
     alarmManager.cancel(pendingIntent)
 }
 
+/**
+ * Alarms don't survive a reboot; the manifest registers this receiver so all
+ * future reminders are re-armed when the device starts up.
+ */
+@AndroidEntryPoint
+class ReminderBootReceiver : BroadcastReceiver() {
+    @Inject
+    lateinit var repository: LinkRepository
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        createNotificationChannel(context)
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                repository.getLinksWithFutureReminders().forEach { link ->
+                    link.reminderAt?.let { time ->
+                        scheduleReminder(context, link.id, link.title.ifBlank { link.url }, link.url, time)
+                    }
+                }
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+}
+
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val title = intent.getStringExtra(EXTRA_LINK_TITLE) ?: "Saved Link"
@@ -85,7 +118,7 @@ class ReminderReceiver : BroadcastReceiver() {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.mipmap.linksi)
             .setContentTitle(context.getString(com.linksi.app.R.string.notification_title))
             .setContentText(title.ifBlank { url })
             .setStyle(NotificationCompat.BigTextStyle().bigText(title.ifBlank { url }))

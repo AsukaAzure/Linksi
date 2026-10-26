@@ -50,7 +50,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
-import com.android.volley.toolbox.ImageRequest
 import com.linksi.app.R
 import com.linksi.app.domain.model.Folder
 import com.linksi.app.domain.model.Link

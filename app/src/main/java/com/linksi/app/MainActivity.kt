@@ -24,7 +24,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.os.LocaleListCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
+import android.os.Build
 import android.view.WindowManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import com.linksi.app.ui.screens.HomeScreen
 import com.linksi.app.ui.screens.LockScreen
 import com.linksi.app.ui.screens.OnboardingScreen
@@ -119,6 +123,25 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            // Rewrite a legacy plaintext PIN as a salted hash (one-time)
+            LaunchedEffect(Unit) {
+                PinStorage.migrateIfNeeded(context)
+            }
+
+            // Reminders need the notification permission on Android 13+
+            val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { }
+            LaunchedEffect(Unit) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(
+                        context, android.Manifest.permission.POST_NOTIFICATIONS
+                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+
             // Apply language if it differs from current system/app setting
             LaunchedEffect(appLanguage) {
                 appLanguage?.let { lang ->
@@ -147,7 +170,7 @@ class MainActivity : AppCompatActivity() {
                     ) {
                         if (isLocked && securityPrefs != null) {
                             LockScreen(
-                                savedPin = securityPrefs!!.pin,
+                                verifyPin = { entered -> PinStorage.verify(entered, securityPrefs!!.pin) },
                                 isBiometricEnabled = securityPrefs!!.biometricEnabled,
                                 onUnlock = { isLocked = false }
                             )
@@ -257,24 +280,9 @@ class MainActivity : AppCompatActivity() {
                     .getPackageInfo(context.packageName, 0).versionName ?: "1.0.0"
                 currentVersion = version
 
-                val response = withContext(Dispatchers.IO) {
-                    java.net.URL("https://api.github.com/repos/AsukaAzure/Linksi/releases/latest")
-                        .openConnection()
-                        .apply {
-                            connectTimeout = 6000
-                            readTimeout = 6000
-                        }
-                        .getInputStream()
-                        .bufferedReader()
-                        .readText()
-                }
+                latestVersion = UpdateChecker.fetchLatestVersion() ?: return@LaunchedEffect
 
-                val tagName = Regex(""""tag_name"\s*:\s*"([^"]+)"""")
-                    .find(response)?.groupValues?.get(1) ?: ""
-
-                latestVersion = tagName.removePrefix("v")
-
-                if (isNewerVersion(latestVersion, currentVersion)) {
+                if (UpdateChecker.isNewerVersion(latestVersion, currentVersion)) {
                     showUpdateDialog = true
                 }
             } catch (e: Exception) {
@@ -348,22 +356,6 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             )
-        }
-    }
-
-    private fun isNewerVersion(latest: String, current: String): Boolean {
-        return try {
-            val latestParts = latest.split(".").map { it.toIntOrNull() ?: 0 }
-            val currentParts = current.split(".").map { it.toIntOrNull() ?: 0 }
-            for (i in 0 until maxOf(latestParts.size, currentParts.size)) {
-                val l = latestParts.getOrElse(i) { 0 }
-                val c = currentParts.getOrElse(i) { 0 }
-                if (l > c) return true
-                if (l < c) return false
-            }
-            false
-        } catch (e: Exception) {
-            false
         }
     }
 }

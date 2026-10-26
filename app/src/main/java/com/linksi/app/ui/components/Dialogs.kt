@@ -455,7 +455,7 @@ fun PinVerifyDialog(
 
     LaunchedEffect(enteredPin) {
         if (enteredPin.length == 4) {
-            if (enteredPin == savedPin) {
+            if (PinStorage.verify(enteredPin, savedPin)) {
                 onSuccess()
             } else {
                 error = true

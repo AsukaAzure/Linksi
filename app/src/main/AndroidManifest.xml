@@ -7,12 +7,13 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
 
     <application
         android:name=".LinksApplication"
         android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/linksi"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/linksi_round"
@@ -70,6 +71,14 @@
 
         <receiver android:name=".utils.ReminderReceiver"
             android:exported="false" />
+
+        <!-- Alarms don't survive a reboot — re-arm all future reminders -->
+        <receiver android:name=".utils.ReminderBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

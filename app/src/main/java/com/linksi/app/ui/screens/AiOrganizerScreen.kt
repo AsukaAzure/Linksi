@@ -106,7 +106,8 @@ fun AiOrganizerScreen(
             AiOrganizerStep.DONE -> AiDoneScreen(
                 onBack = onBack,
                 onRevert = viewModel::revertLastSession,
-                onOrganizeAgain = viewModel::resetToIdle
+                onOrganizeAgain = viewModel::resetToIdle,
+                unassignedCount = state.unassignedLinks
             )
 
             AiOrganizerStep.ERROR -> AiErrorScreen(
@@ -1055,7 +1056,12 @@ fun AnimatedCheckmark(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun AiDoneScreen(onBack: () -> Unit, onRevert: () -> Unit, onOrganizeAgain: () -> Unit) {
+fun AiDoneScreen(
+    onBack: () -> Unit,
+    onRevert: () -> Unit,
+    onOrganizeAgain: () -> Unit,
+    unassignedCount: Int = 0
+) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1075,6 +1081,14 @@ fun AiDoneScreen(onBack: () -> Unit, onRevert: () -> Unit, onOrganizeAgain: () -
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (unassignedCount > 0) {
+                Text(
+                    stringResource(R.string.ai_links_unassigned, unassignedCount),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
             Spacer(Modifier.height(16.dp))
             
             Button(

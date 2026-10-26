@@ -26,6 +26,9 @@ jobs:
       - name: Decode Keystore
         run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > app/release.jks
 
+      - name: Run unit tests
+        run: ./gradlew testReleaseUnitTest
+
       - name: Build Release APK
         run: ./gradlew assembleRelease
         env:

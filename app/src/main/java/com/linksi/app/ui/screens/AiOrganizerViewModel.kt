@@ -43,6 +43,7 @@ data class AiOrganizerUiState(
     val applyTotal: Int = 0,
     val batchSize: Int = 32,
     val batchProgress: String = "",
+    val unassignedLinks: Int = 0,
 
     // Revert
     val lastSession: AiOrganizerSession? = null,
@@ -91,15 +92,11 @@ class AiOrganizerViewModel @Inject constructor(
 
     private fun loadSettings() {
         viewModelScope.launch {
+            // EncryptedSharedPreferences is expensive to open — load the keys
+            // once on IO instead of on every DataStore emission.
+            SecureKeyStorage.preload(context)
+            _uiState.update { it.copy(apiKeys = SecureKeyStorage.getAll()) }
             context.dataStore.data.collect { prefs ->
-                val keys = mapOf(
-                    AiProvider.OPENAI to SecureKeyStorage.getKey(context, AiProvider.OPENAI),
-                    AiProvider.ANTHROPIC to SecureKeyStorage.getKey(context, AiProvider.ANTHROPIC),
-                    AiProvider.GEMINI to SecureKeyStorage.getKey(context, AiProvider.GEMINI),
-                    AiProvider.DEEPSEEK to SecureKeyStorage.getKey(context, AiProvider.DEEPSEEK),
-                    AiProvider.GROK to SecureKeyStorage.getKey(context, AiProvider.GROK),
-                    AiProvider.OPENROUTER to SecureKeyStorage.getKey(context, AiProvider.OPENROUTER)
-                )
                 val urls = mapOf(
                     AiProvider.OPENAI to (prefs[AI_URL_OPENAI] ?: ""),
                     AiProvider.ANTHROPIC to (prefs[AI_URL_ANTHROPIC] ?: ""),
@@ -112,7 +109,6 @@ class AiOrganizerViewModel @Inject constructor(
                     it.copy(
                         isEnabled = prefs[AI_ENABLED] ?: false,
                         selectedModelId = prefs[AI_SELECTED_MODEL] ?: DEFAULT_AI_MODEL_ID,
-                        apiKeys = keys,
                         apiBaseUrls = urls
                     )
                 }
@@ -339,13 +335,17 @@ class AiOrganizerViewModel @Inject constructor(
                 )
             }
 
-            _uiState.update { it.copy(
-                step = AiOrganizerStep.PREVIEW,
-                plan = OrganizePlan(
-                    linkPlans = allLinkPlans,
-                    newFolders = allNewFolders.distinctBy { it.name }
+            _uiState.update {
+                it.copy(
+                    step = AiOrganizerStep.PREVIEW,
+                    plan = OrganizePlan(
+                        linkPlans = allLinkPlans,
+                        // Same name under different parents are distinct folders;
+                        // deduping by name alone would silently merge them.
+                        newFolders = allNewFolders.distinctBy { (it.name.lowercase() to it.parentId) }
+                    )
                 )
-            )}
+            }
         }
     }
 
@@ -405,10 +405,13 @@ class AiOrganizerViewModel @Inject constructor(
                 }
             }
 
+            var unmovedCount = 0
             for ((index, lp) in plan.linkPlans.withIndex()) {
                 val targetFolderId = lp.targetFolderId ?: newFolderIdMap[lp.targetFolderName]
                 if (targetFolderId != null) {
                     repository.moveToFolder(lp.link.id, targetFolderId)
+                } else {
+                    unmovedCount++
                 }
                 _uiState.update { it.copy(applyProgress = index + 1) }
             }
@@ -425,7 +428,8 @@ class AiOrganizerViewModel @Inject constructor(
                 it.copy(
                     step = AiOrganizerStep.DONE,
                     lastSession = session,
-                    hasRevertableSession = true
+                    hasRevertableSession = true,
+                    unassignedLinks = unmovedCount
                 )
             }
         }
