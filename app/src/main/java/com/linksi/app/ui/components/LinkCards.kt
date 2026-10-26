@@ -2011,6 +2011,31 @@ fun SheetOption(
     )
 }
 
+@Composable
+private fun TagEmptyState(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            icon, null,
+            modifier = Modifier.size(32.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
+        Text(
+            message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TagManagerSheet(
@@ -2185,7 +2210,9 @@ fun TagManagerSheet(
                 )
             }
 
-            // ── Tags section ──────────────────────────────────
+            // ── Tags section — single scroll, sections grow naturally ──
+            val sortedSelectedTags = remember(selectedTags) { selectedTags.sorted() }
+
             CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
                 Column(
                     modifier = Modifier
@@ -2196,43 +2223,47 @@ fun TagManagerSheet(
                     if (isDeleteMode) {
                         // ── Delete mode — show ALL tags with delete X ──
                         if (allKnownTags.isEmpty()) {
-                            Text(stringResource(R.string.no_tags_to_delete),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            TagEmptyState(
+                                icon = Icons.Outlined.Tag,
+                                message = stringResource(R.string.no_tags_to_delete),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         } else {
                             Text(stringResource(R.string.all_tags_delete_warning),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.error)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 116.dp)
-                                    .verticalScroll(rememberScrollState())
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold)
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    allKnownTags.forEach { tag ->
-                                        Surface(
-                                            shape = RoundedCornerShape(12.dp),
-                                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable {
-                                                tagToConfirmDelete = tag
-                                            }
+                                allKnownTags.forEach { tag ->
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.colorScheme.errorContainer,
+                                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable {
+                                            tagToConfirmDelete = tag
+                                        }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(
+                                                start = 12.dp, end = 10.dp,
+                                                top = 8.dp, bottom = 8.dp
+                                            ),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Row(
-                                                modifier = Modifier.padding(
-                                                    horizontal = 12.dp, vertical = 6.dp
-                                                ),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    "#$tag",
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                                )
-                                            }
+                                            Text(
+                                                "#$tag",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onErrorContainer
+                                            )
+                                            Icon(
+                                                Icons.Outlined.Close, null,
+                                                Modifier.size(14.dp),
+                                                tint = MaterialTheme.colorScheme.onErrorContainer
+                                            )
                                         }
                                     }
                                 }
@@ -2241,29 +2272,23 @@ fun TagManagerSheet(
                     } else {
                         // ── Normal mode ───────────────────────────────
                         if (selectedTags.isNotEmpty()) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(stringResource(R.string.selected_tags),
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(stringResource(R.string.selected_tags, selectedTags.size),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold)
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(max = 116.dp)
-                                        .verticalScroll(rememberScrollState())
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    FlowRow(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        selectedTags.sorted().forEach { tag ->
-                                            FilterChip(
-                                                selected = true,
-                                                onClick = { toggleTag(tag) },
-                                                label = { Text("#$tag") },
-                                                shape = RoundedCornerShape(12.dp)
-                                            )
-                                        }
+                                    sortedSelectedTags.forEach { tag ->
+                                        FilterChip(
+                                            selected = true,
+                                            onClick = { toggleTag(tag) },
+                                            label = { Text("#$tag") },
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
                                     }
                                 }
                             }
@@ -2276,57 +2301,54 @@ fun TagManagerSheet(
 
                         val suggestions = filteredTags.filter { !selectedTags.contains(it) }
                         if (suggestions.isNotEmpty() || canAddNew) {
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
-                                    if (input.isBlank()) stringResource(R.string.all_tags_option) else stringResource(R.string.suggestions),
+                                    if (input.isBlank()) stringResource(R.string.all_tags_count, allKnownTags.size)
+                                    else stringResource(R.string.suggestions),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(max = 116.dp)
-                                        .verticalScroll(rememberScrollState())
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    FlowRow(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        if (canAddNew) {
-                                            AssistChip(
-                                                onClick = { addTag(input) },
-                                                label = { Text(stringResource(R.string.create_tag, input)) },
-                                                leadingIcon = {
-                                                    Icon(Icons.Default.Add, null, Modifier.size(16.dp))
-                                                },
-                                                shape = RoundedCornerShape(12.dp),
-                                                colors = AssistChipDefaults.assistChipColors(
-                                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                                    labelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                                )
+                                    if (canAddNew) {
+                                        AssistChip(
+                                            onClick = { addTag(input) },
+                                            label = { Text(stringResource(R.string.create_tag, input)) },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.Add, null, Modifier.size(16.dp))
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = AssistChipDefaults.assistChipColors(
+                                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                                labelColor = MaterialTheme.colorScheme.onSecondaryContainer
                                             )
-                                        }
-                                        suggestions.forEach { tag ->
-                                            FilterChip(
-                                                selected = false,
-                                                onClick = { toggleTag(tag) },
-                                                label = { Text("#$tag") },
-                                                shape = RoundedCornerShape(12.dp)
-                                            )
-                                        }
+                                        )
+                                    }
+                                    suggestions.forEach { tag ->
+                                        FilterChip(
+                                            selected = false,
+                                            onClick = { toggleTag(tag) },
+                                            label = { Text("#$tag") },
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
                                     }
                                 }
                             }
                         } else if (input.isNotBlank()) {
-                            Text(stringResource(R.string.no_tags_match, input),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 8.dp))
+                            TagEmptyState(
+                                icon = Icons.Outlined.SearchOff,
+                                message = stringResource(R.string.no_tags_match, input),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         } else if (allKnownTags.isEmpty()) {
-                            Text(stringResource(R.string.no_tags_yet),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 8.dp))
+                            TagEmptyState(
+                                icon = Icons.Outlined.Tag,
+                                message = stringResource(R.string.no_tags_yet),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }

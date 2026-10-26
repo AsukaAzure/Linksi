@@ -183,7 +183,7 @@
     <string name="unorganized_links_only">Solo enlaces sin organizar</string>
     <string name="unorganized_links_desc">Solo enlaces que no están en ninguna carpeta</string>
     <string name="all_links_option">Todos los enlaces</string>
-    <string name="all_tags_option">Todas las etiquetas</string>
+    <string name="all_tags_count">Todas las etiquetas (%1$d)</string>
     <string name="all_links_desc">Reorganizar todos los enlaces guardados, incluidos los que ya están en carpetas</string>
     <string name="generate_plan">Generar plan</string>
     <string name="ai_analyzing">La IA está analizando tus enlaces…</string>
@@ -302,7 +302,7 @@
     <string name="delete_tags_banner">Toca una etiqueta para eliminarla permanentemente de todos los enlaces</string>
     <string name="no_tags_to_delete">No hay etiquetas para eliminar</string>
     <string name="all_tags_delete_warning">Todas las etiquetas — toca para eliminar permanentemente</string>
-    <string name="selected_tags">Seleccionado</string>
+    <string name="selected_tags">Seleccionadas (%1$d)</string>
     <string name="suggestions">Sugerencias</string>
     <string name="no_tags_match">No se encontraron etiquetas que coincidan con \"%1$s\"</string>
     <string name="no_tags_yet">Aún no hay etiquetas — escribe arriba para crear una</string>

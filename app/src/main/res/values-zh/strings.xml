@@ -181,7 +181,7 @@
     <string name="unorganized_links_only">仅限未整理的链接</string>
     <string name="unorganized_links_desc">仅包含不在任何文件夹中的链接</string>
     <string name="all_links_option">所有链接</string>
-    <string name="all_tags_option">所有标签</string>
+    <string name="all_tags_count">全部标签 (%1$d)</string>
     <string name="all_links_desc">重新整理所有已保存的链接，包括已在文件夹中的链接</string>
     <string name="generate_plan">生成计划</string>
     <string name="ai_analyzing">AI 正在分析您的链接…</string>
@@ -300,7 +300,7 @@
     <string name="delete_tags_banner">点击标签以从所有链接中永久删除它</string>
     <string name="no_tags_to_delete">没有要删除的标签</string>
     <string name="all_tags_delete_warning">所有标签 — 点击以永久删除</string>
-    <string name="selected_tags">已选择</string>
+    <string name="selected_tags">已选择 (%1$d)</string>
     <string name="suggestions">建议</string>
     <string name="no_tags_match">未找到匹配“%1$s”的标签</string>
     <string name="no_tags_yet">暂无标签 — 在上方输入以创建一个</string>

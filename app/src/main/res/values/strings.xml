@@ -183,7 +183,7 @@
     <string name="unorganized_links_only">Unorganized links only</string>
     <string name="unorganized_links_desc">Only links that are not in any folder</string>
     <string name="all_links_option">All links</string>
-    <string name="all_tags_option">All tags</string>
+    <string name="all_tags_count">All tags (%1$d)</string>
     <string name="all_links_desc">Reorganize all saved links including those already in folders</string>
     <string name="generate_plan">Generate Plan</string>
     <string name="ai_analyzing">AI is analyzing your links…</string>
@@ -306,7 +306,7 @@
     <string name="delete_tags_banner">Tap a tag to permanently delete it from all links</string>
     <string name="no_tags_to_delete">No tags to delete</string>
     <string name="all_tags_delete_warning">All tags — tap to delete permanently</string>
-    <string name="selected_tags">Selected</string>
+    <string name="selected_tags">Selected (%1$d)</string>
     <string name="suggestions">Suggestions</string>
     <string name="no_tags_match">No tags found matching \"%1$s\"</string>
     <string name="no_tags_yet">No tags yet — type above to create one</string>
