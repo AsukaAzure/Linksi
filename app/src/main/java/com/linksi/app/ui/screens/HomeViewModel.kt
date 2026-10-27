@@ -235,7 +235,15 @@ class HomeViewModel @Inject constructor(
         previewImageOverride: String? = null
     ) {
         viewModelScope.launch {
-            val normalizedUrl = normalizeUrl(url)
+            // Clean before the duplicate check so the stored URL is the canonical form.
+            val normalized = normalizeUrl(url)
+            val cleaning = UrlCleaner.clean(normalized)
+            val normalizedUrl = when (cleaning) {
+                is UrlCleaner.Result.Cleaned -> cleaning.cleanedUrl
+                is UrlCleaner.Result.Invalid -> normalized
+            }
+            val removedTrackingCount =
+                (cleaning as? UrlCleaner.Result.Cleaned)?.removedParameters?.size ?: 0
             if (repository.isUrlAlreadySaved(normalizedUrl)) {
                 _uiState.update {
                     it.copy(
@@ -280,7 +288,13 @@ class HomeViewModel @Inject constructor(
                 val insertedId = repository.insertLink(link)
                 _uiState.update {
                     it.copy(
-                        snackbarMessage = context.getString(R.string.link_saved),
+                        snackbarMessage = if (removedTrackingCount > 0) {
+                            context.getString(
+                                R.string.link_saved_tracking_removed, removedTrackingCount
+                            )
+                        } else {
+                            context.getString(R.string.link_saved)
+                        },
                         addLinkStatus = AddLinkStatus.SAVED,
                         scrollToTop = true
                     )

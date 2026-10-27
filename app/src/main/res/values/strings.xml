@@ -223,6 +223,8 @@
     <string name="invalid_url">Invalid URL</string>
     <string name="link_already_saved">Link already saved</string>
     <string name="link_saved">Link saved</string>
+    <string name="link_saved_tracking_removed">Link saved, tracking parameters removed: %1$d</string>
+    <string name="no_link_found">No link found in the shared text</string>
     <string name="link_save_failed">Link did not save</string>
     <string name="error_blocked">Site blocked access (bot detection)</string>
     <string name="error_invalid_url">Invalid link address</string>

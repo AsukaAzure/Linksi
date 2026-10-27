@@ -2,6 +2,7 @@ package com.linksi.app.ui.screens
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -49,6 +50,7 @@ import com.linksi.app.utils.SecurityManager
 import com.linksi.app.utils.SECURITY_BIOMETRIC_ENABLED
 import com.linksi.app.utils.SECURITY_LOCK_ENABLED
 import com.linksi.app.utils.SECURITY_PIN
+import com.linksi.app.utils.UrlTextExtractor
 import com.linksi.app.utils.dataStore
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withTimeoutOrNull
@@ -129,7 +131,12 @@ class ShareReceiverActivity : AppCompatActivity() {
         if (intent.action == Intent.ACTION_SEND) {
             if (intent.type == "text/plain") {
                 val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return null
-                sharedUrl = extractUrlFromText(text)
+                sharedUrl = UrlTextExtractor.firstActionableUrl(text)
+                if (sharedUrl == null) {
+                    // Shared text without any link — never store the text itself as a URL.
+                    Toast.makeText(this, R.string.no_link_found, Toast.LENGTH_SHORT).show()
+                    return null
+                }
                 sharedTitle = intent.getStringExtra(Intent.EXTRA_SUBJECT) 
                     ?: intent.getStringExtra(Intent.EXTRA_TITLE)
             }
@@ -146,10 +153,6 @@ class ShareReceiverActivity : AppCompatActivity() {
         return sharedUrl?.let { SharedData(it, sharedTitle, sharedImageUrl) }
     }
 
-    private fun extractUrlFromText(text: String): String {
-        val urlPattern = Regex("https?://[^\\s]+")
-        return urlPattern.find(text)?.value ?: text
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

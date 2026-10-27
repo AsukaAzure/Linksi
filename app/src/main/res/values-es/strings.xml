@@ -223,6 +223,8 @@
     <string name="invalid_url">URL no válida</string>
     <string name="link_already_saved">El enlace ya está guardado</string>
     <string name="link_saved">Enlace guardado</string>
+    <string name="link_saved_tracking_removed">Enlace guardado, parámetros de rastreo eliminados: %1$d</string>
+    <string name="no_link_found">No se encontró ningún enlace en el texto compartido</string>
     <string name="link_save_failed">El enlace no se guardó</string>
     <string name="link_updated">Enlace actualizado</string>
     <string name="moved_to_folder">Movido a la carpeta</string>
