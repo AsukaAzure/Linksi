@@ -270,6 +270,19 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Reddit ────────────────────────────────────────────
+            item {
+                SectionHeader(stringResource(id = com.linksi.app.R.string.reddit_section), Icons.Outlined.Forum)
+            }
+            item {
+                SettingsCard {
+                    RedditClientIdItem(
+                        currentId = state.redditClientId,
+                        onSave = { viewModel.setRedditClientId(it) }
+                    )
+                }
+            }
+
             // ── Updates ───────────────────────────────────────────
             item {
                 SectionHeader(stringResource(id = com.linksi.app.R.string.updates), Icons.Outlined.SystemUpdate)
@@ -919,6 +932,65 @@ fun LanguagePickerSheet(
                     },
                     modifier = Modifier.clickable { onLanguageSelected(code) }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun RedditClientIdItem(currentId: String, onSave: (String) -> Unit) {
+    var editing by remember { mutableStateOf(false) }
+    var input by remember { mutableStateOf(currentId) }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                stringResource(id = com.linksi.app.R.string.reddit_client_id),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            if (currentId.isNotBlank()) {
+                Icon(
+                    Icons.Outlined.CheckCircle, null,
+                    Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            TextButton(onClick = { editing = !editing; input = currentId }) {
+                Text(
+                    if (editing) stringResource(id = com.linksi.app.R.string.cancel)
+                    else if (currentId.isBlank()) stringResource(id = com.linksi.app.R.string.add)
+                    else stringResource(id = com.linksi.app.R.string.edit)
+                )
+            }
+        }
+
+        if (editing) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(id = com.linksi.app.R.string.reddit_client_id_help),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    placeholder = { Text(stringResource(id = com.linksi.app.R.string.reddit_client_id_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(onClick = { onSave(input); editing = false }) {
+                        Text(stringResource(id = com.linksi.app.R.string.save))
+                    }
+                }
             }
         }
     }

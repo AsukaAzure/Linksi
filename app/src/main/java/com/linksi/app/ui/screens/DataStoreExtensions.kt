@@ -45,3 +45,5 @@ val SKIP_UPDATE_UNTIL = longPreferencesKey("skip_update_until")
 val TRASH_BIN_ENABLED = booleanPreferencesKey("trash_bin_enabled")
 val GLOBAL_PREVENT_SCREENSHOT = booleanPreferencesKey("global_prevent_screenshot")
 val EXPORT_INCLUDE_LOCKED = booleanPreferencesKey("export_include_locked")
+// Reddit API client ID — not a secret (unlike the AI keys), so DataStore is fine.
+val REDDIT_CLIENT_ID = stringPreferencesKey("reddit_client_id")

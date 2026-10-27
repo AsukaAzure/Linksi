@@ -578,22 +578,33 @@ fun LinkGridCard(
                 if (link.previewImageUrl.isNotBlank()) {
                     var imageLoadFailed by remember { mutableStateOf(false) }
                     if (!imageLoadFailed) {
-                        AsyncImage(
-                            model = coil.request.ImageRequest.Builder(LocalContext.current)
-                                .data(link.previewImageUrl)
-                                .diskCacheKey(link.previewImageUrl)
-                                .memoryCacheKey(link.previewImageUrl)
-                                .diskCachePolicy(CachePolicy.ENABLED)
-                                .memoryCachePolicy(CachePolicy.ENABLED)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 240.dp),
-                            contentScale = ContentScale.FillWidth,
-                            onError = { imageLoadFailed = true }
-                        )
+                        Box {
+                            AsyncImage(
+                                model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                    .data(link.previewImageUrl)
+                                    .diskCacheKey(link.previewImageUrl)
+                                    .memoryCacheKey(link.previewImageUrl)
+                                    .diskCachePolicy(CachePolicy.ENABLED)
+                                    .memoryCachePolicy(CachePolicy.ENABLED)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 240.dp),
+                                contentScale = ContentScale.FillWidth,
+                                onError = { imageLoadFailed = true }
+                            )
+                            if (link.upvotes > 0 || link.numComments > 0) {
+                                StatsPill(
+                                    upvotes = link.upvotes,
+                                    numComments = link.numComments,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(8.dp)
+                                )
+                            }
+                        }
                     } else {
                         // Fallback to favicon gradient
                         Box(
@@ -2478,5 +2489,42 @@ fun domainColor(domain: String): Color {
             val hue = (domain.hashCode().and(0xFFFFFF).toFloat() / 0xFFFFFF) * 360f
             Color.hsv(hue, 0.6f, 0.8f)
         }
+    }
+}
+
+/**
+ * Translucent engagement pill overlaid on a link's preview image —
+ * upvote and comment counts. Only Reddit resolvers populate these today,
+ * and the caller hides the pill entirely when both are zero.
+ */
+@Composable
+fun StatsPill(upvotes: Int, numComments: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color.Black.copy(alpha = 0.6f))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            Icons.Outlined.ArrowUpward, null,
+            Modifier.size(13.dp), tint = Color.White
+        )
+        Text(
+            "$upvotes",
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White
+        )
+        Spacer(Modifier.width(4.dp))
+        Icon(
+            Icons.Outlined.ChatBubbleOutline, null,
+            Modifier.size(13.dp), tint = Color.White
+        )
+        Text(
+            "$numComments",
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White
+        )
     }
 }

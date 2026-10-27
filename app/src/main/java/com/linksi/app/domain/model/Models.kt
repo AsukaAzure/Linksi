@@ -23,7 +23,9 @@ data class Link(
     val tags: List<String> = emptyList(),
     val inBin: Boolean = false,
     val deletedAt: Long? = null,
-    val preventScreenshot: Boolean = false
+    val preventScreenshot: Boolean = false,
+    val upvotes: Int = 0,
+    val numComments: Int = 0
 ) : Parcelable
 
 @Parcelize

@@ -8,7 +8,9 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -21,16 +23,19 @@ data class LinkMetadata(
     val description: String = "",
     val faviconUrl: String = "",
     val previewImageUrl: String = "",
-    val domain: String = ""
+    val domain: String = "",
+    val upvotes: Int = 0,
+    val numComments: Int = 0
 )
 
 object MetadataFetcher {
 
     // Matches the title of common bot-challenge / login-wall interstitials
     // (Cloudflare "Just a moment...", login walls, etc.) so a blocked local
-    // fetch doesn't get saved as if it were real page content.
+    // fetch doesn't get saved as if it were real page content. "log in or
+    // sign up" is unanchored because LinkedIn prefixes it with the site name.
     private val BLOCKED_TITLE_PATTERN = Regex(
-        "^(just a moment|attention required|please wait|access denied|are you a human|login|log in|sign in)",
+        "^(just a moment|attention required|please wait|access denied|are you a human|login|log in|log into|sign in|sign up)|log in or sign up",
         RegexOption.IGNORE_CASE
     )
 
@@ -66,8 +71,8 @@ object MetadataFetcher {
             faviconUrl = "https://www.google.com/s2/favicons?domain=$domain&sz=64"
         )
     }.also {
-        Log.d("MetadataFetcher", "final result for $url -> title=\"${it.title}\" " +
-                "descLen=${it.description.length} image=\"${it.previewImageUrl}\" domain=${it.domain}")
+        Log.i("LinksiMeta", "[Fetch] $url -> title=\"${it.title}\" " +
+                "descLen=${it.description.length} image=${it.previewImageUrl} domain=${it.domain}")
     }
 
     private suspend fun fetchWithWebView(url: String, context: Context): LinkMetadata? = withContext(Dispatchers.Main) {
@@ -107,7 +112,7 @@ object MetadataFetcher {
 
                         // Don't save a login wall or bot challenge as real content.
                         if (BLOCKED_TITLE_PATTERN.containsMatchIn(rawTitle)) {
-                            Log.w("MetadataFetcher", "$url looks blocked/gated in WebView (title: \"$rawTitle\")")
+                            Log.i("LinksiMeta", "[WebView] $url looks blocked/gated (title: \"$rawTitle\")")
                             deferred.complete(null)
                             return@evaluateJavascript
                         }
@@ -172,8 +177,13 @@ object MetadataFetcher {
             val ogTitle = doc.select("meta[property=og:title]").attr("content").takeIf { it.isNotBlank() }
             val rawTitle = doc.title().trim()
 
-            if (BLOCKED_TITLE_PATTERN.containsMatchIn(rawTitle) && ogTitle == null) {
-                Log.w("MetadataFetcher", "$url looks blocked/gated locally (title: \"$rawTitle\")")
+            // The wall can arrive either as the page title (Cloudflare) or as
+            // an og:title with the rest of the OG tags intact — Facebook serves
+            // "Log into Facebook" that way. Check both.
+            if (ogTitle?.let { BLOCKED_TITLE_PATTERN.containsMatchIn(it) } == true ||
+                BLOCKED_TITLE_PATTERN.containsMatchIn(rawTitle)
+            ) {
+                Log.i("LinksiMeta", "[Local] $url looks blocked/gated (title: \"${ogTitle ?: rawTitle}\")")
                 return null
             }
 
@@ -191,7 +201,7 @@ object MetadataFetcher {
             ).firstOrNull()?.trim() ?: ""
 
             if (title.isBlank() && description.isBlank()) {
-                Log.w("MetadataFetcher", "$url returned no usable metadata locally")
+                Log.i("LinksiMeta", "[Local] $url returned no usable metadata")
                 return null
             }
 
@@ -237,7 +247,7 @@ object MetadataFetcher {
                 domain = domain
             )
         } catch (e: Exception) {
-            Log.w("MetadataFetcher", "Local fetch failed for $url", e)
+            Log.i("LinksiMeta", "[Local] fetch failed for $url: ${e.javaClass.simpleName}: ${e.message}")
             null
         }
     }
@@ -246,7 +256,12 @@ object MetadataFetcher {
      * Fetch metadata for many URLs (e.g. a bulk bookmark import) without
      * overwhelming the network stack or the resolvers' rate limits.
      *
-     * - Caps concurrency instead of firing every request at once.
+     * - Caps global concurrency instead of firing every request at once.
+     * - Serializes requests per domain: rate limiters count requests per
+     *   host, and a burst of same-platform links (an import with 10+ Reddit
+     *   or Instagram URLs) fires up to `concurrency` simultaneous requests
+     *   at one platform, which is exactly what gets them throttled. One
+     *   domain waiting never blocks the others.
      * - One failing link never affects the others.
      * - `onItemComplete` lets you update the UI incrementally instead of
      *   blocking on the whole batch before showing anything.
@@ -260,14 +275,18 @@ object MetadataFetcher {
         concurrency: Int = 6,
         onItemComplete: ((url: String, metadata: LinkMetadata) -> Unit)? = null
     ): List<LinkMetadata> = withContext(Dispatchers.IO) {
-        val semaphore = Semaphore(concurrency)
+        val global = Semaphore(concurrency)
+        val domainLocks = java.util.concurrent.ConcurrentHashMap<String, Mutex>()
 
         urls.map { url ->
             async {
-                semaphore.withPermit {
-                    val metadata = fetch(url, context)
-                    onItemComplete?.invoke(url, metadata)
-                    metadata
+                global.withPermit {
+                    val domain = extractDomain(url)
+                    domainLocks.computeIfAbsent(domain) { Mutex() }.withLock {
+                        val metadata = fetch(url, context)
+                        onItemComplete?.invoke(url, metadata)
+                        metadata
+                    }
                 }
             }
         }.awaitAll()

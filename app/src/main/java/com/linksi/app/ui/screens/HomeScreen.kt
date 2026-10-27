@@ -756,7 +756,8 @@ fun HomeScreen(
             onDismiss = viewModel::hideAddLinkDialog,
             onCreateFolder = { name, icon, color -> viewModel.addFolder(name, icon, color) },
             onConfirm = { url, folderId, reminderAt, note, tags, expiresAt,
-                          titleOverride, descriptionOverride, previewImageOverride ->
+                          titleOverride, descriptionOverride, previewImageOverride,
+                          upvotes, numComments ->
                 viewModel.addLink(
                     url = url,
                     folderId = folderId,
@@ -766,7 +767,9 @@ fun HomeScreen(
                     expiresAt = expiresAt,
                     titleOverride = titleOverride,
                     descriptionOverride = descriptionOverride,
-                    previewImageOverride = previewImageOverride
+                    previewImageOverride = previewImageOverride,
+                    upvotes = upvotes,
+                    numComments = numComments
                 )
                 viewModel.hideAddLinkDialog()
             }

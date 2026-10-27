@@ -3,6 +3,7 @@ package com.linksi.app.utils
 import android.util.Log
 import org.json.JSONObject
 import org.jsoup.Jsoup
+import org.jsoup.parser.Parser
 import java.net.URI
 import java.net.URLEncoder
 
@@ -25,6 +26,15 @@ private const val MOBILE_UA =
     "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
 
+/**
+ * Single greppable tag for the whole metadata-fetch pipeline. Everything the
+ * resolver/fetcher does is logged here at INFO level, so one command shows
+ * the full story of a save:
+ *
+ *     adb logcat -s LinksiMeta
+ */
+private const val LOG_TAG = "LinksiMeta"
+
 /** Identify yourself honestly. Several of these APIs rate-limit anonymous UAs harder. */
 private const val APP_UA = "Linksi/1.0 (Android link saver; +https://github.com/AsukaAzure)"
 
@@ -40,11 +50,11 @@ private fun httpBody(url: String, ua: String = APP_UA, timeoutMs: Int = 8000): S
         .timeout(timeoutMs)
         .execute()
     if (res.statusCode() in 200..299) res.body() else {
-        Log.w("LinkResolvers", "HTTP ${res.statusCode()} for $url")
+        Log.i(LOG_TAG, "[Http] $url -> HTTP ${res.statusCode()} (${res.statusMessage()})")
         null
     }
 } catch (e: Exception) {
-    Log.w("LinkResolvers", "request failed: $url", e)
+    Log.i(LOG_TAG, "[Http] $url -> request failed: ${e.javaClass.simpleName}: ${e.message}")
     null
 }
 
@@ -341,83 +351,219 @@ object RedditResolver : LinkResolver {
     override fun matches(domain: String) =
         domain == "reddit.com" || domain.endsWith(".reddit.com") || domain.endsWith("redd.it")
 
-    private const val TAG = "LinkResolvers.Reddit"
+    private const val TAG = LOG_TAG
 
     override fun resolve(url: String): LinkMetadata? {
-        // The `.json` trick is dead: Reddit shut off unauthenticated .json in
-        // May 2026 and now returns 403 (and 403s datacenter IPs outright, which
-        // is why the Vercel proxy fails). oEmbed is the only no-auth surface
-        // left and it is not guaranteed — expect nulls and fall through.
-        // The durable fix is OAuth against oauth.reddit.com; see notes.
-        //
+        Log.i(TAG, "[Reddit] resolve start: $url")
         // Share links from the Reddit app (reddit.com/r/sub/s/AbCdEf, or bare
-        // redd.it/AbCdEf) don't match oEmbed's URL pattern for "this is a
-        // specific post" — it can't tell them apart from a subreddit link, so
-        // it falls back to subreddit-level title/description. Resolving the
-        // redirect first gets the real /comments/.../ URL oEmbed recognizes.
+        // redd.it/AbCdEf) don't match oEmbed's URL pattern, and redd.it even
+        // redirects to the bare /comments/{id} form that oEmbed rejects with
+        // "invalid URL value". Resolve the redirect first; the feed below
+        // handles every remaining URL form.
         val canonicalUrl = if (url.contains("/s/") || url.contains("redd.it")) {
             resolveRedirect(url).also {
-                Log.d(TAG, "resolved share link $url -> $it")
+                Log.i(TAG, "[Reddit] resolved share link $url -> $it")
             }
         } else {
-            Log.d(TAG, "using url as-is (no share-link pattern matched): $url")
+            Log.i(TAG, "[Reddit] using url as-is (no share-link pattern matched)")
             url
         }
 
-        val oembedUrl = "https://www.reddit.com/oembed?url=${enc(canonicalUrl)}"
-        val json = httpJson(oembedUrl, ua = MOBILE_UA)
-        if (json == null) {
-            Log.d(TAG, "oembed request returned no/invalid JSON for $canonicalUrl")
-            return null
+        // Primary surface when configured: the official API (Settings → Reddit).
+        // The only source that carries the real full-resolution image and the
+        // vote/comment counts — no unauthenticated surface has either, and the
+        // API endpoint isn't subject to the bot-walling that killed the rest.
+        RedditApiClient.resolvePost(canonicalUrl)?.let { post ->
+            Log.i(TAG, "[Reddit] API hit: score=${post.score} comments=${post.numComments} image=${post.imageUrl.ifBlank { "(none)" }}")
+            val description = buildString {
+                append(post.score).append(" votes, ").append(post.numComments).append(" comments")
+                if (post.selftext.isNotBlank()) append(". ").append(post.selftext.take(300))
+            }
+            return LinkMetadata(
+                title = post.title.ifBlank { "Reddit post" }.take(200),
+                description = description.take(500),
+                faviconUrl = favicon("reddit.com"),
+                previewImageUrl = post.imageUrl,
+                domain = "reddit.com",
+                upvotes = post.score,
+                numComments = post.numComments
+            )
         }
-        if (json.has("error") || json.has("message")) {
-            Log.d(TAG, "oembed error payload for $canonicalUrl: $json")
-        }
-        val title = json.optString("title")
-        Log.d(TAG, "oembed title=\"$title\" for $canonicalUrl")
-        if (title.isBlank()) return null
+        Log.i(TAG, "[Reddit] API not used (no client ID or request failed) — unauthenticated surfaces next")
 
-        // If oEmbed still gave us something generic, this doesn't catch it
-        // reliably (it's a title, not a flag) — but it's a cheap guard against
-        // the exact "r/subredditname" bare-community title shape.
-        if (Regex("^r/\\w+$", RegexOption.IGNORE_CASE).matches(title.trim())) {
-            Log.d(TAG, "oembed returned subreddit-level title for $canonicalUrl — resolver may need a second redirect pass")
-        }
-
-        // oEmbed is a text-only widget (title + author + subreddit link) —
-        // Reddit's schema never included an image field here, so this isn't
-        // a fallback for a failure, it's the normal second half of the job.
-        // The post page carries a server-rendered og:image, but — same as
-        // Instagram — Reddit appears to serve that only to allowlisted
-        // crawler UAs (Discordbot, Slackbot) and a client-rendered shell
-        // with no metadata to anything that looks like an ordinary browser.
+        // Primary surface: the post's Atom feed at {url}/.rss. Still fully
+        // unauthenticated (unlike the .json API, which has returned 403 since
+        // May 2026), works with the app's own user-agent — no crawler
+        // impersonation — and one request carries everything: the post entry
+        // (id "t3_...") has the title, the author, and the image. Share-link
+        // redirects come back with ?share_id=... attached (Reddit's own
+        // tracking param) — strip it so the feed request is canonical.
+        var title = ""
+        var author = ""
         var image = ""
-        val postHtml = httpBody(canonicalUrl, ua = "Discordbot/2.0 (+https://discordapp.com)")
-        if (postHtml == null) {
-            Log.d(TAG, "post page fetch failed for $canonicalUrl, no image available")
+        val feedUrl = canonicalUrl.substringBefore('?').trimEnd('/') + "/.rss"
+        var feedXml = httpBody(feedUrl, ua = APP_UA)
+        if (feedXml == null) {
+            // www.reddit.com rate-limits bursts with 429 and httpBody maps any
+            // non-2xx to null. fetchAll's per-domain lock serializes callers,
+            // so one short backoff-and-retry is safe here and recovers the
+            // common single-save 429.
+            Thread.sleep(1200)
+            feedXml = httpBody(feedUrl, ua = APP_UA)
+        }
+        if (feedXml == null) {
+            Log.i(TAG, "[Reddit] feed failed even after retry: $feedUrl")
         } else {
-            Log.d(TAG, "post page returned ${postHtml.length} chars")
-            try {
-                val doc = Jsoup.parse(postHtml)
-                image = doc.select("meta[property=og:image]").attr("content")
-                if (image.isBlank()) {
-                    image = doc.select("meta[name=twitter:image]").attr("content")
-                }
-                Log.d(TAG, "post page og:image=\"$image\"")
-            } catch (e: Exception) {
-                Log.w(TAG, "post page parse failed", e)
+            parseRedditFeed(feedXml)?.let { feed ->
+                title = feed.title
+                author = feed.author
+                image = feed.imageUrl
+                Log.i(TAG, "[Reddit] feed OK: title=\"$title\" author=\"$author\" image=$image")
+            } ?: run {
+                // A 200 response that isn't a feed usually means Reddit served
+                // its bot-challenge page to this network. The snippet says which.
+                val snippet = feedXml.take(160).replace('\n', ' ')
+                Log.i(TAG, "[Reddit] feed returned ${feedXml.length} chars but no entries. Starts with: $snippet")
             }
         }
+
+        // Fallback 1: oEmbed (title + author, never an image) when the feed
+        // is missing or malformed.
+        if (title.isBlank()) {
+            val json = httpJson("https://www.reddit.com/oembed?url=${enc(canonicalUrl)}", ua = MOBILE_UA)
+            if (json != null && !json.has("error") && !json.has("message")) {
+                title = json.optString("title")
+                author = json.optString("author_name")
+                Log.i(TAG, "[Reddit] oEmbed fallback: title=\"$title\" author=\"$author\"")
+            }
+        }
+
+        // Second surface, always fetched: old.reddit.com serves fully
+        // server-rendered HTML to any browser UA — no challenge, no crawler
+        // games. It's the only place with the post's upvotes and comment
+        // count (the pill on the card), and its thumbnail fills the image
+        // when the feed had none. Text posts genuinely have neither — a
+        // redditstatic sprite in the thumbnail slot is filtered out.
+        var upvotes = 0
+        var numComments = 0
+        run {
+            val path = try { URI(canonicalUrl).path } catch (e: Exception) { "" }
+            if (path.isNotBlank()) {
+                val oldHtml = httpBody("https://old.reddit.com$path", ua = MOBILE_UA)
+                if (oldHtml == null) {
+                    Log.i(TAG, "[Reddit] old.reddit fetch failed — no stats or image fallback")
+                } else {
+                    val stats = parseOldRedditPage(oldHtml)
+                    upvotes = stats.score
+                    numComments = stats.numComments
+                    if (image.isBlank()) image = stats.imageUrl
+                    Log.i(TAG, "[Reddit] old.reddit: score=$upvotes comments=$numComments image=${image.ifBlank { "(none)" }}")
+                }
+            }
+        }
+
+
+        if (title.isBlank() && image.isBlank()) {
+            Log.i(TAG, "[Reddit] all surfaces empty, falling through to generic scrape")
+            return null
+        }
+
+        // share.redd.it/preview/post/{id} is Reddit's generated share card —
+        // the post title rendered on a branded background with the snoo logo,
+        // not the post's own image. The og:image fallback above returns it
+        // for every post, so it must never reach a card.
+        if (image.contains("share.redd.it")) {
+            Log.i(TAG, "[Reddit] DROPPING branded share-card image (this is what showed as the big reddit logo)")
+            image = ""
+        }
+
+        Log.i(TAG, "[Reddit] resolve done: title=\"$title\" author=\"$author\" image=$image")
 
         // A text/self post genuinely has no image — Reddit doesn't generate
         // one, so a blank result here isn't necessarily a bug to chase.
         return LinkMetadata(
-            title = title.take(200),
-            description = json.optString("author_name"),
+            title = title.ifBlank { "Reddit post" }.take(200),
+            description = author,
             faviconUrl = favicon("reddit.com"),
             previewImageUrl = image,
-            domain = "reddit.com"
+            domain = "reddit.com",
+            upvotes = upvotes,
+            numComments = numComments
         )
+    }
+}
+
+internal data class OldRedditStats(
+    val score: Int,
+    val numComments: Int,
+    val imageUrl: String
+)
+
+/**
+ * Extracts score, comment count and thumbnail from an old.reddit post page.
+ *
+ * The score div's text rounds big numbers ("12.5k") — its title attribute
+ * holds the exact count, so prefer that and fall back to the text.
+ */
+internal fun parseOldRedditPage(html: String): OldRedditStats {
+    return try {
+        val doc = Jsoup.parse(html)
+        val scoreEl = doc.selectFirst("div.score")
+        val score = scoreEl?.attr("title")?.filter { it.isDigit() }?.toIntOrNull()
+            ?: scoreEl?.text()?.filter { it.isDigit() }?.toIntOrNull()
+            ?: 0
+        val numComments = doc.selectFirst("a.comments")?.text()
+            ?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+        val imageUrl = doc.select("a.thumbnail img[src]")
+            .firstOrNull { it.attr("src").contains("redd.it/") }
+            ?.attr("src").orEmpty()
+        OldRedditStats(score, numComments, imageUrl)
+    } catch (e: Exception) {
+        OldRedditStats(0, 0, "")
+    }
+}
+
+internal data class RedditFeedInfo(
+    val title: String,
+    val author: String,
+    val imageUrl: String
+)
+
+/**
+ * Extracts the post (not the comments) from a Reddit Atom feed.
+ *
+ * The feed for a comments URL contains one entry per comment after the
+ * submission; entries are distinguishable by id — the post is "t3_...",
+ * comments are "t1_...". The image comes from media:thumbnail when present,
+ * otherwise from the first redd.it <img> in the entry's HTML content (video
+ * and some post types carry the thumbnail there instead).
+ */
+internal fun parseRedditFeed(xml: String): RedditFeedInfo? {
+    return try {
+        val doc = Jsoup.parse(xml, "", Parser.xmlParser())
+        val entries = doc.select("entry")
+        val postEntry = entries.firstOrNull { it.selectFirst("id")?.text()?.startsWith("t3_") == true }
+            ?: entries.firstOrNull() ?: return null
+
+        var imageUrl = postEntry.getElementsByTag("media:thumbnail").attr("url")
+        if (imageUrl.isBlank()) {
+            // <content> holds entity-escaped HTML; text() gives it back decoded.
+            val contentHtml = postEntry.selectFirst("content")?.text().orEmpty()
+            if (contentHtml.isNotBlank()) {
+                imageUrl = Jsoup.parse(contentHtml)
+                    .select("img[src]")
+                    .firstOrNull { it.attr("src").contains("redd.it") }
+                    ?.attr("src").orEmpty()
+            }
+        }
+
+        RedditFeedInfo(
+            title = postEntry.selectFirst("title")?.text()?.trim().orEmpty(),
+            author = postEntry.selectFirst("author > name")?.text()?.trim().orEmpty().removePrefix("/u/"),
+            imageUrl = imageUrl
+        )
+    } catch (e: Exception) {
+        null
     }
 }
 
@@ -435,11 +581,18 @@ fun resolverFor(domain: String): LinkResolver? =
     LINK_RESOLVERS.firstOrNull { it.matches(domain) }
 
 /**
- * Domains with no public embed surface at all. Don't burn 15 seconds of
- * timeouts on them — go straight to a placeholder card.
+ * Domains with no public surface at all (verified October 2026: these serve a
+ * JS-only shell to every crawler identity tried — facebookexternalhit,
+ * Discordbot, Googlebot, TelegramBot). Don't burn 10 seconds of timeouts on
+ * them — go straight to the WebView attempt or a placeholder card.
+ *
+ * Facebook, Pinterest and LinkedIn used to be listed here too, but all three
+ * now serve complete OG tags to crawler user-agents, which is exactly what
+ * MetadataFetcher.fetchLocally sends (facebookexternalhit/1.1). Their login
+ * walls are caught by BLOCKED_TITLE_PATTERN instead.
  */
 val NO_PREVIEW_DOMAINS = setOf(
-    "facebook.com", "fb.com", "linkedin.com", "snapchat.com", "pinterest.com"
+    "snapchat.com", "threads.net"
 )
 
 fun isNoPreviewDomain(domain: String) =

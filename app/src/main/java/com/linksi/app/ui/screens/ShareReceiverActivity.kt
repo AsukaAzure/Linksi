@@ -177,6 +177,8 @@ fun ShareReceiverSheet(
     var editTitle by remember { mutableStateOf(initialTitle ?: "") }
     var editDescription by remember { mutableStateOf("") }
     var previewImageUrl by remember { mutableStateOf(initialImageUrl ?: "") }
+    var statUpvotes by remember { mutableStateOf(0) }
+    var statNumComments by remember { mutableStateOf(0) }
     var imageLoadFailed by remember { mutableStateOf(false) }
     var isFetchingPreview by remember { mutableStateOf(false) }
 
@@ -215,6 +217,8 @@ fun ShareReceiverSheet(
             if (previewImageUrl.isBlank() && meta.previewImageUrl.isNotBlank()) {
                 previewImageUrl = meta.previewImageUrl
             }
+            if (meta.upvotes > 0) statUpvotes = meta.upvotes
+            if (meta.numComments > 0) statNumComments = meta.numComments
         } catch (e: Exception) {
             if (editTitle.isBlank()) {
                 editTitle = extractDomainFromUrl(url)
@@ -690,7 +694,9 @@ fun ShareReceiverSheet(
                                 previewImageOverride = previewImageUrl,
                                 note = note,
                                 tags = tags,
-                                expiresAt = expiresAt
+                                expiresAt = expiresAt,
+                                upvotes = statUpvotes,
+                                numComments = statNumComments
                             )
                             // Wait for the structured result, not a localized
                             // snackbar string; never hang longer than 15s.

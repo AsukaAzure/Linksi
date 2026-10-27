@@ -398,4 +398,8 @@
     <string name="lockout_message">Too many attempts — try again in %1$d s</string>
     <string name="ai_links_unassigned">%1$d link(s) could not be assigned to a folder</string>
     <string name="download_started">Download started</string>
+    <string name="reddit_section">Reddit</string>
+    <string name="reddit_client_id">Reddit API client ID</string>
+    <string name="reddit_client_id_hint">Paste client ID</string>
+    <string name="reddit_client_id_help">For full Reddit previews (real post image, upvotes, comment counts): create an "installed app" at reddit.com/prefs/apps and paste its client ID here. No Reddit login needed. Leave empty to use basic previews.</string>
 </resources>

@@ -73,7 +73,9 @@ fun AddLinkSheet(
         expiresAt: Long?,
         titleOverride: String,
         descriptionOverride: String,
-        previewImageOverride: String
+        previewImageOverride: String,
+        upvotes: Int,
+        numComments: Int
     ) -> Unit
 ) {
     val context = LocalContext.current
@@ -90,6 +92,8 @@ fun AddLinkSheet(
     var editTitle by remember { mutableStateOf("") }
     var editDescription by remember { mutableStateOf("") }
     var previewImageUrl by remember { mutableStateOf("") }
+    var statUpvotes by remember { mutableStateOf(0) }
+    var statNumComments by remember { mutableStateOf(0) }
     var imageLoadFailed by remember { mutableStateOf(false) }
     var isFetchingPreview by remember { mutableStateOf(false) }
     var lastFetchedUrl by remember { mutableStateOf("") }
@@ -164,6 +168,8 @@ fun AddLinkSheet(
                 if (previewImageUrl.isBlank()) {
                     previewImageUrl = meta.previewImageUrl
                 }
+                if (meta.upvotes > 0) statUpvotes = meta.upvotes
+                if (meta.numComments > 0) statNumComments = meta.numComments
                 lastFetchedUrl = trimmedUrl
             } catch (e: Exception) {
                 // Silently fail for background auto-fetch
@@ -639,7 +645,8 @@ fun AddLinkSheet(
                             onConfirm(
                                 url.trim(), selectedFolderId, reminderAt,
                                 note, tags, expiresAt,
-                                editTitle.trim(), editDescription.trim(), previewImageUrl
+                                editTitle.trim(), editDescription.trim(), previewImageUrl,
+                                statUpvotes, statNumComments
                             )
                         }
                     },

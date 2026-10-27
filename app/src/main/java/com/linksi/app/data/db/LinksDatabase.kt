@@ -8,7 +8,7 @@ import androidx.work.impl.Migration_1_2
 
 @Database(
     entities = [LinkEntity::class, FolderEntity::class, MetadataCacheEntity::class],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class LinksDatabase : RoomDatabase() {
@@ -17,6 +17,15 @@ abstract class LinksDatabase : RoomDatabase() {
     abstract fun metadataCacheDao(): MetadataCacheDao
 
     companion object {
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Reddit engagement stats (score/comments parsed at fetch time)
+                database.execSQL("ALTER TABLE links ADD COLUMN upvotes INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE links ADD COLUMN numComments INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE metadata_cache ADD COLUMN upvotes INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE metadata_cache ADD COLUMN numComments INTEGER NOT NULL DEFAULT 0")
+            }
+        }
         val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 // Create index on URL

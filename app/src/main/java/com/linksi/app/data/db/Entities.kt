@@ -34,7 +34,9 @@ data class LinkEntity(
     val tags: String = "",
     val inBin: Boolean = false,
     val deletedAt: Long? = null,
-    val preventScreenshot: Boolean = false
+    val preventScreenshot: Boolean = false,
+    val upvotes: Int = 0,
+    val numComments: Int = 0
 )
 
 @Entity(
@@ -74,5 +76,7 @@ data class MetadataCacheEntity(
     val faviconUrl: String = "",
     val previewImageUrl: String = "",
     val domain: String = "",
+    val upvotes: Int = 0,
+    val numComments: Int = 0,
     val createdAt: Long = System.currentTimeMillis()
 )

@@ -232,7 +232,9 @@ class HomeViewModel @Inject constructor(
         expiresAt: Long? = null,
         titleOverride: String? = null,
         descriptionOverride: String? = null,
-        previewImageOverride: String? = null
+        previewImageOverride: String? = null,
+        upvotes: Int = 0,
+        numComments: Int = 0
     ) {
         viewModelScope.launch {
             // Clean before the duplicate check so the stored URL is the canonical form.
@@ -282,7 +284,9 @@ class HomeViewModel @Inject constructor(
                 domain = domain,
                 note = note,
                 tags = tags,
-                expiresAt = expiresAt
+                expiresAt = expiresAt,
+                upvotes = upvotes,
+                numComments = numComments
             )
             try {
                 val insertedId = repository.insertLink(link)
@@ -322,7 +326,9 @@ class HomeViewModel @Inject constructor(
                                     description = if (savedLink.description.isBlank()) meta.description.take(500) else savedLink.description,
                                     previewImageUrl = if (savedLink.previewImageUrl.isBlank()) meta.previewImageUrl else savedLink.previewImageUrl,
                                     faviconUrl = if (savedLink.faviconUrl.isBlank()) meta.faviconUrl else savedLink.faviconUrl,
-                                    domain = if (savedLink.domain.isBlank()) meta.domain else savedLink.domain
+                                    domain = if (savedLink.domain.isBlank()) meta.domain else savedLink.domain,
+                                    upvotes = if (savedLink.upvotes == 0) meta.upvotes else savedLink.upvotes,
+                                    numComments = if (savedLink.numComments == 0) meta.numComments else savedLink.numComments
                                 )
                                 if (updated != savedLink) {
                                     repository.updateLink(updated)
@@ -478,7 +484,9 @@ class HomeViewModel @Inject constructor(
                     description = meta.description.ifBlank { link.description },
                     previewImageUrl = meta.previewImageUrl.ifBlank { link.previewImageUrl },
                     faviconUrl = meta.faviconUrl.ifBlank { "https://www.google.com/s2/favicons?domain=${meta.domain}&sz=64" },
-                    domain = meta.domain.ifBlank { extractDomain(link.url) }
+                    domain = meta.domain.ifBlank { extractDomain(link.url) },
+                    upvotes = if (meta.upvotes > 0) meta.upvotes else link.upvotes,
+                    numComments = if (meta.numComments > 0) meta.numComments else link.numComments
                 )
                 repository.updateLink(updatedLink)
                 _uiState.update {
@@ -529,7 +537,9 @@ class HomeViewModel @Inject constructor(
                         description = meta.description.ifBlank { link.description },
                         previewImageUrl = meta.previewImageUrl.ifBlank { link.previewImageUrl },
                         faviconUrl = meta.faviconUrl.ifBlank { "https://www.google.com/s2/favicons?domain=${meta.domain}&sz=64" },
-                        domain = meta.domain.ifBlank { extractDomain(link.url) }
+                        domain = meta.domain.ifBlank { extractDomain(link.url) },
+                        upvotes = if (meta.upvotes > 0) meta.upvotes else link.upvotes,
+                        numComments = if (meta.numComments > 0) meta.numComments else link.numComments
                     )
                     if (updatedLink != link) {
                         repository.updateLink(updatedLink)

@@ -61,7 +61,8 @@ data class SettingsUiState(
     val trashBinEnabled: Boolean = true,
     val showQuickFilters: Boolean = true,
     val globalPreventScreenshot: Boolean = false,
-    val exportIncludeLocked: Boolean = false
+    val exportIncludeLocked: Boolean = false,
+    val redditClientId: String = ""
 )
 
 @HiltViewModel
@@ -126,7 +127,8 @@ class SettingsViewModel @Inject constructor(
                         trashBinEnabled = prefs[TRASH_BIN_ENABLED] ?: true,
                         showQuickFilters = prefs[SHOW_QUICK_FILTERS] ?: true,
                         globalPreventScreenshot = prefs[GLOBAL_PREVENT_SCREENSHOT] ?: false,
-                        exportIncludeLocked = prefs[EXPORT_INCLUDE_LOCKED] ?: false
+                        exportIncludeLocked = prefs[EXPORT_INCLUDE_LOCKED] ?: false,
+                        redditClientId = prefs[REDDIT_CLIENT_ID] ?: ""
                     )
                 }
             }
@@ -329,6 +331,13 @@ class SettingsViewModel @Inject constructor(
                 )
             }
             AiModelRegistry.updateModels(context, emptyList(), provider)
+        }
+    }
+
+    fun setRedditClientId(id: String) {
+        viewModelScope.launch {
+            context.dataStore.edit { it[REDDIT_CLIENT_ID] = id.trim() }
+            RedditApiClient.setClientId(id.trim().ifBlank { null })
         }
     }
 

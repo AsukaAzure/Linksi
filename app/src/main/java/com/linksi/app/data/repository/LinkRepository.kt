@@ -215,7 +215,9 @@ class LinkRepository @Inject constructor(
                 description = entity.description,
                 faviconUrl = entity.faviconUrl,
                 previewImageUrl = entity.previewImageUrl,
-                domain = entity.domain
+                domain = entity.domain,
+                upvotes = entity.upvotes,
+                numComments = entity.numComments
             )
         }
     }
@@ -228,7 +230,9 @@ class LinkRepository @Inject constructor(
                 description = meta.description,
                 faviconUrl = meta.faviconUrl,
                 previewImageUrl = meta.previewImageUrl,
-                domain = meta.domain
+                domain = meta.domain,
+                upvotes = meta.upvotes,
+                numComments = meta.numComments
             )
         )
     }
@@ -258,7 +262,9 @@ class LinkRepository @Inject constructor(
         tags = entity.tags.split(",").filter { it.isNotBlank() },
         inBin = entity.inBin,
         deletedAt = entity.deletedAt,
-        preventScreenshot = entity.preventScreenshot
+        preventScreenshot = entity.preventScreenshot,
+        upvotes = entity.upvotes,
+        numComments = entity.numComments
     )
 
     private fun toEntity(link: Link) = LinkEntity(
@@ -280,7 +286,9 @@ class LinkRepository @Inject constructor(
         tags = link.tags.joinToString(","),
         inBin = link.inBin,
         deletedAt = link.deletedAt,
-        preventScreenshot = link.preventScreenshot
+        preventScreenshot = link.preventScreenshot,
+        upvotes = link.upvotes,
+        numComments = link.numComments
     )
 
     private fun toFolder(entity: FolderEntity) = Folder(
