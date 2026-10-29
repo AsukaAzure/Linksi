@@ -81,13 +81,9 @@ class MainActivity : AppCompatActivity() {
                 context.dataStore.data.map { it[APP_THEME] ?: "system" }
             }.collectAsState(initial = "system")
 
-            val useAmoled by remember {
-                context.dataStore.data.map { it[APP_AMOLED] ?: false }
-            }.collectAsState(initial = false)
-
             val useDynamicColor by remember {
-                context.dataStore.data.map { it[APP_DYNAMIC_COLOR] ?: true }
-            }.collectAsState(initial = true)
+                context.dataStore.data.map { it[APP_DYNAMIC_COLOR] ?: false }
+            }.collectAsState(initial = false)
 
             val securityPrefs by remember {
                 context.dataStore.data.map { prefs ->
@@ -158,8 +154,7 @@ class MainActivity : AppCompatActivity() {
 
             LinksTheme(
                 themeMode = themeMode,
-                useDynamicColor = useDynamicColor,
-                useAmoled = useAmoled
+                useDynamicColor = useDynamicColor
             ) {
                 val importProgress by backgroundImportManager.progress.collectAsState()
 

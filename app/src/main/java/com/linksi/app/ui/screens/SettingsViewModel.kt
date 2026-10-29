@@ -49,8 +49,7 @@ data class SettingsUiState(
     val isRefreshingModels: Boolean = false,
     val selectedLanguage: String = "",
     val themeMode: String = "system",
-    val useAmoled: Boolean = false,
-    val useDynamicColor: Boolean = true,
+    val useDynamicColor: Boolean = false,
     val isSecurityEnabled: Boolean = false,
     val isBiometricEnabled: Boolean = false,
     val lockDelay: Long = 0L, // 0 means immediate
@@ -116,8 +115,7 @@ class SettingsViewModel @Inject constructor(
                         apiBaseUrls      = urls,
                         selectedLanguage = prefs[APP_LANGUAGE] ?: "",
                         themeMode        = prefs[APP_THEME] ?: "system",
-                        useAmoled        = prefs[APP_AMOLED] ?: false,
-                        useDynamicColor  = prefs[APP_DYNAMIC_COLOR] ?: true,
+                        useDynamicColor  = prefs[APP_DYNAMIC_COLOR] ?: false,
                         isSecurityEnabled = prefs[SECURITY_LOCK_ENABLED] ?: false,
                         isBiometricEnabled = prefs[SECURITY_BIOMETRIC_ENABLED] ?: false,
                         lockDelay = prefs[SECURITY_LOCK_DELAY] ?: 0L,
@@ -359,13 +357,6 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             context.dataStore.edit { it[APP_THEME] = mode }
             _uiState.update { it.copy(themeMode = mode) }
-        }
-    }
-
-    fun setAmoledEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            context.dataStore.edit { it[APP_AMOLED] = enabled }
-            _uiState.update { it.copy(useAmoled = enabled) }
         }
     }
 

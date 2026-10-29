@@ -47,6 +47,8 @@ import com.linksi.app.ui.components.*
 import com.linksi.app.utils.MetadataFetcher
 import com.linksi.app.utils.PinStorage
 import com.linksi.app.utils.SecurityManager
+import com.linksi.app.utils.APP_DYNAMIC_COLOR
+import com.linksi.app.utils.APP_THEME
 import com.linksi.app.utils.SECURITY_BIOMETRIC_ENABLED
 import com.linksi.app.utils.SECURITY_LOCK_ENABLED
 import com.linksi.app.utils.SECURITY_PIN
@@ -73,7 +75,18 @@ class ShareReceiverActivity : AppCompatActivity() {
         }
 
         setContent {
-            LinksTheme {
+            val context = LocalContext.current
+            val themeMode by remember {
+                context.dataStore.data.map { it[APP_THEME] ?: "system" }
+            }.collectAsState(initial = "system")
+            val useDynamicColor by remember {
+                context.dataStore.data.map { it[APP_DYNAMIC_COLOR] ?: false }
+            }.collectAsState(initial = false)
+
+            LinksTheme(
+                themeMode = themeMode,
+                useDynamicColor = useDynamicColor
+            ) {
                 val context = LocalContext.current
                 val securityPrefs by remember {
                     context.dataStore.data.map { prefs ->

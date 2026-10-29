@@ -134,7 +134,7 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
 
                     SettingsItem(
@@ -175,7 +175,7 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
                     ListItem(
                         headlineContent = { Text(stringResource(id = com.linksi.app.R.string.in_app_browser)) },
@@ -206,7 +206,7 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
                     SettingsItem(
                         icon = Icons.Outlined.Palette,
@@ -226,7 +226,7 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
                     SettingsItem(
                         icon = Icons.Outlined.Language,
@@ -344,7 +344,7 @@ fun SettingsScreen(
 
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
 
                     ListItem(
@@ -510,11 +510,9 @@ fun SettingsScreen(
         BackHandler { showThemeSettings = false }
         ThemeSettingsScreen(
             currentThemeMode = state.themeMode,
-            useAmoled = state.useAmoled,
             useDynamicColor = state.useDynamicColor,
             showQuickFilters = state.showQuickFilters,
             onThemeSelected = { viewModel.setThemeMode(it) },
-            onAmoledToggled = { viewModel.setAmoledEnabled(it) },
             onDynamicColorToggled = { viewModel.setDynamicColorEnabled(it) },
             onQuickFiltersToggled = { viewModel.setShowQuickFilters(it) },
             onBack = { showThemeSettings = false }
@@ -655,7 +653,7 @@ fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
         shape = RoundedCornerShape(20.dp) // Pop-up style rounded corners
     ) {

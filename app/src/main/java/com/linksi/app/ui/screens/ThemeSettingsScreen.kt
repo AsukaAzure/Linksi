@@ -29,11 +29,9 @@ import com.linksi.app.ui.components.IconContainer
 @Composable
 fun ThemeSettingsScreen(
     currentThemeMode: String,
-    useAmoled: Boolean,
     useDynamicColor: Boolean,
     showQuickFilters: Boolean,
     onThemeSelected: (String) -> Unit,
-    onAmoledToggled: (Boolean) -> Unit,
     onDynamicColorToggled: (Boolean) -> Unit,
     onQuickFiltersToggled: (Boolean) -> Unit,
     onBack: () -> Unit
@@ -129,7 +127,7 @@ fun ThemeSettingsScreen(
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
                     ThemeOption(
                         title = stringResource(id = R.string.light),
@@ -139,7 +137,7 @@ fun ThemeSettingsScreen(
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
                     ThemeOption(
                         title = stringResource(id = R.string.dark),
@@ -183,35 +181,9 @@ fun ThemeSettingsScreen(
                         )
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.outlineVariant
                         )
                     }
-
-                    // AMOLED Mode
-                    ListItem(
-                        headlineContent = { 
-                            Text(
-                                stringResource(id = R.string.amoled_mode),
-                                fontWeight = FontWeight.SemiBold
-                            ) 
-                        },
-                        supportingContent = { 
-                            Text(
-                                stringResource(id = R.string.amoled_mode_subtitle),
-                                style = MaterialTheme.typography.labelMedium
-                            ) 
-                        },
-                        leadingContent = { IconContainer(Icons.Outlined.Contrast) },
-                        trailingContent = {
-                            Switch(checked = useAmoled, onCheckedChange = onAmoledToggled)
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
 
                     // Quick Filters Toggle
                     ListItem(
