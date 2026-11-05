@@ -310,12 +310,22 @@ class HomeViewModel @Inject constructor(
                     )
                 }
 
-                // Auto-fetch in background if metadata is missing/incomplete
+                // Auto-fetch in background if metadata is missing/incomplete.
+                // The cache is checked first: saving from the share sheet or a
+                // previous save of the same URL already stored metadata, so
+                // this becomes an instant DB read instead of a second network
+                // round trip for a page we just scraped.
                 if (initialTitle.isBlank() || initialPreviewImage.isBlank()) {
                     viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         try {
-                            val meta = MetadataFetcher.fetch(normalizedUrl, context)
-                            repository.saveMetadataToCache(normalizedUrl, meta)
+                            val cached = repository.getMetadataFromCache(normalizedUrl)?.takeIf {
+                                it.title.isNotBlank() || it.previewImageUrl.isNotBlank()
+                            }
+                            val meta = cached ?: run {
+                                val fetched = MetadataFetcher.fetch(normalizedUrl, context)
+                                repository.saveMetadataToCache(normalizedUrl, fetched)
+                                fetched
+                            }
 
                             val savedLink = repository.getLinkById(insertedId)
                                 ?: repository.getLinkByUrl(normalizedUrl)
@@ -517,46 +527,54 @@ class HomeViewModel @Inject constructor(
         val links = _uiState.value.links
         if (links.isEmpty()) return
 
-        metadataRefreshJob?.cancel()
-        metadataRefreshJob = viewModelScope.launch {
-            _uiState.update { 
-                it.copy(
-                    isRefreshingMetadata = true,
-                    refreshCurrentCount = 0,
-                    refreshTotalCount = links.size
-                )
-            }
-
-            links.forEachIndexed { index, link ->
-                if (kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]?.isActive != true) return@launch
-                _uiState.update { it.copy(refreshCurrentCount = index + 1) }
-                try {
-                    val meta = MetadataFetcher.fetch(link.url, context)
-                    val updatedLink = link.copy(
-                        title = meta.title.ifBlank { link.title },
-                        description = meta.description.ifBlank { link.description },
-                        previewImageUrl = meta.previewImageUrl.ifBlank { link.previewImageUrl },
-                        faviconUrl = meta.faviconUrl.ifBlank { "https://www.google.com/s2/favicons?domain=${meta.domain}&sz=64" },
-                        domain = meta.domain.ifBlank { extractDomain(link.url) },
-                        upvotes = if (meta.upvotes > 0) meta.upvotes else link.upvotes,
-                        numComments = if (meta.numComments > 0) meta.numComments else link.numComments
+            metadataRefreshJob?.cancel()
+            metadataRefreshJob = viewModelScope.launch {
+                _uiState.update {
+                    it.copy(
+                        isRefreshingMetadata = true,
+                        refreshCurrentCount = 0,
+                        refreshTotalCount = links.size
                     )
-                    if (updatedLink != link) {
-                        repository.updateLink(updatedLink)
-                    }
-                } catch (e: Exception) {
-                    // Ignore failures for individual links
                 }
-            }
 
-            _uiState.update {
-                it.copy(
-                    isRefreshingMetadata = false,
-                    refreshCurrentCount = 0,
-                    refreshTotalCount = 0,
-                    snackbarMessage = context.getString(R.string.metadata_refreshed)
-                )
-            }
+                // fetchAll runs several domains in parallel while keeping
+                // same-domain requests serialized — a plain loop used to do
+                // every link one at a time, so a diverse library took minutes.
+                val byUrl = links.associateBy { it.url }
+                try {
+                    MetadataFetcher.fetchAll(
+                        urls = links.map { it.url }.distinct(),
+                        context = context,
+                        concurrency = 6,
+                        onItemComplete = { url, meta ->
+                            val link = byUrl[url] ?: return@fetchAll
+                            val updatedLink = link.copy(
+                                title = meta.title.ifBlank { link.title },
+                                description = meta.description.ifBlank { link.description },
+                                previewImageUrl = meta.previewImageUrl.ifBlank { link.previewImageUrl },
+                                faviconUrl = meta.faviconUrl.ifBlank { "https://www.google.com/s2/favicons?domain=${meta.domain}&sz=64" },
+                                domain = meta.domain.ifBlank { extractDomain(link.url) },
+                                upvotes = if (meta.upvotes > 0) meta.upvotes else link.upvotes,
+                                numComments = if (meta.numComments > 0) meta.numComments else link.numComments
+                            )
+                            if (updatedLink != link) {
+                                viewModelScope.launch { repository.updateLink(updatedLink) }
+                            }
+                            _uiState.update { it.copy(refreshCurrentCount = it.refreshCurrentCount + 1) }
+                        }
+                    )
+                } catch (e: Exception) {
+                    // A single hard failure shouldn't block the "done" state below
+                }
+
+                _uiState.update {
+                    it.copy(
+                        isRefreshingMetadata = false,
+                        refreshCurrentCount = 0,
+                        refreshTotalCount = 0,
+                        snackbarMessage = context.getString(R.string.metadata_refreshed)
+                    )
+                }
         }
     }
 

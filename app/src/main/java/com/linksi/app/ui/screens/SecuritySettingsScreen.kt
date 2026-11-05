@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -24,7 +23,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linksi.app.R
 import com.linksi.app.ui.components.ExpressiveSettingsCard
-import com.linksi.app.ui.components.IconContainer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +61,7 @@ fun SecuritySettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Expressive Header
+            // Header
             item {
                 Column(
                     modifier = Modifier
@@ -71,28 +69,6 @@ fun SecuritySettingsScreen(
                         .padding(vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(32.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Outlined.VerifiedUser,
-                            null,
-                            modifier = Modifier.size(52.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                    Spacer(Modifier.height(20.dp))
                     Text(
                         stringResource(R.string.security),
                         style = MaterialTheme.typography.headlineLarge,
@@ -125,9 +101,7 @@ fun SecuritySettingsScreen(
                                 style = MaterialTheme.typography.labelMedium
                             )
                         },
-                        leadingContent = {
-                            IconContainer(Icons.Outlined.Security)
-                        },
+                        leadingContent = null,
                         trailingContent = {
                             Switch(
                                 checked = state.universalLock,
@@ -155,9 +129,7 @@ fun SecuritySettingsScreen(
                                 style = MaterialTheme.typography.labelMedium
                             )
                         },
-                        leadingContent = {
-                            IconContainer(Icons.Outlined.NoPhotography)
-                        },
+                        leadingContent = null,
                         trailingContent = {
                             Switch(
                                 checked = state.globalPreventScreenshot,
@@ -194,12 +166,7 @@ fun SecuritySettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (state.universalLock) 1f else 0.38f)
                             )
                         },
-                        leadingContent = {
-                            IconContainer(
-                                icon = Icons.Outlined.Lock,
-                                enabled = state.universalLock
-                            )
-                        },
+                        leadingContent = null,
                         trailingContent = {
                             Switch(
                                 checked = state.isSecurityEnabled,
@@ -234,12 +201,7 @@ fun SecuritySettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (state.universalLock && state.isSecurityEnabled) 1f else 0.38f)
                             )
                         },
-                        leadingContent = {
-                            IconContainer(
-                                icon = Icons.Outlined.Fingerprint,
-                                enabled = state.universalLock && state.isSecurityEnabled
-                            )
-                        },
+                        leadingContent = null,
                         trailingContent = {
                             Switch(
                                 checked = state.isBiometricEnabled,
@@ -265,12 +227,7 @@ fun SecuritySettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (state.universalLock && state.isSecurityEnabled) 1f else 0.38f)
                             )
                         },
-                        leadingContent = {
-                            IconContainer(
-                                icon = Icons.Outlined.Password,
-                                enabled = state.universalLock && state.isSecurityEnabled
-                            )
-                        },
+                        leadingContent = null,
                         trailingContent = {
                             Icon(
                                 Icons.Outlined.ChevronRight, null,
@@ -310,12 +267,7 @@ fun SecuritySettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (state.universalLock && state.isSecurityEnabled) 1f else 0.38f)
                             )
                         },
-                        leadingContent = {
-                            IconContainer(
-                                icon = Icons.Outlined.Timer,
-                                enabled = state.universalLock && state.isSecurityEnabled
-                            )
-                        },
+                        leadingContent = null,
                         trailingContent = {
                             Icon(
                                 Icons.Outlined.ChevronRight, null,
@@ -351,16 +303,10 @@ fun SecuritySettingsScreen(
                 ExpressiveSettingsCard {
                     if (state.folders.isEmpty()) {
                         ListItem(
-                            headlineContent = { 
+                            headlineContent = {
                                 Text(
                                     stringResource(R.string.no_folders_created),
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (state.universalLock && state.folderLockEnabled) 1f else 0.38f)
-                                ) 
-                            },
-                            leadingContent = { 
-                                IconContainer(
-                                    icon = Icons.Outlined.Folder,
-                                    enabled = state.universalLock && state.folderLockEnabled
                                 )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -376,10 +322,10 @@ fun SecuritySettingsScreen(
                                     ) 
                                 },
                                 leadingContent = {
-                                    IconContainer(
-                                        icon = Icons.Outlined.Folder,
-                                        color = try { Color(android.graphics.Color.parseColor(folder.color)) } catch(e:Exception) { MaterialTheme.colorScheme.primary },
-                                        enabled = state.universalLock && state.folderLockEnabled
+                                    Icon(
+                                        Icons.Outlined.Folder,
+                                        null,
+                                        tint = try { Color(android.graphics.Color.parseColor(folder.color)) } catch(e:Exception) { MaterialTheme.colorScheme.onSurface }
                                     )
                                 },
                                 trailingContent = {

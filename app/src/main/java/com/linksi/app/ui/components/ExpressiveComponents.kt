@@ -30,28 +30,3 @@ fun ExpressiveSettingsCard(
         )
     }
 }
-
-@Composable
-fun IconContainer(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    color: Color = MaterialTheme.colorScheme.primary,
-    enabled: Boolean = true
-) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (enabled) color.copy(alpha = 0.12f)
-                else color.copy(alpha = 0.05f)
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            icon,
-            null,
-            modifier = Modifier.size(20.dp),
-            tint = if (enabled) color else color.copy(alpha = 0.38f)
-        )
-    }
-}

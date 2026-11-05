@@ -173,6 +173,7 @@ class BackgroundImportManager @Inject constructor(
                         urls = insertedLinks.map { it.second },
                         context = context,
                         concurrency = 8,
+                        cacheLookup = { url -> repository.getMetadataFromCache(url) },
                         onItemComplete = { url, meta ->
                             scope.launch(Dispatchers.IO) {
                                 val entry = insertedLinks.find { it.second == url } ?: return@launch

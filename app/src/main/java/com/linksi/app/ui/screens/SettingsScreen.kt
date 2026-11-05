@@ -188,14 +188,6 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.bodySmall
                             )
                         },
-                        leadingContent = {
-                            Icon(
-                                if (state.useInAppBrowser) Icons.Outlined.OpenInBrowser
-                                else Icons.Outlined.Launch,
-                                null,
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        },
                         trailingContent = {
                             Switch(
                                 checked = state.useInAppBrowser,
@@ -300,12 +292,7 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.bodySmall
                             )
                         },
-                        leadingContent = {
-                            Icon(
-                                Icons.Outlined.Info, null,
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        },
+                        leadingContent = null,
                         trailingContent = {
                             when {
                                 state.isCheckingUpdate -> {
@@ -362,14 +349,6 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.error
                                 )
                             }
-                        },
-                        leadingContent = {
-                            Icon(
-                                if (state.updateAvailable) Icons.Outlined.Download
-                                else Icons.Outlined.Refresh,
-                                null,
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
                         },
                         modifier = Modifier.clickable {
                             if (state.updateAvailable) {
@@ -672,9 +651,6 @@ fun SettingsItem(
     ListItem(
         headlineContent = { Text(title) },
         supportingContent = { Text(subtitle, style = MaterialTheme.typography.bodySmall) },
-        leadingContent = {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.onSurface)
-        },
         trailingContent = trailingContent,
         modifier = androidx.compose.ui.Modifier.clickable(onClick = onClick),
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)

@@ -234,21 +234,10 @@ fun LinkCard(
                         verticalAlignment = Alignment.Top
                     ) {
                         // Favicon
-                        AsyncImage(
-                            model = coil.request.ImageRequest.Builder(LocalContext.current)
-                                .data(link.faviconUrl)
-                                .diskCacheKey(link.faviconUrl)        // cache by URL
-                                .memoryCacheKey(link.faviconUrl)
-                                .diskCachePolicy(CachePolicy.ENABLED)
-                                .memoryCachePolicy(CachePolicy.ENABLED)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentScale = ContentScale.Crop
+                        FaviconImage(
+                            domain = link.domain,
+                            faviconUrl = link.faviconUrl,
+                            modifier = Modifier.size(36.dp)
                         )
 
                         Spacer(Modifier.width(10.dp))
@@ -614,12 +603,10 @@ fun LinkGridCard(
                                 .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
-                            AsyncImage(
-                                model = link.faviconUrl,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
+                            FaviconImage(
+                                domain = link.domain,
+                                faviconUrl = link.faviconUrl,
+                                modifier = Modifier.size(32.dp)
                             )
                         }
                     }
@@ -631,12 +618,10 @@ fun LinkGridCard(
                             .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
-                        AsyncImage(
-                            model = link.faviconUrl,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
+                        FaviconImage(
+                            domain = link.domain,
+                            faviconUrl = link.faviconUrl,
+                            modifier = Modifier.size(32.dp)
                         )
                     }
                 }
@@ -940,12 +925,10 @@ fun LinkOptionsSheet(
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            AsyncImage(
-                                model = link.faviconUrl,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
+                            FaviconImage(
+                                domain = link.domain,
+                                faviconUrl = link.faviconUrl,
+                                modifier = Modifier.size(48.dp)
                             )
                         }
                     }
@@ -995,12 +978,11 @@ fun LinkOptionsSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            AsyncImage(
-                                model = link.faviconUrl,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(12.dp)
-                                    .clip(CircleShape)
+                            FaviconImage(
+                                domain = link.domain,
+                                faviconUrl = link.faviconUrl,
+                                modifier = Modifier.size(12.dp),
+                                letterStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp)
                             )
                             Text(
                                 link.domain.ifBlank { stringResource(R.string.link_placeholder) },
@@ -2440,6 +2422,60 @@ private fun formatTimeLeft(timestamp: Long, context: android.content.Context): S
         diff < 86_400_000 -> context.getString(R.string.h_left, diff / 3_600_000)
         diff < 604_800_000 -> context.getString(R.string.d_left, diff / 86_400_000)
         else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
+    }
+}
+
+/**
+ * Site favicon with a fallback chain: the stored favicon URL (Google's s2
+ * service) → DuckDuckGo's icon service → the domain's first letter on a
+ * domain-colored circle. Sites with no favicon used to render as an empty
+ * circle that blended into the card.
+ */
+@Composable
+fun FaviconImage(
+    domain: String,
+    faviconUrl: String?,
+    modifier: Modifier = Modifier,
+    letterStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.labelLarge
+) {
+    var step by remember(domain, faviconUrl) {
+        mutableStateOf(if (faviconUrl.isNullOrBlank()) 1 else 0)
+    }
+    val clipped = modifier.clip(CircleShape)
+
+    when (step) {
+        0 -> AsyncImage(
+            model = coil.request.ImageRequest.Builder(LocalContext.current)
+                .data(faviconUrl)
+                .diskCacheKey(faviconUrl)
+                .memoryCacheKey(faviconUrl)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .crossfade(true)
+                .build(),
+            contentDescription = null,
+            modifier = clipped,
+            contentScale = ContentScale.Crop,
+            onError = { step = 1 }
+        )
+        1 -> AsyncImage(
+            model = "https://icons.duckduckgo.com/ip3/$domain.ico",
+            contentDescription = null,
+            modifier = clipped,
+            contentScale = ContentScale.Crop,
+            onError = { step = 2 }
+        )
+        else -> Box(
+            clipped.background(domainColor(domain)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = domain.trim().take(1).uppercase().ifBlank { "?" },
+                style = letterStyle,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
     }
 }
 

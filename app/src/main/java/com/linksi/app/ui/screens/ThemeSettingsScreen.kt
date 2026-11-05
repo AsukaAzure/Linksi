@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -23,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.linksi.app.R
 import com.linksi.app.ui.components.ExpressiveSettingsCard
-import com.linksi.app.ui.components.IconContainer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +61,7 @@ fun ThemeSettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Expressive Header
+            // Header
             item {
                 Column(
                     modifier = Modifier
@@ -71,28 +69,6 @@ fun ThemeSettingsScreen(
                         .padding(vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(32.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Outlined.Palette,
-                            null,
-                            modifier = Modifier.size(52.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                    Spacer(Modifier.height(20.dp))
                     Text(
                         stringResource(id = R.string.theme),
                         style = MaterialTheme.typography.headlineLarge,
@@ -122,7 +98,6 @@ fun ThemeSettingsScreen(
                     ThemeOption(
                         title = stringResource(id = R.string.system),
                         selected = currentThemeMode == "system",
-                        icon = Icons.Outlined.SettingsBrightness,
                         onClick = { onThemeSelected("system") }
                     )
                     HorizontalDivider(
@@ -132,7 +107,6 @@ fun ThemeSettingsScreen(
                     ThemeOption(
                         title = stringResource(id = R.string.light),
                         selected = currentThemeMode == "light",
-                        icon = Icons.Outlined.LightMode,
                         onClick = { onThemeSelected("light") }
                     )
                     HorizontalDivider(
@@ -142,7 +116,6 @@ fun ThemeSettingsScreen(
                     ThemeOption(
                         title = stringResource(id = R.string.dark),
                         selected = currentThemeMode == "dark",
-                        icon = Icons.Outlined.DarkMode,
                         onClick = { onThemeSelected("dark") }
                     )
                 }
@@ -161,19 +134,18 @@ fun ThemeSettingsScreen(
                     // Dynamic Color (Android 12+)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         ListItem(
-                            headlineContent = { 
+                            headlineContent = {
                                 Text(
                                     stringResource(id = R.string.dynamic_color),
                                     fontWeight = FontWeight.SemiBold
-                                ) 
+                                )
                             },
-                            supportingContent = { 
+                            supportingContent = {
                                 Text(
                                     stringResource(id = R.string.dynamic_color_subtitle),
                                     style = MaterialTheme.typography.labelMedium
-                                ) 
+                                )
                             },
-                            leadingContent = { IconContainer(Icons.Outlined.AutoAwesome) },
                             trailingContent = {
                                 Switch(checked = useDynamicColor, onCheckedChange = onDynamicColorToggled)
                             },
@@ -199,7 +171,6 @@ fun ThemeSettingsScreen(
                                 style = MaterialTheme.typography.labelMedium
                             )
                         },
-                        leadingContent = { IconContainer(Icons.Outlined.FilterList) },
                         trailingContent = {
                             Switch(checked = showQuickFilters, onCheckedChange = onQuickFiltersToggled)
                         },
@@ -215,21 +186,14 @@ fun ThemeSettingsScreen(
 private fun ThemeOption(
     title: String,
     selected: Boolean,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
     ListItem(
-        headlineContent = { 
+        headlineContent = {
             Text(
                 title,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-            ) 
-        },
-        leadingContent = {
-            IconContainer(
-                icon = icon,
-                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
         },
         trailingContent = {

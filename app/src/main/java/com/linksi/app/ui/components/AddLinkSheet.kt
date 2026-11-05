@@ -150,7 +150,7 @@ fun AddLinkSheet(
         }
 
         if (com.linksi.app.utils.isValidUrl(trimmedUrl) && trimmedUrl != lastFetchedUrl) {
-            kotlinx.coroutines.delay(800) // Debounce: wait for user to stop typing
+            kotlinx.coroutines.delay(400) // Debounce: wait for the user to pause typing
             
             isFetchingPreview = true
             try {

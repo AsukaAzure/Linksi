@@ -107,7 +107,6 @@ fun TrashBinScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(text = "🗑️", fontSize = 64.sp)
                         Text(
                             text = stringResource(R.string.no_links_in_bin),
                             style = MaterialTheme.typography.titleLarge,
@@ -180,13 +179,13 @@ fun TrashLinkCard(
                 Surface(
                     modifier = Modifier.size(40.dp),
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = link.domain.take(1).uppercase(),
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -213,15 +212,24 @@ fun TrashLinkCard(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onRestore) {
+                Button(
+                    onClick = onRestore,
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
                     Icon(Icons.Outlined.Restore, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(stringResource(R.string.restore))
                 }
                 Spacer(Modifier.width(8.dp))
-                TextButton(
+                Button(
                     onClick = onDelete,
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
                 ) {
                     Icon(Icons.Outlined.DeleteForever, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))

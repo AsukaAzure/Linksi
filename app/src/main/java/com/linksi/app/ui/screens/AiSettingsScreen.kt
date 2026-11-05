@@ -12,7 +12,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -22,9 +21,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import com.linksi.app.R
-import com.linksi.app.domain.model.AiProvider
 import com.linksi.app.ui.components.ExpressiveSettingsCard
-import com.linksi.app.ui.components.IconContainer
+import com.linksi.app.domain.model.AiProvider
 
 // Display names per provider — single source for the AI settings UI.
 internal val AiProvider.displayName: String
@@ -74,7 +72,7 @@ fun AiSettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Expressive Header
+            // Header
             item {
                 Column(
                     modifier = Modifier
@@ -82,28 +80,6 @@ fun AiSettingsScreen(
                         .padding(vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(32.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Outlined.AutoAwesome,
-                            null,
-                            modifier = Modifier.size(52.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                    Spacer(Modifier.height(20.dp))
                     Text(
                         stringResource(R.string.ai_organizer),
                         style = MaterialTheme.typography.headlineLarge,
@@ -135,9 +111,6 @@ fun AiSettingsScreen(
                                 stringResource(R.string.ai_organizer_subtitle),
                                 style = MaterialTheme.typography.labelMedium
                             )
-                        },
-                        leadingContent = {
-                            IconContainer(Icons.Outlined.AutoAwesome)
                         },
                         trailingContent = {
                             Switch(
@@ -185,12 +158,6 @@ fun AiSettingsScreen(
                                 )
                             }
                         },
-                        leadingContent = {
-                            IconContainer(
-                                icon = Icons.Outlined.SmartToy,
-                                enabled = state.aiEnabled
-                            )
-                        },
                         trailingContent = {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -234,47 +201,43 @@ fun AiSettingsScreen(
             // API keys section
             item { AiSectionLabel(stringResource(R.string.ai_section_api_keys)) }
             item {
-                ExpressiveSettingsCard {
-                    var selectedApiKeyProvider by remember { mutableStateOf<AiProvider?>(null) }
+                var selectedApiKeyProvider by remember { mutableStateOf<AiProvider?>(null) }
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        AiProvider.entries.chunked(2).forEach { rowProviders ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                rowProviders.forEach { provider ->
-                                    val hasKey = !state.apiKeys[provider].isNullOrBlank()
-                                    val modelCount = state.availableModels.count { it.provider == provider }
-                                    ProviderTile(
-                                        providerName = provider.displayName,
-                                        hasKey = hasKey,
-                                        modelCount = modelCount,
-                                        enabled = state.aiEnabled,
-                                        modifier = Modifier.weight(1f),
-                                        onClick = { selectedApiKeyProvider = provider }
-                                    )
-                                }
-                                if (rowProviders.size == 1) Spacer(Modifier.weight(1f))
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AiProvider.entries.chunked(2).forEach { rowProviders ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowProviders.forEach { provider ->
+                                val hasKey = !state.apiKeys[provider].isNullOrBlank()
+                                val modelCount = state.availableModels.count { it.provider == provider }
+                                ProviderTile(
+                                    providerName = provider.displayName,
+                                    hasKey = hasKey,
+                                    modelCount = modelCount,
+                                    enabled = state.aiEnabled,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { selectedApiKeyProvider = provider }
+                                )
                             }
+                            if (rowProviders.size == 1) Spacer(Modifier.weight(1f))
                         }
                     }
+                }
 
-                    selectedApiKeyProvider?.let { provider ->
-                        ApiKeySheet(
-                            provider = provider,
-                            currentKey = state.apiKeys[provider] ?: "",
-                            currentUrl = state.apiBaseUrls[provider] ?: "",
-                            onSave = { key, url -> viewModel.setApiCredentials(provider, key, url) },
-                            onClear = { viewModel.clearApiKey(provider) },
-                            onDismiss = { selectedApiKeyProvider = null }
-                        )
-                    }
+                selectedApiKeyProvider?.let { provider ->
+                    ApiKeySheet(
+                        provider = provider,
+                        currentKey = state.apiKeys[provider] ?: "",
+                        currentUrl = state.apiBaseUrls[provider] ?: "",
+                        onSave = { key, url -> viewModel.setApiCredentials(provider, key, url) },
+                        onClear = { viewModel.clearApiKey(provider) },
+                        onDismiss = { selectedApiKeyProvider = null }
+                    )
                 }
             }
 
@@ -294,12 +257,6 @@ fun AiSettingsScreen(
                                 Text(
                                     stringResource(R.string.organize_now),
                                     style = MaterialTheme.typography.labelMedium
-                                )
-                            },
-                            leadingContent = {
-                                IconContainer(
-                                    icon = Icons.Outlined.AutoFixHigh,
-                                    color = MaterialTheme.colorScheme.primary
                                 )
                             },
                             trailingContent = {

@@ -41,7 +41,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import com.linksi.app.R
 import com.linksi.app.domain.model.*
 import com.linksi.app.ui.components.ExpressiveSettingsCard
-import com.linksi.app.ui.components.IconContainer
 import com.linksi.app.ui.components.iconFromName
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -179,7 +178,7 @@ fun AiOrganizerIdle(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Expressive Header
+            // Header
             item {
                 Column(
                     modifier = Modifier
@@ -187,23 +186,6 @@ fun AiOrganizerIdle(
                         .padding(vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(32.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AiHeroArt(Modifier.size(64.dp))
-                    }
-                    Spacer(Modifier.height(20.dp))
                     Text(
                         stringResource(R.string.ai_link_organizer),
                         style = MaterialTheme.typography.headlineLarge,
@@ -237,9 +219,7 @@ fun AiOrganizerIdle(
                                 style = MaterialTheme.typography.labelMedium
                             )
                         },
-                        leadingContent = {
-                            IconContainer(Icons.Outlined.SmartToy)
-                        },
+                        leadingContent = null,
                         trailingContent = {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
@@ -305,21 +285,15 @@ fun AiOrganizerIdle(
                     )
 
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            IconContainer(Icons.Outlined.Layers)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(stringResource(R.string.links_per_batch),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    stringResource(R.string.batch_size_desc),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        Column {
+                            Text(stringResource(R.string.links_per_batch),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold)
+                            Text(
+                                stringResource(R.string.batch_size_desc),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
 
                         Spacer(Modifier.height(16.dp))
@@ -407,9 +381,6 @@ fun AiOrganizerIdle(
                                         style = MaterialTheme.typography.labelMedium
                                     )
                                 },
-                                leadingContent = {
-                                    IconContainer(Icons.Outlined.History, color = MaterialTheme.colorScheme.secondary)
-                                },
                                 trailingContent = {
                                     TextButton(onClick = onRevert) {
                                         Text(stringResource(R.string.revert))
@@ -469,14 +440,11 @@ fun AiScopeSelector(
 ) {
     AlertDialog(
         onDismissRequest = onCancel,
-        icon = { 
-            IconContainer(Icons.Outlined.FilterList, color = MaterialTheme.colorScheme.primary)
-        },
-        title = { 
+        title = {
             Text(
                 stringResource(R.string.what_to_organize),
                 fontWeight = FontWeight.Bold
-            ) 
+            )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -541,10 +509,10 @@ fun ScopeOption(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            IconContainer(
-                icon = icon,
-                enabled = isSelected,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            Icon(
+                icon, null,
+                modifier = Modifier.size(22.dp),
+                tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -745,7 +713,10 @@ fun AiPreviewScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconContainer(Icons.Outlined.CreateNewFolder)
+                            Icon(
+                                Icons.Outlined.CreateNewFolder, null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                             Column {
                                 Text(
                                     stringResource(R.string.new_folders_created),
@@ -821,9 +792,9 @@ fun FolderPreviewGroup(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                IconContainer(
-                    icon = iconFromName(icon),
-                    color = folderColor
+                Icon(
+                    iconFromName(icon), null,
+                    tint = folderColor
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(

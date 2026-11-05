@@ -262,6 +262,9 @@ object MetadataFetcher {
      *   or Instagram URLs) fires up to `concurrency` simultaneous requests
      *   at one platform, which is exactly what gets them throttled. One
      *   domain waiting never blocks the others.
+     * - `cacheLookup` is consulted before any network work — a URL whose
+     *   metadata was fetched before (previous import, earlier save) is
+     *   served instantly instead of re-hitting the site.
      * - One failing link never affects the others.
      * - `onItemComplete` lets you update the UI incrementally instead of
      *   blocking on the whole batch before showing anything.
@@ -273,6 +276,7 @@ object MetadataFetcher {
         urls: List<String>,
         context: Context? = null,
         concurrency: Int = 6,
+        cacheLookup: (suspend (String) -> LinkMetadata?)? = null,
         onItemComplete: ((url: String, metadata: LinkMetadata) -> Unit)? = null
     ): List<LinkMetadata> = withContext(Dispatchers.IO) {
         val global = Semaphore(concurrency)
@@ -281,6 +285,14 @@ object MetadataFetcher {
         urls.map { url ->
             async {
                 global.withPermit {
+                    val cached = cacheLookup?.invoke(url)?.takeIf {
+                        it.title.isNotBlank() || it.previewImageUrl.isNotBlank()
+                    }
+                    if (cached != null) {
+                        onItemComplete?.invoke(url, cached)
+                        return@async cached
+                    }
+
                     val domain = extractDomain(url)
                     domainLocks.computeIfAbsent(domain) { Mutex() }.withLock {
                         val metadata = fetch(url, context)
